@@ -1,4 +1,4 @@
-// Copyright 2017 Open Source Robotics Foundation, Inc.
+// Copyright 2020 Open Source Robotics Foundation, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,23 +26,35 @@ TestController::TestController()
 : controller_interface::ControllerInterface()
 {}
 
-controller_interface::controller_interface_ret_t
+controller_interface::return_type
 TestController::update()
 {
   ++internal_counter;
-  return controller_interface::CONTROLLER_INTERFACE_RET_SUCCESS;
+  return controller_interface::return_type::SUCCESS;
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-TestController::on_configure(const rclcpp_lifecycle::State & previous_state)
+TestController::on_configure(const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  (void) previous_state;
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+TestController::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  if (simulate_cleanup_failure) {
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+  }
+
+  if (cleanup_calls) {
+    (*cleanup_calls)++;
+  }
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 }  // namespace test_controller
 
-#include "class_loader/register_macro.hpp"
+#include "pluginlib/class_list_macros.hpp"
 
-CLASS_LOADER_REGISTER_CLASS(
-  test_controller::TestController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(test_controller::TestController, controller_interface::ControllerInterface)
