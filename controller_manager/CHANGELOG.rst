@@ -2,6 +2,9 @@
 Changelog for package controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.1.5 (2021-02-04)
+------------------
+
 0.1.4 (2021-02-03)
 ------------------
 * fix float conversion warning (`#312 <https://github.com/ros-controls/ros2_control/issues/312>`_)
