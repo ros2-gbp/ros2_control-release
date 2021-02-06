@@ -2,6 +2,12 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.1.6 (2021-02-05)
+------------------
+
+0.1.5 (2021-02-04)
+------------------
+
 0.1.4 (2021-02-03)
 ------------------
 * Print error messages if ros2controlcli commands fail (`#309 <https://github.com/ros-controls/ros2_control/issues/309>`_)
