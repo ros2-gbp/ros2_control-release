@@ -175,7 +175,7 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_contr
       RCLCPP_ERROR(get_logger(), "%s", c.c_str());
     }
     RCLCPP_ERROR(get_logger(), "%s", error_msg.c_str());
-    throw std::runtime_error(error_msg);
+    return nullptr;
   }
 
   auto controller = loader_->createSharedInstance(controller_type);
@@ -343,7 +343,12 @@ controller_interface::return_type ControllerManager::switch_controller(
       "The internal stop and start request lists are not empty at the beginning of the "
       "switchController() call. This should not happen.");
   }
-
+  if (!stop_command_interface_request_.empty() || !start_command_interface_request_.empty()) {
+    RCLCPP_FATAL(
+      get_logger(),
+      "The internal stop and start requests command interface lists are not empty at the "
+      "switch_controller() call. This should not happen.");
+  }
   if (strictness == 0) {
     RCLCPP_WARN(
       get_logger(), "Controller Manager: to switch controllers you need to specify a "
@@ -381,7 +386,7 @@ controller_interface::return_type ControllerManager::switch_controller(
           if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT) {
             RCLCPP_ERROR(
               get_logger(),
-              R"(Could not '%s' controller with name '%s' because 
+              R"(Could not '%s' controller with name '%s' because
                 no controller with this name exists)",
               action.c_str(),
               controller.c_str());
@@ -423,6 +428,28 @@ controller_interface::return_type ControllerManager::switch_controller(
     return ret;
   }
 
+  const auto list_interfaces = [this](const ControllerSpec controller,
+      std::vector<std::string> & request_interface_list)
+    {
+      auto command_interface_config = controller.c->command_interface_configuration();
+      std::vector<std::string> command_interface_names = {};
+      if (command_interface_config.type ==
+        controller_interface::interface_configuration_type::ALL)
+      {
+        command_interface_names = resource_manager_->command_interface_keys();
+      }
+      if (command_interface_config.type ==
+        controller_interface::interface_configuration_type::INDIVIDUAL)
+      {
+        command_interface_names = command_interface_config.names;
+      }
+      request_interface_list.insert(
+        request_interface_list.end(),
+        command_interface_names.begin(),
+        command_interface_names.end()
+      );
+    };
+
   // lock controllers
   std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
 
@@ -443,17 +470,17 @@ controller_interface::return_type ControllerManager::switch_controller(
     auto handle_conflict = [&](const std::string & msg)
       {
         if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT) {
-          RCLCPP_ERROR_STREAM(
-            get_logger(),
-            msg);
+          RCLCPP_ERROR(get_logger(), "%s", msg.c_str());
           stop_request_.clear();
+          stop_command_interface_request_.clear();
           start_request_.clear();
+          start_command_interface_request_.clear();
           return controller_interface::return_type::ERROR;
         }
-        RCLCPP_DEBUG_STREAM(
+        RCLCPP_DEBUG(
           get_logger(),
-          "Could not stop controller '" << controller.info.name <<
-            "' since it is not running");
+          "Could not stop controller '%s' since it is not running",
+          controller.info.name.c_str());
         return controller_interface::return_type::OK;
       };
     if (!is_running && in_stop_list) {      // check for double stop
@@ -477,13 +504,37 @@ controller_interface::return_type ControllerManager::switch_controller(
       in_start_list = false;
       start_request_.erase(start_list_it);
     }
+
+    if (in_start_list) {
+      list_interfaces(controller, start_command_interface_request_);
+    }
+    if (in_stop_list) {
+      list_interfaces(controller, stop_command_interface_request_);
+    }
   }
 
   if (start_request_.empty() && stop_request_.empty()) {
     RCLCPP_INFO(get_logger(), "Empty start and stop list, not requesting switch");
+    start_command_interface_request_.clear();
+    stop_command_interface_request_.clear();
     return controller_interface::return_type::OK;
   }
 
+  if (!start_command_interface_request_.empty() || !stop_command_interface_request_.empty()) {
+    if (!resource_manager_->prepare_command_mode_switch(
+        start_command_interface_request_,
+        stop_command_interface_request_))
+    {
+      RCLCPP_ERROR(
+        get_logger(),
+        "Could not switch controllers since prepare command mode switch was rejected.");
+      start_request_.clear();
+      stop_request_.clear();
+      start_command_interface_request_.clear();
+      stop_command_interface_request_.clear();
+      return controller_interface::return_type::ERROR;
+    }
+  }
   // start the atomic controller switching
   switch_params_.strictness = strictness;
   switch_params_.start_asap = start_asap;
@@ -502,6 +553,8 @@ controller_interface::return_type ControllerManager::switch_controller(
   start_request_.clear();
   stop_request_.clear();
 
+  start_command_interface_request_.clear();
+  stop_command_interface_request_.clear();
   RCLCPP_DEBUG(get_logger(), "Successfully switched controllers");
   return controller_interface::return_type::OK;
 }
@@ -532,7 +585,14 @@ ControllerManager::add_controller_impl(
     return nullptr;
   }
 
-  controller.c->init(controller.info.name);
+  if (controller.c->init(controller.info.name) == controller_interface::return_type::ERROR) {
+    to.clear();
+    RCLCPP_ERROR(
+      get_logger(),
+      "Could not initialize the controller named '%s'",
+      controller.info.name.c_str());
+    return nullptr;
+  }
   executor_->add_node(controller.c->get_node());
   to.emplace_back(controller);
 
@@ -550,6 +610,16 @@ ControllerManager::add_controller_impl(
 
 void ControllerManager::manage_switch()
 {
+  // Ask hardware interfaces to change mode
+  if (!resource_manager_->perform_command_mode_switch(
+      start_command_interface_request_,
+      stop_command_interface_request_))
+  {
+    RCLCPP_ERROR(
+      get_logger(),
+      "Error while performing mode switch.");
+  }
+
   stop_controllers();
 
   // start controllers once the switch is fully complete
@@ -738,7 +808,7 @@ void ControllerManager::list_controller_types_srv_cb(
   for (const auto & cur_type : cur_types) {
     response->types.push_back(cur_type);
     response->base_classes.push_back(kControllerInterface);
-    RCLCPP_DEBUG(get_logger(), cur_type);
+    RCLCPP_DEBUG(get_logger(), "%s", cur_type.c_str());
   }
 
   RCLCPP_DEBUG(get_logger(), "list types service finished");
