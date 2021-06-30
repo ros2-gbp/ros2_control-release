@@ -14,10 +14,12 @@
 
 from ros2cli.node.direct import add_arguments
 from ros2cli.verb import VerbExtension
-from ros2controlcli.api import add_controller_mgr_parsers, ControllerNameCompleter, \
-    load_configure_controller
 
-import sys
+from ros2controlcli.api import (
+    add_controller_mgr_parsers,
+    ControllerNameCompleter,
+    load_configure_controller,
+)
 
 
 class LoadConfigureControllerVerb(VerbExtension):
@@ -25,14 +27,15 @@ class LoadConfigureControllerVerb(VerbExtension):
 
     def add_arguments(self, parser, cli_name):
         add_arguments(parser)
-        arg = parser.add_argument(
-            'controller_name', help='Name of the controller')
+        arg = parser.add_argument('controller_name', help='Name of the controller')
         arg.completer = ControllerNameCompleter()
         add_controller_mgr_parsers(parser)
 
     def main(self, *, args):
+        print("deprecated warning: Please use 'load_controller --set_state configure'")
         response = load_configure_controller(args.controller_manager, args.controller_name)
         if not response.ok:
-            print('Error loading and configuring controller, check '
-                  'controller_manager logs', file=sys.stderr)
-        return not response.ok
+            return 'Error loading and configuring controller, check controller_manager logs'
+
+        print(f'Successfully loaded and configured controller {args.controller_name}')
+        return 0
