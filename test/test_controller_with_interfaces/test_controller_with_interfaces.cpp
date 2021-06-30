@@ -1,4 +1,4 @@
-// Copyright 2020 Open Source Robotics Foundation, Inc.
+// Copyright 2021 Department of Engineering Cybernetics, NTNU.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,56 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "./test_controller.hpp"
+#include "test_controller_with_interfaces.hpp"
 
 #include <memory>
 #include <string>
 
 #include "lifecycle_msgs/msg/transition.hpp"
 
-namespace test_controller
+namespace test_controller_with_interfaces
 {
 
-TestController::TestController()
-: controller_interface::ControllerInterface(),
-  cmd_iface_cfg_{controller_interface::interface_configuration_type::NONE}
+TestControllerWithInterfaces::TestControllerWithInterfaces()
+: controller_interface::ControllerInterface()
 {}
 
 controller_interface::return_type
-TestController::update()
+TestControllerWithInterfaces::update()
 {
-  ++internal_counter;
   return controller_interface::return_type::OK;
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-TestController::on_configure(const rclcpp_lifecycle::State & /*previous_state*/)
+TestControllerWithInterfaces::on_configure(const rclcpp_lifecycle::State & /*previous_state&*/)
 {
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-TestController::on_cleanup(
+TestControllerWithInterfaces::on_cleanup(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  if (simulate_cleanup_failure) {
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
-  }
-
-  if (cleanup_calls) {
-    (*cleanup_calls)++;
-  }
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
-void TestController::set_command_interface_configuration(
-  const controller_interface::InterfaceConfiguration & cfg)
-{
-  cmd_iface_cfg_ = cfg;
-}
-
-}  // namespace test_controller
+}  // namespace test_controller_with_interfaces
 
 #include "pluginlib/class_list_macros.hpp"
 
-PLUGINLIB_EXPORT_CLASS(test_controller::TestController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(
+  test_controller_with_interfaces::TestControllerWithInterfaces,
+  controller_interface::ControllerInterface)
