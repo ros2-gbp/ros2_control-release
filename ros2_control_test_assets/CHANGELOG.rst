@@ -2,6 +2,38 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.7.1 (2021-06-15)
+------------------
+
+0.7.0 (2021-06-06)
+------------------
+
+0.6.1 (2021-05-31)
+------------------
+
+0.6.0 (2021-05-23)
+------------------
+
+0.5.0 (2021-05-03)
+------------------
+
+0.4.0 (2021-04-07)
+------------------
+* [ros2_control_test_assets] Fix typo (`#371 <https://github.com/ros-controls/ros2_control/issues/371>`_)
+* Contributors: Yutaka Kondo
+
+0.3.0 (2021-03-21)
+------------------
+
+0.2.1 (2021-03-02)
+------------------
+
+0.2.0 (2021-02-26)
+------------------
+* Add "Fake" components for simple integration of framework (`#323 <https://github.com/ros-controls/ros2_control/issues/323>`_)
+* Moved example URDFs for parser/scenario tests to assets package (`#316 <https://github.com/ros-controls/ros2_control/issues/316>`_)
+* Contributors: Denis Štogl
+
 0.1.6 (2021-02-05)
 ------------------
 * correct hardware interface validation in resource manager. (`#317 <https://github.com/ros-controls/ros2_control/issues/317>`_)
