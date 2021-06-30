@@ -1,3 +1,34 @@
+## ros2_control (rolling) - 0.7.1-1
+
+The packages in the `ros2_control` repository were released into the `rolling` distro by running `/usr/local/bin/bloom-release --track rolling --rosdistro rolling ros2_control` on `Wed, 30 Jun 2021 07:12:38 -0000`
+
+These packages were released:
+- `controller_interface`
+- `controller_manager`
+- `controller_manager_msgs`
+- `hardware_interface`
+- `ros2_control`
+- `ros2_control_test_assets`
+- `ros2controlcli`
+- `transmission_interface`
+
+Version of package(s) in repository `ros2_control`:
+
+- upstream repository: https://github.com/ros-controls/ros2_control.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `0.1.6-1`
+- new version: `0.7.1-1`
+
+Versions of tools used:
+
+- bloom version: `0.10.7`
+- catkin_pkg version: `0.4.23`
+- rosdep version: `0.19.0`
+- rosdistro version: `0.8.3`
+- vcstools version: `0.1.42`
+
+
 ## ros2_control (foxy) - 0.7.1-1
 
 The packages in the `ros2_control` repository were released into the `foxy` distro by running `/usr/local/bin/bloom-release --track foxy --rosdistro foxy ros2_control` on `Tue, 15 Jun 2021 21:28:18 -0000`
