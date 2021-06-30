@@ -1,6 +1,5 @@
-name: Test ros2_control
+name: Build & Test ros2_control with source-based setup
 on:
-  pull_request:
   push:
     branches:
       - master
@@ -9,29 +8,14 @@ on:
     - cron: '17 8 * * *'
 
 jobs:
-  ci_binary:
-    name: Foxy binary job
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        env:
-          - {ROS_DISTRO: foxy, ROS_REPO: main}
-          - {ROS_DISTRO: foxy, ROS_REPO: testing}
-    steps:
-      - uses: actions/checkout@v1
-      - uses: ros-industrial/industrial_ci@master
-        env: ${{matrix.env}}
-
   ci_source:
     name: Foxy source job
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
     steps:
-      - uses: ros-tooling/setup-ros@v0.1
-        with:
-          required-ros-distributions: foxy
-      - uses: ros-tooling/action-ros-ci@v0.1
+      - uses: ros-tooling/setup-ros@v0.2
+      - uses: ros-tooling/action-ros-ci@v0.2
         with:
           target-ros2-distro: foxy
           # build all packages listed in the meta package
@@ -40,9 +24,11 @@ jobs:
             controller_manager
             controller_manager_msgs
             hardware_interface
+            ros2controlcli
             ros2_control
             ros2_control_test_assets
           vcs-repo-file-url: |
+            https://raw.githubusercontent.com/ros2/ros2/foxy/ros2.repos
             https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/ros2_control/ros2_control.repos
           colcon-mixin-name: coverage-gcc
           colcon-mixin-repository: https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
