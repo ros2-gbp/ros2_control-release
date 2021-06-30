@@ -1,4 +1,4 @@
-// Copyright 2020 Open Source Robotics Foundation, Inc.
+// Copyright 2020 Department of Engineering Cybernetics, NTNU
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef TEST_CONTROLLER__TEST_CONTROLLER_HPP_
-#define TEST_CONTROLLER__TEST_CONTROLLER_HPP_
+#ifndef TEST_CONTROLLER_WITH_INTERFACES__TEST_CONTROLLER_WITH_INTERFACES_HPP_
+#define TEST_CONTROLLER_WITH_INTERFACES__TEST_CONTROLLER_WITH_INTERFACES_HPP_
 
 #include <memory>
 #include <string>
@@ -21,27 +21,29 @@
 #include "controller_manager/controller_manager.hpp"
 #include "controller_interface/visibility_control.h"
 
-namespace test_controller
+namespace test_controller_with_interfaces
 {
 
-// indicating the node name under which the controller node
-// is being loaded.
-constexpr char TEST_CONTROLLER_NAME[] = "test_controller_name";
-// corresponds to the name listed within the pluginlib xml
-constexpr char TEST_CONTROLLER_CLASS_NAME[] = "controller_manager/test_controller";
-class TestController : public controller_interface::ControllerInterface
+// Corresponds to the name listed within the pluginglib xml
+constexpr char TEST_CONTROLLER_WITH_INTERFACES_CLASS_NAME[] =
+  "controller_manager/test_controller_with_interfaces";
+// Corresponds to the command interface to claim
+constexpr char TEST_CONTROLLER_COMMAND_INTERFACE[] = "joint2/velocity";
+class TestControllerWithInterfaces : public controller_interface::ControllerInterface
 {
 public:
   CONTROLLER_MANAGER_PUBLIC
-  TestController();
+  TestControllerWithInterfaces();
 
   CONTROLLER_MANAGER_PUBLIC
   virtual
-  ~TestController() = default;
+  ~TestControllerWithInterfaces() = default;
 
   controller_interface::InterfaceConfiguration command_interface_configuration() const override
   {
-    return cmd_iface_cfg_;
+    return controller_interface::InterfaceConfiguration{
+      controller_interface::interface_configuration_type::INDIVIDUAL,
+      {TEST_CONTROLLER_COMMAND_INTERFACE}};
   }
 
   controller_interface::InterfaceConfiguration state_interface_configuration() const override
@@ -61,18 +63,8 @@ public:
   CONTROLLER_MANAGER_PUBLIC
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
   on_cleanup(const rclcpp_lifecycle::State & previous_state) override;
-
-  void set_command_interface_configuration(
-    const controller_interface::InterfaceConfiguration & cfg);
-
-  size_t internal_counter = 0;
-  bool simulate_cleanup_failure = false;
-  // Variable where we store when cleanup was called, pointer because the controller
-  // is usually destroyed after cleanup
-  size_t * cleanup_calls = nullptr;
-  controller_interface::InterfaceConfiguration cmd_iface_cfg_;
 };
 
-}  // namespace test_controller
+}  // namespace test_controller_with_interfaces
 
-#endif  // TEST_CONTROLLER__TEST_CONTROLLER_HPP_
+#endif  // TEST_CONTROLLER_WITH_INTERFACES__TEST_CONTROLLER_WITH_INTERFACES_HPP_

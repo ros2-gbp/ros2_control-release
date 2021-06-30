@@ -10,7 +10,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra)
 endif()
 
-find_package(ament_cmake)
+find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_core REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(controller_interface REQUIRED)
@@ -60,6 +60,12 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
+install(PROGRAMS
+  scripts/spawner.py
+  scripts/unspawner.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
@@ -85,6 +91,16 @@ if(BUILD_TESTING)
     DESTINATION lib
   )
 
+  add_library(test_controller_failed_init SHARED test/test_controller_failed_init/test_controller_failed_init.cpp)
+  target_include_directories(test_controller_failed_init PRIVATE include)
+  target_link_libraries(test_controller_failed_init controller_manager)
+  target_compile_definitions(test_controller_failed_init PRIVATE "CONTROLLER_MANAGER_BUILDING_DLL")
+  pluginlib_export_plugin_description_file(
+    controller_interface test/test_controller_failed_init/test_controller_failed_init.xml)
+  install(TARGETS test_controller_failed_init
+    DESTINATION lib
+  )
+
   ament_add_gmock(
     test_controller_manager
     test/test_controller_manager.cpp
@@ -98,7 +114,7 @@ if(BUILD_TESTING)
     APPEND_ENV AMENT_PREFIX_PATH=${ament_index_build_path}_$<CONFIG>
   )
   target_include_directories(test_load_controller PRIVATE include)
-  target_link_libraries(test_load_controller controller_manager test_controller)
+  target_link_libraries(test_load_controller controller_manager test_controller test_controller_failed_init)
 
   ament_add_gmock(
     test_controller_manager_srvs
@@ -107,7 +123,39 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_controller_manager_srvs PRIVATE include)
   target_link_libraries(test_controller_manager_srvs controller_manager test_controller)
+  ament_target_dependencies(
+    test_controller_manager_srvs
+    controller_manager_msgs
+  )
+
+  add_library(test_controller_with_interfaces SHARED test/test_controller_with_interfaces/test_controller_with_interfaces.cpp)
+  target_include_directories(test_controller_with_interfaces PRIVATE include)
+  target_link_libraries(test_controller_with_interfaces controller_manager)
+  target_compile_definitions(test_controller_with_interfaces PRIVATE "CONTROLLER_MANAGER_BUILDING_DLL")
+  pluginlib_export_plugin_description_file(
+    controller_interface test/test_controller_with_interfaces/test_controller_with_interfaces.xml)
+  install(TARGETS test_controller_with_interfaces
+    DESTINATION lib
+  )
+
+  ament_add_gmock(
+    test_release_interfaces
+    test/test_release_interfaces.cpp
+    APPEND_ENV AMENT_PREFIX_PATH=${ament_index_build_path}_$<CONFIG>
+  )
+  target_include_directories(test_release_interfaces PRIVATE include)
+  target_link_libraries(test_release_interfaces controller_manager test_controller_with_interfaces)
+
+  ament_add_gmock(
+    test_spawner_unspawner
+    test/test_spawner_unspawner.cpp
+  )
+  target_include_directories(test_spawner_unspawner PRIVATE include)
+  target_link_libraries(test_spawner_unspawner controller_manager test_controller)
 endif()
+
+# Install Python modules
+ament_python_install_package(${PROJECT_NAME})
 
 ament_export_libraries(
   controller_manager

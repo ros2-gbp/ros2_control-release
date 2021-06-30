@@ -37,7 +37,7 @@ TEST_F(TestControllerManager, controller_lifecycle) {
   EXPECT_EQ(1u, cm_->get_loaded_controllers().size());
   EXPECT_EQ(2, test_controller.use_count());
 
-  EXPECT_EQ(controller_interface::return_type::SUCCESS, cm_->update());
+  EXPECT_EQ(controller_interface::return_type::OK, cm_->update());
   EXPECT_EQ(
     0u,
     test_controller->internal_counter) <<
@@ -49,7 +49,7 @@ TEST_F(TestControllerManager, controller_lifecycle) {
 
   // configure controller
   cm_->configure_controller(test_controller::TEST_CONTROLLER_NAME);
-  EXPECT_EQ(controller_interface::return_type::SUCCESS, cm_->update());
+  EXPECT_EQ(controller_interface::return_type::OK, cm_->update());
   EXPECT_EQ(0u, test_controller->internal_counter) << "Controller is not started";
 
   EXPECT_EQ(
@@ -70,18 +70,22 @@ TEST_F(TestControllerManager, controller_lifecycle) {
     switch_future.wait_for(std::chrono::milliseconds(100))) <<
     "switch_controller should be blocking until next update cycle";
 
-  EXPECT_EQ(controller_interface::return_type::SUCCESS, cm_->update());
+  EXPECT_EQ(controller_interface::return_type::OK, cm_->update());
   EXPECT_EQ(0u, test_controller->internal_counter) << "Controller is started at the end of update";
-  EXPECT_EQ(
-    controller_interface::return_type::SUCCESS,
-    switch_future.get()
-  );
+  {
+    ControllerManagerRunner cm_runner(this);
+    EXPECT_EQ(
+      controller_interface::return_type::OK,
+      switch_future.get()
+    );
+  }
   EXPECT_EQ(
     lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
     test_controller->get_current_state().id());
 
-  EXPECT_EQ(controller_interface::return_type::SUCCESS, cm_->update());
-  EXPECT_EQ(1u, test_controller->internal_counter);
+  EXPECT_EQ(controller_interface::return_type::OK, cm_->update());
+  EXPECT_GE(test_controller->internal_counter, 1u);
+  auto last_internal_counter = test_controller->internal_counter;
 
   // Stop controller, will take effect at the end of the update function
   start_controllers = {};
@@ -97,15 +101,18 @@ TEST_F(TestControllerManager, controller_lifecycle) {
     switch_future.wait_for(std::chrono::milliseconds(100))) <<
     "switch_controller should be blocking until next update cycle";
 
-  EXPECT_EQ(controller_interface::return_type::SUCCESS, cm_->update());
+  EXPECT_EQ(controller_interface::return_type::OK, cm_->update());
   EXPECT_EQ(
-    2u,
+    last_internal_counter + 1u,
     test_controller->internal_counter) <<
     "Controller is stopped at the end of update, so it should have done one more update";
-  EXPECT_EQ(
-    controller_interface::return_type::SUCCESS,
-    switch_future.get()
-  );
+  {
+    ControllerManagerRunner cm_runner(this);
+    EXPECT_EQ(
+      controller_interface::return_type::OK,
+      switch_future.get()
+    );
+  }
 
   EXPECT_EQ(
     lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
@@ -119,9 +126,9 @@ TEST_F(TestControllerManager, controller_lifecycle) {
     std::future_status::timeout,
     unload_future.wait_for(std::chrono::milliseconds(100))) <<
     "unload_controller should be blocking until next update cycle";
-  cm_->update();
+  ControllerManagerRunner cm_runner(this);
   EXPECT_EQ(
-    controller_interface::return_type::SUCCESS,
+    controller_interface::return_type::OK,
     unload_future.get()
   );
 
