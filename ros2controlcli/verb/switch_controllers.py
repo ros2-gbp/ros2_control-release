@@ -12,51 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from controller_manager import switch_controllers
+
 from ros2cli.node.direct import add_arguments
+from ros2cli.node.strategy import NodeStrategy
 from ros2cli.verb import VerbExtension
-from ros2controlcli.api import add_controller_mgr_parsers, LoadedControllerNameCompleter, \
-    switch_controllers
 
-import sys
+from ros2controlcli.api import add_controller_mgr_parsers, LoadedControllerNameCompleter
 
 
-class SwitchVerb(VerbExtension):
+class SwitchControllersVerb(VerbExtension):
     """Switch controllers in a controller manager."""
 
     def add_arguments(self, parser, cli_name):
         add_arguments(parser)
         arg = parser.add_argument(
-            '--stop-controllers',
+            '--stop',
             nargs='*',
             default=[],
-            help='Name of the controllers to be stopped')
+            help='Name of the controllers to be stopped',
+        )
         arg.completer = LoadedControllerNameCompleter(['active'])
         arg = parser.add_argument(
-            '--start-controllers',
+            '--start',
             nargs='*',
             default=[],
-            help='Name of the controllers to be started')
+            help='Name of the controllers to be started',
+        )
         arg.completer = LoadedControllerNameCompleter(['inactive'])
-        parser.add_argument(
-            '--strict', action='store_true', help='Strict switch')
-        parser.add_argument(
-            '--start-asap', action='store_true', help='Start asap controllers')
+        parser.add_argument('--strict', action='store_true', help='Strict switch')
+        parser.add_argument('--start-asap', action='store_true', help='Start asap controllers')
         parser.add_argument(
             '--switch-timeout',
             default=5.0,
             required=False,
-            help='Timeout for switching controllers')
+            help='Timeout for switching controllers',
+        )
         arg.completer = LoadedControllerNameCompleter(['inactive'])
         add_controller_mgr_parsers(parser)
 
     def main(self, *, args):
-        response = switch_controllers(
-            args.controller_manager,
-            args.stop_controllers,
-            args.start_controllers,
-            args.strict,
-            args.start_asap,
-            args.switch_timeout)
-        if not response.ok:
-            print('Error switching controllers, check controller_manager logs', file=sys.stderr)
-        return not response.ok
+        with NodeStrategy(args) as node:
+            response = switch_controllers(
+                node,
+                args.controller_manager,
+                args.stop,
+                args.start,
+                args.strict,
+                args.start_asap,
+                args.switch_timeout,
+            )
+            if not response.ok:
+                return 'Error switching controllers, check controller_manager logs'
+
+            print('Successfully switched controllers')
+            return 0
