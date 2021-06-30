@@ -45,6 +45,35 @@ target_compile_definitions(hardware_interface PRIVATE "HARDWARE_INTERFACE_BUILDI
 # prevent pluginlib from using boost
 target_compile_definitions(hardware_interface PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
+# Fake components
+add_library(
+  fake_components
+  SHARED
+  src/fake_components/generic_system.cpp
+)
+target_include_directories(
+  fake_components
+  PUBLIC
+  include
+)
+target_link_libraries(
+  fake_components
+  hardware_interface
+)
+ament_target_dependencies(
+  fake_components
+  pluginlib
+  rcpputils
+)
+# Causes the visibility macros to use dllexport rather than dllimport,
+# which is appropriate when building the dll but not consuming it.
+target_compile_definitions(fake_components PRIVATE "HARDWARE_INTERFACE_BUILDING_DLL")
+# prevent pluginlib from using boost
+target_compile_definitions(fake_components PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
+
+pluginlib_export_plugin_description_file(
+  hardware_interface fake_components_plugin_description.xml)
+
 install(
   DIRECTORY include/
   DESTINATION include
@@ -52,10 +81,12 @@ install(
 
 install(
   TARGETS
+  fake_components
   hardware_interface
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib)
+  LIBRARY DESTINATION lib
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -77,6 +108,7 @@ if(BUILD_TESTING)
 
   ament_add_gmock(test_component_parser test/test_component_parser.cpp)
   target_link_libraries(test_component_parser hardware_interface)
+  ament_target_dependencies(test_component_parser ros2_control_test_assets)
 
   add_library(test_components SHARED
     test/test_components/test_actuator.cpp
@@ -95,6 +127,7 @@ if(BUILD_TESTING)
   test/test_hardware_components/test_single_joint_actuator.cpp
   test/test_hardware_components/test_force_torque_sensor.cpp
   test/test_hardware_components/test_two_joint_system.cpp
+  test/test_hardware_components/test_system_with_command_modes.cpp
   )
   target_link_libraries(test_hardware_components hardware_interface)
   ament_target_dependencies(test_hardware_components
@@ -107,14 +140,23 @@ if(BUILD_TESTING)
   )
 
   ament_add_gmock(test_resource_manager test/test_resource_manager.cpp)
-  ament_target_dependencies(test_resource_manager ros2_control_test_assets)
   target_link_libraries(test_resource_manager hardware_interface)
+  ament_target_dependencies(test_resource_manager ros2_control_test_assets)
+
+  ament_add_gmock(test_generic_system test/fake_components/test_generic_system.cpp)
+  target_include_directories(test_generic_system PRIVATE include)
+  target_link_libraries(test_generic_system hardware_interface)
+  ament_target_dependencies(test_generic_system
+    pluginlib
+    ros2_control_test_assets
+  )
 endif()
 
 ament_export_include_directories(
   include
 )
 ament_export_libraries(
+  fake_components
   hardware_interface
 )
 ament_export_dependencies(
