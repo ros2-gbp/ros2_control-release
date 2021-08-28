@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef HARDWARE_INTERFACE__HARDWARE_INFO_HPP_
 #define HARDWARE_INTERFACE__HARDWARE_INFO_HPP_
 
@@ -22,7 +21,6 @@
 
 namespace hardware_interface
 {
-
 /**
  * This structure stores information about components defined for a specific hardware
  * in robot's URDF.
@@ -31,13 +29,17 @@ struct InterfaceInfo
 {
   /**
    * Name of the command interfaces that can be set, e.g. "position", "velocity", etc.
-   * Used by joints.
+   * Used by joints and GPIOs.
    */
   std::string name;
   /// (Optional) Minimal allowed values of the interface.
   std::string min;
   /// (Optional) Maximal allowed values of the interface.
   std::string max;
+  /// (Optional) The datatype of the interface, e.g. "bool", "int". Used by GPIOs.
+  std::string data_type;
+  /// (Optional) If the handle is an array, the size of the array. Used by GPIOs.
+  int size;
 };
 
 /**
@@ -48,21 +50,52 @@ struct ComponentInfo
 {
   /// Name of the component.
   std::string name;
-  /// Type of the component: sensor or joint.
+  /// Type of the component: sensor, joint, or GPIO.
   std::string type;
   /**
    * Name of the command interfaces that can be set, e.g. "position", "velocity", etc.
-   * Used by joints.
+   * Used by joints and GPIOs.
    */
   std::vector<InterfaceInfo> command_interfaces;
   /**
    * Name of the state interfaces that can be read, e.g. "position", "velocity", etc.
-   * Used by Joints and Sensors.
+   * Used by joints, sensors and GPIOs.
    */
   std::vector<InterfaceInfo> state_interfaces;
   /// (Optional) Key-value pairs of component parameters, e.g. min/max values or serial number.
   std::unordered_map<std::string, std::string> parameters;
 };
+
+/// Contains semantic info about a given joint loaded from XML (URDF)
+struct JointInfo
+{
+  std::string name;
+  std::vector<std::string> interfaces;
+  std::string role;
+  double mechanical_reduction = 1.0;
+  double offset = 0.0;
+};
+
+/// Contains semantic info about a given actuator loaded from XML (URDF)
+struct ActuatorInfo
+{
+  std::string name;
+  std::vector<std::string> interfaces;
+  std::string role;
+  double offset = 0.0;
+};
+
+/// Contains semantic info about a given transmission loaded from XML (URDF)
+struct TransmissionInfo
+{
+  std::string name;
+  std::string type;
+  std::vector<JointInfo> joints;
+  std::vector<ActuatorInfo> actuators;
+  /// (Optional) Key-value pairs of custom parameters
+  std::unordered_map<std::string, std::string> parameters;
+};
+
 /// This structure stores information about hardware defined in a robot's URDF.
 struct HardwareInfo
 {
@@ -85,10 +118,15 @@ struct HardwareInfo
    */
   std::vector<ComponentInfo> sensors;
   /**
-   * Map of transmissions to calcualte ration between joints and physical actuators.
+   * Map of GPIO provided by the hardware where the key is a descriptive name of the GPIO.
+   * Optional for any hardware components.
+   */
+  std::vector<ComponentInfo> gpios;
+  /**
+   * Map of transmissions to calculate ration between joints and physical actuators.
    * Optional for Actuator and System Hardware.
    */
-  std::vector<ComponentInfo> transmissions;
+  std::vector<TransmissionInfo> transmissions;
 };
 
 }  // namespace hardware_interface
