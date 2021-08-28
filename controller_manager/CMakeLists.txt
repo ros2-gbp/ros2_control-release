@@ -70,7 +70,12 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
+  find_package(ros2_control_test_assets REQUIRED)
 
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE
+    ament_cmake_uncrustify
+    ament_cmake_cpplint
+  )
   ament_lint_auto_find_test_dependencies()
 
   ament_index_get_prefix_path(ament_index_build_path SKIP_AMENT_PREFIX_PATH)
@@ -107,6 +112,7 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_controller_manager PRIVATE include)
   target_link_libraries(test_controller_manager controller_manager test_controller)
+  ament_target_dependencies(test_controller_manager ros2_control_test_assets)
 
   ament_add_gmock(
     test_load_controller
@@ -115,6 +121,7 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_load_controller PRIVATE include)
   target_link_libraries(test_load_controller controller_manager test_controller test_controller_failed_init)
+  ament_target_dependencies(test_load_controller ros2_control_test_assets)
 
   ament_add_gmock(
     test_controller_manager_srvs
@@ -126,6 +133,7 @@ if(BUILD_TESTING)
   ament_target_dependencies(
     test_controller_manager_srvs
     controller_manager_msgs
+    ros2_control_test_assets
   )
 
   add_library(test_controller_with_interfaces SHARED test/test_controller_with_interfaces/test_controller_with_interfaces.cpp)
@@ -145,6 +153,7 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_release_interfaces PRIVATE include)
   target_link_libraries(test_release_interfaces controller_manager test_controller_with_interfaces)
+  ament_target_dependencies(test_release_interfaces ros2_control_test_assets)
 
   ament_add_gmock(
     test_spawner_unspawner
@@ -152,6 +161,7 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_spawner_unspawner PRIVATE include)
   target_link_libraries(test_spawner_unspawner controller_manager test_controller)
+  ament_target_dependencies(test_spawner_unspawner ros2_control_test_assets)
 endif()
 
 # Install Python modules
