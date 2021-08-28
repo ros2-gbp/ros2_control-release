@@ -19,7 +19,6 @@
 
 namespace ros2_control_test_assets
 {
-
 // 1. Industrial Robots with only one interface
 const auto valid_urdf_ros2_control_system_one_interface =
   R"(
@@ -217,7 +216,9 @@ const auto valid_urdf_ros2_control_actuator_modular_robot_sensors =
     </joint>
     <transmission name="transmission1">
       <plugin>transmission_interface/SimpleTansmission</plugin>
-      <param name="joint_to_actuator">${1024/PI}</param>
+      <joint name="joint1" role="joint1">
+        <mechanical_reduction>325.949</mechanical_reduction>
+      </joint>
     </transmission>
   </ros2_control>
   <ros2_control name="RRBotModularJoint2" type="actuator">
@@ -279,13 +280,16 @@ const auto valid_urdf_ros2_control_system_multi_joints_transmission =
       <state_interface name="position"/>
     </joint>
     <transmission name="transmission1">
-      <plugin>transmission_interface/SomeComplex2by2Transmission</plugin>
-      <param name="joints">{joint1, joint2}</param>
-      <param name="output">{output1, output2}</param>
-      <param name="joint1_output1">1.5</param>
-      <param name="joint1_output2">3.2</param>
-      <param name="joint2_output1">3.1</param>
-      <param name="joint2_output2">1.4</param>
+      <plugin>transmission_interface/DifferentialTransmission</plugin>
+      <actuator name="joint1_motor" role="actuator1"/>
+      <actuator name="joint2_motor" role="actuator2"/>
+      <joint name="joint1" role="joint1">
+        <mechanical_reduction>10</mechanical_reduction>
+        <offset>0.5</offset>
+      </joint>
+      <joint name="joint2" role="joint2">
+        <mechanical_reduction>50</mechanical_reduction>
+      </joint>
     </transmission>
   </ros2_control>
 )";
@@ -327,8 +331,68 @@ const auto valid_urdf_ros2_control_actuator_only =
     </joint>
     <transmission name="transmission1">
       <plugin>transmission_interface/RotationToLinerTansmission</plugin>
-      <param name="joint_to_actuator">${1024/PI}</param>
+      <joint name="joint1" role="joint1">
+        <mechanical_reduction>325.949</mechanical_reduction>
+      </joint>
+      <param name="additional_special_parameter">1337</param>
     </transmission>
+  </ros2_control>
+)";
+
+// 10. Industrial Robots with integrated GPIO
+const auto valid_urdf_ros2_control_system_robot_with_gpio =
+  R"(
+  <ros2_control name="RRBotSystemWithGPIO" type="system">
+    <hardware>
+      <plugin>ros2_control_demo_hardware/RRBotSystemWithGPIOHardware</plugin>
+      <param name="example_param_write_for_sec">2</param>
+      <param name="example_param_read_for_sec">2</param>
+    </hardware>
+    <joint name="joint1">
+      <command_interface name="position">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+    </joint>
+    <joint name="joint2">
+      <command_interface name="position">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+    </joint>
+    <gpio name="flange_analog_IOs">
+      <command_interface name="analog_output1"/>
+      <state_interface name="analog_output1"/> <!-- Needed to know current state of the output -->
+      <state_interface name="analog_input1"/>
+      <state_interface name="analog_input2"/>
+    </gpio>
+    <gpio name="flange_vacuum">
+      <command_interface name="vacuum"/>
+      <state_interface name="vacuum"/> <!-- Needed to know current state of the input -->
+    </gpio>
+  </ros2_control>
+)";
+
+// 11. Industrial Robots using size and data_type attributes
+const auto valid_urdf_ros2_control_system_robot_with_size_and_data_type =
+  R"(
+  <ros2_control name="RRBotSystemWithSizeAndDataType" type="system">
+    <hardware>
+      <plugin>ros2_control_demo_hardware/RRBotSystemWithSizeAndDataType</plugin>
+      <param name="example_param_write_for_sec">2</param>
+      <param name="example_param_read_for_sec">2</param>
+    </hardware>
+    <joint name="joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+    </joint>
+    <gpio name="flange_IOS">
+      <command_interface name="digital_output" size="2" data_type="bool"/>
+      <state_interface name="analog_input" size="3"/>
+      <state_interface name="image" data_type="cv::Mat"/>
+    </gpio>
   </ros2_control>
 )";
 
@@ -386,7 +450,6 @@ const auto invalid_urdf_ros2_control_parameter_missing_name =
   </ros2_control>
 )";
 
-
 const auto invalid_urdf_ros2_control_component_class_type_empty =
   R"(
   <ros2_control name="2DOF_System_Robot_Position_Only" type="system">
@@ -434,6 +497,71 @@ const auto invalid_urdf_ros2_control_parameter_empty =
         <param name="max_position_value">1</param>
       </command_interface>
     </joint>
+  </ros2_control>
+)";
+
+const auto invalid_urdf2_ros2_control_illegal_size =
+  R"(
+  <ros2_control name="RRBotSystemWithIllegalSize" type="system">
+    <hardware>
+      <plugin>ros2_control_demo_hardware/RRBotSystemWithIllegalSize</plugin>
+    </hardware>
+    <gpio name="flange_IOS">
+      <command_interface name="digital_output" data_type="bool" size="-4"/>
+    </gpio>
+  </ros2_control>
+)";
+
+const auto invalid_urdf2_ros2_control_illegal_size2 =
+  R"(
+  <ros2_control name="RRBotSystemWithIllegalSize2" type="system">
+    <hardware>
+      <plugin>ros2_control_demo_hardware/RRBotSystemWithIllegalSize2</plugin>
+    </hardware>
+    <gpio name="flange_IOS">
+      <command_interface name="digital_output" data_type="bool" size="ILLEGAL"/>
+    </gpio>
+  </ros2_control>
+)";
+
+const auto invalid_urdf2_hw_transmission_joint_mismatch =
+  R"(
+  <ros2_control name="ActuatorModularJoint1" type="actuator">
+    <hardware>
+      <plugin>ros2_control_demo_hardware/VelocityActuatorHardware</plugin>
+    </hardware>
+    <joint name="joint1">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <transmission name="transmission1">
+      <plugin>transmission_interface/SimpleTransmission</plugin>
+      <joint name="joint31415" role="joint1"/>
+    </transmission>
+  </ros2_control>
+)";
+
+const auto invalid_urdf2_transmission_given_too_many_joints =
+  R"(
+  <ros2_control name="ActuatorModularJoint1" type="actuator">
+    <hardware>
+      <plugin>ros2_control_demo_hardware/VelocityActuatorHardware</plugin>
+    </hardware>
+    <joint name="joint1">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <transmission name="transmission1">
+      <plugin>transmission_interface/SimpleTransmission</plugin>
+      <joint name="joint1" role="joint1"/>
+      <joint name="joint2" role="joint2"/>
+    </transmission>
   </ros2_control>
 )";
 
