@@ -30,7 +30,6 @@
 
 namespace controller_interface
 {
-
 // TODO(karsten1987): Remove clang pragma within Galactic
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -73,16 +72,13 @@ public:
   ControllerInterface() = default;
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual
-  ~ControllerInterface() = default;
+  virtual ~ControllerInterface() = default;
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual
-  InterfaceConfiguration command_interface_configuration() const = 0;
+  virtual InterfaceConfiguration command_interface_configuration() const = 0;
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual
-  InterfaceConfiguration state_interface_configuration() const = 0;
+  virtual InterfaceConfiguration state_interface_configuration() const = 0;
 
   CONTROLLER_INTERFACE_PUBLIC
   void assign_interfaces(
@@ -93,23 +89,36 @@ public:
   void release_interfaces();
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual
-  return_type
-  init(const std::string & controller_name);
+  virtual return_type init(const std::string & controller_name);
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual
-  return_type
-  init(const std::string & controller_name, rclcpp::NodeOptions & node_options);
+  virtual return_type init(const std::string & controller_name, rclcpp::NodeOptions & node_options);
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual
-  return_type
-  update() = 0;
+  virtual return_type update() = 0;
 
   CONTROLLER_INTERFACE_PUBLIC
-  std::shared_ptr<rclcpp::Node>
-  get_node();
+  std::shared_ptr<rclcpp::Node> get_node();
+
+  /// Declare and initialize a parameter with a type.
+  /**
+   *
+   * Wrapper function for templated node's declare_parameter() which checks if
+   * parameter is already declared.
+   * For use in all components that inherit from ControllerInterface
+   */
+  template <typename ParameterT>
+  auto auto_declare(const std::string & name, const ParameterT & default_value)
+  {
+    if (!node_->has_parameter(name))
+    {
+      return node_->declare_parameter<ParameterT>(name, default_value);
+    }
+    else
+    {
+      return node_->get_parameter(name).get_value<ParameterT>();
+    }
+  }
 
   /**
    * The methods below are a substitute to the LifecycleNode methods with the same name.
