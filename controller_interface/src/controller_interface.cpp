@@ -30,21 +30,20 @@ return_type ControllerInterface::init(const std::string & controller_name)
     controller_name, rclcpp::NodeOptions()
                        .allow_undeclared_parameters(true)
                        .automatically_declare_parameters_from_overrides(true));
-  lifecycle_state_ = rclcpp_lifecycle::State(
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state_names::UNCONFIGURED);
-  return return_type::OK;
-}
 
-return_type ControllerInterface::init(
-  const std::string & controller_name, rclcpp::NodeOptions & node_options)
-{
-  node_ = std::make_shared<rclcpp::Node>(
-    controller_name,
-    node_options.allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(
-      true));
-  lifecycle_state_ = rclcpp_lifecycle::State(
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state_names::UNCONFIGURED);
-  return return_type::OK;
+  return_type result = return_type::OK;
+  switch (on_init())
+  {
+    case LifecycleNodeInterface::CallbackReturn::SUCCESS:
+      lifecycle_state_ = rclcpp_lifecycle::State(
+        lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state_names::UNCONFIGURED);
+      break;
+    case LifecycleNodeInterface::CallbackReturn::ERROR:
+    case LifecycleNodeInterface::CallbackReturn::FAILURE:
+      result = return_type::ERROR;
+      break;
+  }
+  return result;
 }
 
 const rclcpp_lifecycle::State & ControllerInterface::configure()
@@ -64,6 +63,11 @@ const rclcpp_lifecycle::State & ControllerInterface::configure()
         break;
       case LifecycleNodeInterface::CallbackReturn::FAILURE:
         break;
+    }
+
+    if (node_->has_parameter("update_rate"))
+    {
+      update_rate_ = node_->get_parameter("update_rate").as_int();
     }
   }
   return lifecycle_state_;
@@ -146,10 +150,7 @@ const rclcpp_lifecycle::State & ControllerInterface::shutdown()
   return lifecycle_state_;
 }
 
-const rclcpp_lifecycle::State & ControllerInterface::get_current_state() const
-{
-  return lifecycle_state_;
-}
+const rclcpp_lifecycle::State & ControllerInterface::get_state() const { return lifecycle_state_; }
 
 void ControllerInterface::assign_interfaces(
   std::vector<hardware_interface::LoanedCommandInterface> && command_interfaces,
@@ -173,5 +174,7 @@ std::shared_ptr<rclcpp::Node> ControllerInterface::get_node()
   }
   return node_;
 }
+
+unsigned int ControllerInterface::get_update_rate() const { return update_rate_; }
 
 }  // namespace controller_interface
