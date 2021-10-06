@@ -18,19 +18,21 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <vector>
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+#include "rcutils/logging_macros.h"
 
 namespace fake_components
 {
-return_type GenericSystem::configure(const hardware_interface::HardwareInfo & info)
+CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & info)
 {
-  if (configure_default(info) != return_type::OK)
+  if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS)
   {
-    return return_type::ERROR;
+    return CallbackReturn::ERROR;
   }
 
   // check if to create fake command interface for sensor
@@ -45,16 +47,22 @@ return_type GenericSystem::configure(const hardware_interface::HardwareInfo & in
     fake_sensor_command_interfaces_ = false;
   }
 
-  // check if there is a state following offset defined
-  it = info_.hardware_parameters.find("state_following_offset");
+  // process parameters about state following
+  position_state_following_offset_ = 0.0;
+  custom_interface_with_following_offset_ = "";
+
+  it = info_.hardware_parameters.find("position_state_following_offset");
   if (it != info_.hardware_parameters.end())
   {
-    state_following_offset_ = std::stod(it->second);
+    position_state_following_offset_ = std::stod(it->second);
+    it = info_.hardware_parameters.find("custom_interface_with_following_offset");
+    if (it != info_.hardware_parameters.end())
+    {
+      custom_interface_with_following_offset_ = it->second;
+    }
   }
-  else
-  {
-    state_following_offset_ = 0.0;
-  }
+  // its extremlly unprobably that std::distance results int this value - therefore default
+  index_custom_interface_with_following_offset_ = std::numeric_limits<size_t>::max();
 
   // Initialize storage for standard interfaces
   initialize_storage_vectors(joint_commands_, joint_states_, standard_interfaces_);
@@ -108,7 +116,12 @@ return_type GenericSystem::configure(const hardware_interface::HardwareInfo & in
         std::find(standard_interfaces_.begin(), standard_interfaces_.end(), interface.name) ==
         standard_interfaces_.end())
       {
-        other_interfaces_.emplace_back(interface.name);
+        if (
+          std::find(other_interfaces_.begin(), other_interfaces_.end(), interface.name) ==
+          other_interfaces_.end())
+        {
+          other_interfaces_.emplace_back(interface.name);
+        }
       }
     }
     for (const auto & interface : joint.state_interfaces)
@@ -118,24 +131,56 @@ return_type GenericSystem::configure(const hardware_interface::HardwareInfo & in
         std::find(standard_interfaces_.begin(), standard_interfaces_.end(), interface.name) ==
         standard_interfaces_.end())
       {
-        other_interfaces_.emplace_back(interface.name);
+        if (
+          std::find(other_interfaces_.begin(), other_interfaces_.end(), interface.name) ==
+          other_interfaces_.end())
+        {
+          other_interfaces_.emplace_back(interface.name);
+        }
       }
     }
   }
   // Initialize storage for non-standard interfaces
   initialize_storage_vectors(other_commands_, other_states_, other_interfaces_);
 
+  // when following offset is used on custom interface then find its index
+  if (!custom_interface_with_following_offset_.empty())
+  {
+    auto if_it = std::find(
+      other_interfaces_.begin(), other_interfaces_.end(), custom_interface_with_following_offset_);
+    if (if_it != other_interfaces_.end())
+    {
+      index_custom_interface_with_following_offset_ =
+        std::distance(other_interfaces_.begin(), if_it);
+      RCUTILS_LOG_INFO_NAMED(
+        "fake_generic_system", "Custom interface with following offset '%s' found at index: %zu.",
+        custom_interface_with_following_offset_.c_str(),
+        index_custom_interface_with_following_offset_);
+    }
+    else
+    {
+      RCUTILS_LOG_WARN_NAMED(
+        "fake_generic_system",
+        "Custom interface with following offset '%s' does not exist. Offset will not be applied",
+        custom_interface_with_following_offset_.c_str());
+    }
+  }
+
   for (const auto & sensor : info_.sensors)
   {
     for (const auto & interface : sensor.state_interfaces)
     {
-      sensor_interfaces_.emplace_back(interface.name);
+      if (
+        std::find(sensor_interfaces_.begin(), sensor_interfaces_.end(), interface.name) ==
+        sensor_interfaces_.end())
+      {
+        sensor_interfaces_.emplace_back(interface.name);
+      }
     }
   }
   initialize_storage_vectors(sensor_fake_commands_, sensor_states_, sensor_interfaces_);
 
-  status_ = hardware_interface::status::CONFIGURED;
-  return hardware_interface::return_type::OK;
+  return CallbackReturn::SUCCESS;
 }
 
 std::vector<hardware_interface::StateInterface> GenericSystem::export_state_interfaces()
@@ -240,7 +285,8 @@ return_type GenericSystem::read()
     if (!std::isnan(joint_commands_[POSITION_INTERFACE_INDEX][j]))
     {
       joint_states_[POSITION_INTERFACE_INDEX][j] =
-        joint_commands_[POSITION_INTERFACE_INDEX][j] + state_following_offset_;
+        joint_commands_[POSITION_INTERFACE_INDEX][j] +
+        (custom_interface_with_following_offset_.empty() ? position_state_following_offset_ : 0.0);
     }
   }
   // do loopback on all other interfaces - starts from 1 because 0 index is position interface
@@ -267,7 +313,14 @@ return_type GenericSystem::read()
   {
     for (size_t j = 0; j < other_states_[i].size(); ++j)
     {
-      if (!std::isnan(other_commands_[i][j]))
+      if (
+        i == index_custom_interface_with_following_offset_ &&
+        !std::isnan(joint_commands_[POSITION_INTERFACE_INDEX][j]))
+      {
+        other_states_[i][j] =
+          joint_commands_[POSITION_INTERFACE_INDEX][j] + position_state_following_offset_;
+      }
+      else if (!std::isnan(other_commands_[i][j]))
       {
         other_states_[i][j] = other_commands_[i][j];
       }
