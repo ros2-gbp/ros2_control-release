@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# Copyright 2021 PAL Robotics S.L.
+# Copyright 2017 Open Source Robotics Foundation, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-from unspawner import main
+from ament_pep257.main import main
+import pytest
 
-if __name__ == "__main__":
-    ret = main()
-    sys.exit(ret)
+
+@pytest.mark.linter
+@pytest.mark.pep257
+def test_pep257():
+    rc = main(argv=[])
+    assert rc == 0, 'Found code style errors / warnings'
