@@ -4,7 +4,7 @@
 API Documentation
 =================
 
-API documentation is parsed by doxygen and can be found `here </api/index.html>`_
+API documentation is parsed by doxygen and can be found `here <../../api/index.html>`_
 
 =====================
 Core functionalities
@@ -25,4 +25,5 @@ Concepts
    :titlesonly:
 
    Controller Manager <../controller_manager/doc/userdoc.rst>
+   Hardware Components <../hardware_interface/doc/hardware_components_userdoc.rst>
    Fake Components <../hardware_interface/doc/fake_components_userdoc.rst>
