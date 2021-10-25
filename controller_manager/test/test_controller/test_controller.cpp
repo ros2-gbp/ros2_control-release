@@ -27,10 +27,16 @@ TestController::TestController()
 {
 }
 
-controller_interface::return_type TestController::update()
+controller_interface::return_type TestController::update(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   ++internal_counter;
   return controller_interface::return_type::OK;
+}
+
+rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn TestController::on_init()
+{
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
@@ -58,6 +64,12 @@ void TestController::set_command_interface_configuration(
   const controller_interface::InterfaceConfiguration & cfg)
 {
   cmd_iface_cfg_ = cfg;
+}
+
+void TestController::set_state_interface_configuration(
+  const controller_interface::InterfaceConfiguration & cfg)
+{
+  state_iface_cfg_ = cfg;
 }
 
 }  // namespace test_controller
