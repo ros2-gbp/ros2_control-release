@@ -2,19 +2,11 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.1.0 (2021-10-25)
+0.8.1 (2021-10-25)
 ------------------
-* Handle errors of hardware that happen on read and write. (`#546 <https://github.com/ros-controls/ros2_control/issues/546>`_)
-* Contributors: Denis Štogl, Mathias Aarbo
-
-1.0.0 (2021-09-29)
-------------------
-* Hardware components extension for lifecycle support (`#503 <https://github.com/ros-controls/ros2_control/issues/503>`_)
-* add M_PI macro for windows in test_component_parser.cpp (`#502 <https://github.com/ros-controls/ros2_control/issues/502>`_)
-* Extend GenericSystem by adding mapping of position with offset to custom interface. (`#469 <https://github.com/ros-controls/ros2_control/issues/469>`_)
-* Remove BOOST compiler definitions for pluginlib from CMakeLists (`#514 <https://github.com/ros-controls/ros2_control/issues/514>`_)
-* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
-* Contributors: Bence Magyar, Denis Štogl, dzyGIT
+* add M_PI macro for windows foxy in test_component_parser.cpp (`#545 <https://github.com/ros-controls/ros2_control/issues/545>`_)
+* Extend GenericSystem by adding mapping of position with offset to custom interface. (`#469 <https://github.com/ros-controls/ros2_control/issues/469>`_) (`#523 <https://github.com/ros-controls/ros2_control/issues/523>`_)
+* Contributors: BenjaminHug8, Denis Štogl
 
 0.8.0 (2021-08-28)
 ------------------
