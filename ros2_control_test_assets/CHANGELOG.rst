@@ -2,16 +2,10 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.1.0 (2021-10-25)
+0.8.1 (2021-10-25)
 ------------------
-* Moving diffbot_urdf to ros2_control_test_assets. (`#558 <https://github.com/ros-controls/ros2_control/issues/558>`_)
-* Contributors: bailaC
-
-1.0.0 (2021-09-29)
-------------------
-* Remove unnecessary includes (`#518 <https://github.com/ros-controls/ros2_control/issues/518>`_)
-* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
-* Contributors: Bence Magyar, Denis Štogl
+* Remove unnecessary includes (`#518 <https://github.com/ros-controls/ros2_control/issues/518>`_) (`#522 <https://github.com/ros-controls/ros2_control/issues/522>`_)
+* Contributors: mergify[bot]
 
 0.8.0 (2021-08-28)
 ------------------
