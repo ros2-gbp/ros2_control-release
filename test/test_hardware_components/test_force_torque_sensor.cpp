@@ -17,27 +17,30 @@
 #include <memory>
 #include <vector>
 
+#include "hardware_interface/base_interface.hpp"
 #include "hardware_interface/sensor_interface.hpp"
 
+using hardware_interface::BaseInterface;
 using hardware_interface::return_type;
 using hardware_interface::SensorInterface;
 using hardware_interface::StateInterface;
+using hardware_interface::status;
 
 namespace test_hardware_components
 {
-class TestForceTorqueSensor : public SensorInterface
+class TestForceTorqueSensor : public BaseInterface<SensorInterface>
 {
-  CallbackReturn on_init(const hardware_interface::HardwareInfo & sensor_info) override
+  return_type configure(const hardware_interface::HardwareInfo & sensor_info) override
   {
-    if (SensorInterface::on_init(sensor_info) != CallbackReturn::SUCCESS)
+    if (configure_default(sensor_info) != return_type::OK)
     {
-      return CallbackReturn::ERROR;
+      return return_type::ERROR;
     }
 
     const auto & state_interfaces = info_.sensors[0].state_interfaces;
     if (state_interfaces.size() != 6)
     {
-      return CallbackReturn::ERROR;
+      return return_type::ERROR;
     }
     for (const auto & ft_key : {"fx", "fy", "fz", "tx", "ty", "tz"})
     {
@@ -47,12 +50,12 @@ class TestForceTorqueSensor : public SensorInterface
             return interface_info.name == ft_key;
           }) == state_interfaces.end())
       {
-        return CallbackReturn::ERROR;
+        return return_type::ERROR;
       }
     }
 
     fprintf(stderr, "TestForceTorqueSensor configured successfully.\n");
-    return CallbackReturn::SUCCESS;
+    return return_type::OK;
   }
 
   std::vector<StateInterface> export_state_interfaces() override
@@ -75,6 +78,10 @@ class TestForceTorqueSensor : public SensorInterface
 
     return state_interfaces;
   }
+
+  return_type start() override { return return_type::OK; }
+
+  return_type stop() override { return return_type::OK; }
 
   return_type read() override
   {
