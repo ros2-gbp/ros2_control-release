@@ -1,0 +1,12 @@
+Source: ros-galactic-controller-manager
+Section: misc
+Priority: optional
+Maintainer: karsten <karsten@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), ros-galactic-ament-cmake, ros-galactic-ament-cmake-gmock, ros-galactic-ament-cmake-gtest, ros-galactic-ament-index-cpp, ros-galactic-ament-lint-auto, ros-galactic-ament-lint-common, ros-galactic-controller-interface, ros-galactic-controller-manager-msgs, ros-galactic-hardware-interface, ros-galactic-launch, ros-galactic-launch-ros, ros-galactic-pluginlib, ros-galactic-rclcpp, ros-galactic-rcpputils, ros-galactic-ros2-control-test-assets, ros-galactic-ros2param, ros-galactic-ros2run, ros-galactic-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-galactic-controller-manager
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-galactic-ament-index-cpp, ros-galactic-controller-interface, ros-galactic-controller-manager-msgs, ros-galactic-hardware-interface, ros-galactic-launch, ros-galactic-launch-ros, ros-galactic-pluginlib, ros-galactic-rclcpp, ros-galactic-rcpputils, ros-galactic-ros2-control-test-assets, ros-galactic-ros2param, ros-galactic-ros2run, ros-galactic-ros-workspace
+Description: Description of controller_manager
