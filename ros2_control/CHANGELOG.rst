@@ -2,8 +2,16 @@
 Changelog for package ros2_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.8.1 (2021-10-25)
+1.2.0 (2021-11-05)
 ------------------
+
+1.1.0 (2021-10-25)
+------------------
+
+1.0.0 (2021-09-29)
+------------------
+* Add missing packages in the metapackage (`#534 <https://github.com/ros-controls/ros2_control/issues/534>`_)
+* Contributors: Denis Štogl
 
 0.8.0 (2021-08-28)
 ------------------

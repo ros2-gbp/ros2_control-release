@@ -2,8 +2,17 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.8.1 (2021-10-25)
+1.2.0 (2021-11-05)
 ------------------
+
+1.1.0 (2021-10-25)
+------------------
+
+1.0.0 (2021-09-29)
+------------------
+* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
+* Refactor INSTANTIATE_TEST_CASE_P -> INSTANTIATE_TEST_SUITE_P (`#515 <https://github.com/ros-controls/ros2_control/issues/515>`_)
+* Contributors: Bence Magyar
 
 0.8.0 (2021-08-28)
 ------------------
