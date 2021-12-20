@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 project(controller_manager)
 
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra)
 endif()
@@ -29,6 +34,8 @@ ament_target_dependencies(controller_manager
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(controller_manager PRIVATE "CONTROLLER_MANAGER_BUILDING_DLL")
+# prevent pluginlib from using boost
+target_compile_definitions(controller_manager PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
 add_executable(ros2_control_node src/ros2_control_node.cpp)
 target_include_directories(ros2_control_node PRIVATE include)
@@ -54,10 +61,8 @@ install(DIRECTORY include/
 )
 
 install(PROGRAMS
-  scripts/spawner
-  scripts/spawner.py  # Deprecated
-  scripts/unspawner
-  scripts/unspawner.py  # Deprecated
+  scripts/spawner.py
+  scripts/unspawner.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -19,7 +19,6 @@ import os
 import subprocess
 import sys
 import time
-import warnings
 
 from controller_manager import configure_controller, list_controllers, \
     load_controller, switch_controllers, unload_controller
@@ -111,7 +110,8 @@ def main(args=None):
     controller_manager_timeout = args.controller_manager_timeout
 
     if param_file and not os.path.isfile(param_file):
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
+        raise FileNotFoundError(
+            errno.ENOENT, os.strerror(errno.ENOENT), param_file)
 
     node = Node('spawner_' + controller_name)
     try:
@@ -201,8 +201,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    warnings.warn(
-        "'spawner.py' is deprecated, please use 'spawner' (without .py extension)",
-        DeprecationWarning)
-    ret = main()
-    sys.exit(ret)
+    sys.exit(main())
