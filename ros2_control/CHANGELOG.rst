@@ -2,6 +2,11 @@
 Changelog for package ros2_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.3.0 (2021-12-21)
+------------------
+* Point control_msgs to galactic branch.
+* Contributors: Denis Štogl
+
 1.2.0 (2021-11-05)
 ------------------
 
