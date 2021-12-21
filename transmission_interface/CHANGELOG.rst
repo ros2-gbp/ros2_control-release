@@ -2,15 +2,17 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.9.0 (2021-12-20)
+1.2.0 (2021-11-05)
 ------------------
-* simple transmission configure multiple definition fix (`#571 <https://github.com/ros-controls/ros2_control/issues/571>`_) (`#576 <https://github.com/ros-controls/ros2_control/issues/576>`_)
-  (cherry picked from commit 1dc970b3a56913a7ac978b89ae000eeb33550a29)
-  Co-authored-by: niiquaye <68795163+niiquaye@users.noreply.github.com>
-* Contributors: mergify[bot]
 
-0.8.1 (2021-10-25)
+1.1.0 (2021-10-25)
 ------------------
+
+1.0.0 (2021-09-29)
+------------------
+* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
+* Refactor INSTANTIATE_TEST_CASE_P -> INSTANTIATE_TEST_SUITE_P (`#515 <https://github.com/ros-controls/ros2_control/issues/515>`_)
+* Contributors: Bence Magyar
 
 0.8.0 (2021-08-28)
 ------------------
