@@ -1,0 +1,166 @@
+ros-rolling-ros2controlcli (2.1.0-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Tue, 11 Jan 2022 08:00:00 -0000
+
+ros-rolling-ros2controlcli (2.0.0-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Wed, 29 Dec 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (1.2.0-3jammy) jammy; urgency=high
+
+  * Add verbose flag to CLI command list_controllers (#569 <https://github.com/ros-controls/ros2_control/issues/569>)
+  * Contributors: Xi-Huang
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Fri, 05 Nov 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (1.1.0-3jammy) jammy; urgency=high
+
+  * Fixup formatting 🔧 of "list_controllers.py" and do not check formating on build stage. (#555 <https://github.com/ros-controls/ros2_control/issues/555>)
+    * Do not check formating on build stage.
+    * Change formatting of strings.
+    * Make output a bit easier to read.
+  * controller_manager: Use command_interface_configuration for the claimed interfaces when calling list_controllers (#544 <https://github.com/ros-controls/ros2_control/issues/544>)
+  * Contributors: Denis Štogl, Jafar Abdi
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Mon, 25 Oct 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (1.0.0-3jammy) jammy; urgency=high
+
+  * Removed deprecated CLI verbs (#420 <https://github.com/ros-controls/ros2_control/issues/420>)
+  * Contributors: Mathias Aarbo
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Wed, 29 Sep 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.8.0-3jammy) jammy; urgency=high
+
+  * fix link to point to read-the-docs (#496 <https://github.com/ros-controls/ros2_control/issues/496>)
+  * Add pre-commit setup. (#473 <https://github.com/ros-controls/ros2_control/issues/473>)
+  * Add index, rename cli main doc. (#465 <https://github.com/ros-controls/ros2_control/issues/465>)
+  * fixes unload_controller issue (#456 <https://github.com/ros-controls/ros2_control/issues/456>)
+  * Contributors: Denis Štogl, Michael, Mathias Arbo
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Sat, 28 Aug 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.7.1-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Tue, 15 Jun 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.7.0-3jammy) jammy; urgency=high
+
+  * Updated arg reference to set_state from state since the argument name has been changed (#433 <https://github.com/ros-controls/ros2_control/issues/433>)
+  * Contributors: Andrew Lycas
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Sun, 06 Jun 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.6.1-3jammy) jammy; urgency=high
+
+  * Use correct names after changing arguments (#425 <https://github.com/ros-controls/ros2_control/issues/425>)
+    In #412 <https://github.com/ros-controls/ros2_control/issues/412> we forgot to update the argument after changing flags.
+  * Contributors: Denis Štogl
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Mon, 31 May 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.6.0-3jammy) jammy; urgency=high
+
+  * Renaming ros2controlcli verbs (#412 <https://github.com/ros-controls/ros2_control/issues/412>)
+    * Renamed verbs to match services
+    * README.rst redirects to docs/index.rst
+    * argument {start/stop}_controllers -> {start/stop}
+    * rst include did not work, try relative link
+    * Moved configure_controller doc to deprecated
+    * set_state -> set-state
+  * Contributors: Mathias Hauan Arbo, Denis Štogl
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Sun, 23 May 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.5.0-3jammy) jammy; urgency=high
+
+  * correct return values in CLI (#401 <https://github.com/ros-controls/ros2_control/issues/401>)
+  * [python] Update files in ros2controlcli to use format strings (#358 <https://github.com/ros-controls/ros2_control/issues/358>)
+  * Add starting doc for ros2controlcli (#377 <https://github.com/ros-controls/ros2_control/issues/377>)
+  * Contributors: Bence Magyar, Karsten Knese, NovusEdge
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Mon, 03 May 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.4.0-3jammy) jammy; urgency=high
+
+  * Remodel ros2controlcli, refactor spawner/unspawner and fix test (#349 <https://github.com/ros-controls/ros2_control/issues/349>)
+  * Contributors: Karsten Knese
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Wed, 07 Apr 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.3.0-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Sun, 21 Mar 2021 07:00:00 -0000
+
+ros-rolling-ros2controlcli (0.2.1-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Tue, 02 Mar 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.2.0-3jammy) jammy; urgency=high
+
+  * Increase service call timeout, often services take longer than 0.2s (#324 <https://github.com/ros-controls/ros2_control/issues/324>)
+  * Contributors: Victor Lopez
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Fri, 26 Feb 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.1.6-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Fri, 05 Feb 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.1.5-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Thu, 04 Feb 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.1.4-3jammy) jammy; urgency=high
+
+  * Print error messages if ros2controlcli commands fail (#309 <https://github.com/ros-controls/ros2_control/issues/309>)
+  * Inverse the response of cli commands to return correct exit-status. (#308 <https://github.com/ros-controls/ros2_control/issues/308>)
+    * Inverse the response of cli commands to return correct exit-status.
+    * list verbs return exit-status 0
+  * Contributors: Shota Aoki, Victor Lopez
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Wed, 03 Feb 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.1.3-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Thu, 21 Jan 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.1.2-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Wed, 06 Jan 2021 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.1.1-3jammy) jammy; urgency=high
+
+
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Wed, 23 Dec 2020 08:00:00 -0000
+
+ros-rolling-ros2controlcli (0.1.0-3jammy) jammy; urgency=high
+
+  * Add configure controller service (#272 <https://github.com/ros-controls/ros2_control/issues/272>)
+  * Use resource manager (#236 <https://github.com/ros-controls/ros2_control/issues/236>)
+  * Add cli interface (#176 <https://github.com/ros-controls/ros2_control/issues/176>)
+  * Contributors: Bence Magyar, Denis Štogl, Karsten Knese, Victor Lopez
+
+ -- Victor Lopez <victor.lopez@pal-robotics.com>  Tue, 22 Dec 2020 08:00:00 -0000
+
+
