@@ -1,0 +1,166 @@
+ros-rolling-controller-interface (2.1.0-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Tue, 11 Jan 2022 08:00:00 -0000
+
+ros-rolling-controller-interface (2.0.0-3bullseye) bullseye; urgency=high
+
+  * fix get_update_rate visibility in windows (#586 <https://github.com/ros-controls/ros2_control/issues/586>)
+  * Use lifecycle name constants from hardware interface in controller interface (#575 <https://github.com/ros-controls/ros2_control/issues/575>)
+    * Use lifecycle name constants from hardware interface in controller interface
+    * Remove controller_state_names.hpp since it is not needed.
+  * Contributors: Melvin Wang, Xi-Huang
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Wed, 29 Dec 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (1.2.0-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Fri, 05 Nov 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (1.1.0-3bullseye) bullseye; urgency=high
+
+  * Quick fix 🏎: make doc on helpers clearer (#553 <https://github.com/ros-controls/ros2_control/issues/553>)
+  * Contributors: Denis Štogl
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Mon, 25 Oct 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (1.0.0-3bullseye) bullseye; urgency=high
+
+  * Per controller update rate (#513 <https://github.com/ros-controls/ros2_control/issues/513>)
+    * add update_rate member field to controller manager
+  * added dt to controller interface and controller manager #438 <https://github.com/ros-controls/ros2_control/issues/438> (#520 <https://github.com/ros-controls/ros2_control/issues/520>)
+  * Methods controlling the lifecycle of controllers all have on_ prefix
+  * Do not manually set C++ version to 14 (#516 <https://github.com/ros-controls/ros2_control/issues/516>)
+  * rename get_current_state() to get_state() (#512 <https://github.com/ros-controls/ros2_control/issues/512>)
+  * Contributors: Bence Magyar, Denis Štogl, Dmitri Ignakov, Márk Szitanics, bailaC
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Wed, 29 Sep 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.8.0-3bullseye) bullseye; urgency=high
+
+  * Automatic parameter declaration - enable existence of undeclared parameters from overrides (#504 <https://github.com/ros-controls/ros2_control/issues/504>)
+  * Use clang format as code formatter (#491 <https://github.com/ros-controls/ros2_control/issues/491>)
+  * Add pre-commit setup. (#473 <https://github.com/ros-controls/ros2_control/issues/473>)
+  * Make controller_manager set controller's use_sim_time param when use_sim_time=True (#468 <https://github.com/ros-controls/ros2_control/issues/468>)
+  * Correct obviously wrong call in controller interface. (#460 <https://github.com/ros-controls/ros2_control/issues/460>)
+  * virtual destructors for semantic components (#455 <https://github.com/ros-controls/ros2_control/issues/455>)
+  * Contributors: Denis Štogl, Karsten Knese, Lovro Ivanov, Simon Honigmann
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Sat, 28 Aug 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.7.1-3bullseye) bullseye; urgency=high
+
+  * Remove forgoten debug output (#439 <https://github.com/ros-controls/ros2_control/issues/439>)
+  * Contributors: Denis Štogl
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Tue, 15 Jun 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.7.0-3bullseye) bullseye; urgency=high
+
+  * Add imu_sensor semantic component (#429 <https://github.com/ros-controls/ros2_control/issues/429>)
+  * Fix osx warnings (#428 <https://github.com/ros-controls/ros2_control/issues/428>)
+  * Add FTS as first semantic components to simplify controllers. (#370 <https://github.com/ros-controls/ros2_control/issues/370>)
+  * Contributors: bailaC, Denis Štogl, Jordan Palacios, Karsten Knese, Victor Lopez
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Sun, 06 Jun 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.6.1-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Mon, 31 May 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.6.0-3bullseye) bullseye; urgency=high
+
+  * Added labels for controller states. (#414 <https://github.com/ros-controls/ros2_control/issues/414>)
+  * prevent variable-sized object initialization (#411 <https://github.com/ros-controls/ros2_control/issues/411>)
+  * Contributors: Denis Štogl, Karsten Knese, Bence Magyar
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Sun, 23 May 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.5.0-3bullseye) bullseye; urgency=high
+
+  * Add NodeOptions parameter to init function of controller_interface (#382 <https://github.com/ros-controls/ros2_control/issues/382>)
+  * guard around pragmas (#397 <https://github.com/ros-controls/ros2_control/issues/397>)
+  * avoid deprecations (#393 <https://github.com/ros-controls/ros2_control/issues/393>)
+  * Contributors: Auguste Bourgois, Karsten Knese, Bence Magyar
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Mon, 03 May 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.4.0-3bullseye) bullseye; urgency=high
+
+  * Replace controller_interface return type SUCCESS by OK and mark SUCCESS as deprecated (#374 <https://github.com/ros-controls/ros2_control/issues/374>)
+  * Contributors: Mateus Amarante
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Wed, 07 Apr 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.3.0-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Sun, 21 Mar 2021 07:00:00 -0000
+
+ros-rolling-controller-interface (0.2.1-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Tue, 02 Mar 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (0.2.0-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Fri, 26 Feb 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (0.1.6-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Fri, 05 Feb 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (0.1.5-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Thu, 04 Feb 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (0.1.4-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Wed, 03 Feb 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (0.1.3-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Thu, 21 Jan 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (0.1.2-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Wed, 06 Jan 2021 08:00:00 -0000
+
+ros-rolling-controller-interface (0.1.1-3bullseye) bullseye; urgency=high
+
+
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Wed, 23 Dec 2020 08:00:00 -0000
+
+ros-rolling-controller-interface (0.1.0-3bullseye) bullseye; urgency=high
+
+  * Don't auto-declare override parameters and fix some prints (#276 <https://github.com/ros-controls/ros2_control/issues/276>)
+  * Add configure controller service (#272 <https://github.com/ros-controls/ros2_control/issues/272>)
+  * get_node() throw if node is uninitialized (#268 <https://github.com/ros-controls/ros2_control/issues/268>)
+  * Remove lifecycle node (#261 <https://github.com/ros-controls/ros2_control/issues/261>)
+  * Use resource manager (#236 <https://github.com/ros-controls/ros2_control/issues/236>)
+  * import controller_interface
+  * Contributors: Bence Magyar, Denis Štogl, Jordan Palacios, Karsten Knese, Victor Lopez
+
+ -- Bence Magyar <bence.magyar.robotics@gmail.com>  Tue, 22 Dec 2020 08:00:00 -0000
+
+
