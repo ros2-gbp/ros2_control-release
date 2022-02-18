@@ -2,13 +2,11 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.1.0 (2022-01-11)
+1.4.0 (2022-02-18)
 ------------------
 
-2.0.0 (2021-12-29)
+1.3.0 (2021-12-21)
 ------------------
-* Adding support for 'initial_value' parameter. (`#593 <https://github.com/ros-controls/ros2_control/issues/593>`_)
-* Contributors: bailaC
 
 1.2.0 (2021-11-05)
 ------------------

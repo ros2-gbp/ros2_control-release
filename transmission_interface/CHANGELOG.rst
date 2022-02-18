@@ -2,10 +2,10 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.1.0 (2022-01-11)
+1.4.0 (2022-02-18)
 ------------------
 
-2.0.0 (2021-12-29)
+1.3.0 (2021-12-21)
 ------------------
 * simple transmission configure multiple definition fix (`#571 <https://github.com/ros-controls/ros2_control/issues/571>`_)
 * Contributors: niiquaye

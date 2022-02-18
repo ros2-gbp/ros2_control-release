@@ -2,20 +2,13 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.1.0 (2022-01-11)
+1.4.0 (2022-02-18)
 ------------------
-* Removing 'auto' from function definition to support pre c++ 20 (`#608 <https://github.com/ros-controls/ros2_control/issues/608>`_)
-* Support of "initial_value" for the 'FakeSystem' (`#598 <https://github.com/ros-controls/ros2_control/issues/598>`_)
-* Contributors: bailaC, Denis Štogl
+* Extend FakeHardware to support <gpio>-tag (`#574 <https://github.com/ros-controls/ros2_control/issues/574>`_) (`#634 <https://github.com/ros-controls/ros2_control/issues/634>`_)
+* Contributors: Subhas Das
 
-2.0.0 (2021-12-29)
+1.3.0 (2021-12-21)
 ------------------
-* Adding support for 'initial_value' parameter. (`#593 <https://github.com/ros-controls/ros2_control/issues/593>`_)
-* fix copy paste error in documentation (`#594 <https://github.com/ros-controls/ros2_control/issues/594>`_)
-* Use lambda functions in ros2_control generic_system for repetitive tasks (`#579 <https://github.com/ros-controls/ros2_control/issues/579>`_)
-  Co-authored-by: Denis Štogl <destogl@users.noreply.github.com>
-* Extend FakeHardware to support <gpio>-tag (`#574 <https://github.com/ros-controls/ros2_control/issues/574>`_)
-* Contributors: Michael, bailaC, Denis Štogl
 
 1.2.0 (2021-11-05)
 ------------------
