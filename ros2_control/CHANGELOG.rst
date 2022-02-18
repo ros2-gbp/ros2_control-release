@@ -2,17 +2,21 @@
 Changelog for package ros2_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.4.0 (2022-02-18)
+2.3.0 (2022-02-18)
 ------------------
-* Use correct ros-controls/realtime_tools branch (`#619 <https://github.com/ros-controls/ros2_control/issues/619>`_) (`#621 <https://github.com/ros-controls/ros2_control/issues/621>`_)
-* No need to get angles from source anymore, causes issues now (backport `#616 <https://github.com/ros-controls/ros2_control/issues/616>`_) (`#617 <https://github.com/ros-controls/ros2_control/issues/617>`_)
-* Point ros-controls/ros2_control to galactic (`#602 <https://github.com/ros-controls/ros2_control/issues/602>`_)
-* fix typo in .repos control_msgs version (`#601 <https://github.com/ros-controls/ros2_control/issues/601>`_)
+
+2.2.0 (2022-01-24)
+------------------
+* Use correct ros-controls/realtime_tools branch (`#619 <https://github.com/ros-controls/ros2_control/issues/619>`_)
+* No need to get angles from source anymore, causes issues now (`#616 <https://github.com/ros-controls/ros2_control/issues/616>`_)
 * Contributors: Bence Magyar, Melvin Wang
 
-1.3.0 (2021-12-21)
+2.1.0 (2022-01-11)
 ------------------
-* Point control_msgs to galactic branch.
+
+2.0.0 (2021-12-29)
+------------------
+* Point control_msgs to galactic branch (`#587 <https://github.com/ros-controls/ros2_control/issues/587>`_)
 * Contributors: Denis Štogl
 
 1.2.0 (2021-11-05)

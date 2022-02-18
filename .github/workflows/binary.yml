@@ -7,8 +7,6 @@ on:
   schedule:
     # Run every morning to detect flakiness and broken dependencies
     - cron: '17 8 * * *'
-env:
-  ROS_DISTRO: galactic
 
 jobs:
   ci_binary:
@@ -16,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-          ROS_REPO: [main, testing]
-    steps:
-      - uses: actions/checkout@v2
-      - uses: ros-industrial/industrial_ci@master
         env:
-          ROS_REPO: ${{matrix.ROS_REPO}}
+          - {ROS_DISTRO: galactic, ROS_REPO: main}
+          - {ROS_DISTRO: galactic, ROS_REPO: testing}
+    steps:
+      - uses: actions/checkout@v1
+      - uses: ros-industrial/industrial_ci@master
+        env: ${{matrix.env}}
