@@ -2,17 +2,84 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.10.0 (2022-02-23)
--------------------
-
-0.9.0 (2021-12-20)
+2.4.0 (2022-02-23)
 ------------------
+* Fix transmission loader tests (`#642 <https://github.com/ros-controls/ros2_control/issues/642>`_)
+* Contributors: Bence Magyar, Denis Štogl
 
-0.8.1 (2021-10-25)
+2.3.0 (2022-02-18)
 ------------------
-* add M_PI macro for windows foxy in test_component_parser.cpp (`#545 <https://github.com/ros-controls/ros2_control/issues/545>`_)
-* Extend GenericSystem by adding mapping of position with offset to custom interface. (`#469 <https://github.com/ros-controls/ros2_control/issues/469>`_) (`#523 <https://github.com/ros-controls/ros2_control/issues/523>`_)
-* Contributors: BenjaminHug8, Denis Štogl
+* Add a warning if an initial_value is not found for any interface (`#623 <https://github.com/ros-controls/ros2_control/issues/623>`_)
+* Contributors: AndyZe
+
+2.2.0 (2022-01-24)
+------------------
+* Resource Manager API changes for hardware lifecycle #api-breaking #abi-breaking (`#589 <https://github.com/ros-controls/ros2_control/issues/589>`_)
+  * Towards selective starting and stoping of hardware components. Cleaning and renaming.
+  * Move Lifecycle of hardware component to the bottom for better overview.
+  * Use the same nomenclature as for controllers. 'start' -> 'activate'; 'stop' -> 'deactivate'
+  * Add selective starting and stopping of hardware resources.
+  Add HardwareComponentInfo structure in resource manager.
+  Use constants for HW parameters in tests of resource_manager.
+  Add list hardware components in CM to get details about them and check their status.
+  Use clear name for 'guard' and move release cmd itfs for better readability.
+  RM: Add lock for accesing maps with stored interfaces.
+  Separate hardware components-related services after controllers-related services.
+  Add service for activate/deactive hardware components.
+  Add activation and deactivation through ResourceStorage. This helps to manage available command interfaces.
+  * Use lifecycle_msgs/State in ListHardwareCompoents for state representation.
+  * Simplify repeatable code in methods.
+  * Add HW shutdown structure into ResouceManager.
+  * Fill out service callback in CM and add parameter for auto-configure.
+  * Move claimed_command_itf_map to ResourceStorage from ResourceManager.
+  * Do not automatically configure hardware in RM.
+  * Lifecycle and claiming in Resource Manager is working.
+  * Extend controller manager to support HW lifecycle.
+  * Add also available and claimed status into list components service output.
+  * Add SetHardwareComponentState service.
+  * Make all output in services debug-output.
+  * Remove specific services for hardware lifecycle management and leave only 'set_hardware_component_state' service.
+  * Make init_resource_manager less stateful.
+  * Keep old api to start/activate all components per default.
+  * Remove 'moving'/'non-moving' interface-handling.
+  * Remove obsolete 'import_components' methods without hardware info and fix post_initialization test.
+  Co-authored-by: Bence Magyar <bence.magyar.robotics@gmail.com>
+* Doc 📓: Add detailed explanation about writing new hardware interface.  (`#615 <https://github.com/ros-controls/ros2_control/issues/615>`_)
+* Contributors: Denis Štogl
+
+2.1.0 (2022-01-11)
+------------------
+* Removing 'auto' from function definition to support pre c++ 20 (`#608 <https://github.com/ros-controls/ros2_control/issues/608>`_)
+* Support of "initial_value" for the 'FakeSystem' (`#598 <https://github.com/ros-controls/ros2_control/issues/598>`_)
+* Contributors: bailaC, Denis Štogl
+
+2.0.0 (2021-12-29)
+------------------
+* Adding support for 'initial_value' parameter. (`#593 <https://github.com/ros-controls/ros2_control/issues/593>`_)
+* fix copy paste error in documentation (`#594 <https://github.com/ros-controls/ros2_control/issues/594>`_)
+* Use lambda functions in ros2_control generic_system for repetitive tasks (`#579 <https://github.com/ros-controls/ros2_control/issues/579>`_)
+  Co-authored-by: Denis Štogl <destogl@users.noreply.github.com>
+* Extend FakeHardware to support <gpio>-tag (`#574 <https://github.com/ros-controls/ros2_control/issues/574>`_)
+* Contributors: Michael, bailaC, Denis Štogl
+
+1.2.0 (2021-11-05)
+------------------
+* Import and Initialize components (`#566 <https://github.com/ros-controls/ros2_control/issues/566>`_)
+* Contributors: Alejandro Hernández Cordero
+
+1.1.0 (2021-10-25)
+------------------
+* Handle errors of hardware that happen on read and write. (`#546 <https://github.com/ros-controls/ros2_control/issues/546>`_)
+* Contributors: Denis Štogl, Mathias Aarbo
+
+1.0.0 (2021-09-29)
+------------------
+* Hardware components extension for lifecycle support (`#503 <https://github.com/ros-controls/ros2_control/issues/503>`_)
+* add M_PI macro for windows in test_component_parser.cpp (`#502 <https://github.com/ros-controls/ros2_control/issues/502>`_)
+* Extend GenericSystem by adding mapping of position with offset to custom interface. (`#469 <https://github.com/ros-controls/ros2_control/issues/469>`_)
+* Remove BOOST compiler definitions for pluginlib from CMakeLists (`#514 <https://github.com/ros-controls/ros2_control/issues/514>`_)
+* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
+* Contributors: Bence Magyar, Denis Štogl, dzyGIT
 
 0.8.0 (2021-08-28)
 ------------------

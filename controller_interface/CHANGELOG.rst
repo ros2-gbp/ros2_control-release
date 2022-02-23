@@ -2,14 +2,43 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.10.0 (2022-02-23)
--------------------
-
-0.9.0 (2021-12-20)
+2.4.0 (2022-02-23)
 ------------------
 
-0.8.1 (2021-10-25)
+2.3.0 (2022-02-18)
 ------------------
+
+2.2.0 (2022-01-24)
+------------------
+
+2.1.0 (2022-01-11)
+------------------
+
+2.0.0 (2021-12-29)
+------------------
+* fix get_update_rate visibility in windows (`#586 <https://github.com/ros-controls/ros2_control/issues/586>`_)
+* Use lifecycle name constants from hardware interface in controller interface (`#575 <https://github.com/ros-controls/ros2_control/issues/575>`_)
+  * Use lifecycle name constants from hardware interface in controller interface
+  * Remove controller_state_names.hpp since it is not needed.
+* Contributors: Melvin Wang, Xi-Huang
+
+1.2.0 (2021-11-05)
+------------------
+
+1.1.0 (2021-10-25)
+------------------
+* Quick fix 🏎: make doc on helpers clearer (`#553 <https://github.com/ros-controls/ros2_control/issues/553>`_)
+* Contributors: Denis Štogl
+
+1.0.0 (2021-09-29)
+------------------
+* Per controller update rate (`#513 <https://github.com/ros-controls/ros2_control/issues/513>`_)
+  * add update_rate member field to controller manager
+* added dt to controller interface and controller manager `#438 <https://github.com/ros-controls/ros2_control/issues/438>`_ (`#520 <https://github.com/ros-controls/ros2_control/issues/520>`_)
+* Methods controlling the lifecycle of controllers all have on\_ prefix
+* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
+* rename get_current_state() to get_state() (`#512 <https://github.com/ros-controls/ros2_control/issues/512>`_)
+* Contributors: Bence Magyar, Denis Štogl, Dmitri Ignakov, Márk Szitanics, bailaC
 
 0.8.0 (2021-08-28)
 ------------------

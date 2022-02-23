@@ -17,7 +17,8 @@
 #include <memory>
 #include <string>
 
-#include "lifecycle_msgs/msg/transition.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
+#include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
 namespace test_controller
 {
@@ -27,10 +28,46 @@ TestController::TestController()
 {
 }
 
-controller_interface::return_type TestController::update()
+controller_interface::InterfaceConfiguration TestController::command_interface_configuration() const
+{
+  if (
+    lifecycle_state_.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE ||
+    lifecycle_state_.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+  {
+    return cmd_iface_cfg_;
+  }
+  else
+  {
+    throw std::runtime_error(
+      "Can not get command interface configuration until the controller is configured.");
+  }
+}
+
+controller_interface::InterfaceConfiguration TestController::state_interface_configuration() const
+{
+  if (
+    lifecycle_state_.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE ||
+    lifecycle_state_.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+  {
+    return state_iface_cfg_;
+  }
+  else
+  {
+    throw std::runtime_error(
+      "Can not get state interface configuration until the controller is configured.");
+  }
+}
+
+controller_interface::return_type TestController::update(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   ++internal_counter;
   return controller_interface::return_type::OK;
+}
+
+rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn TestController::on_init()
+{
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
@@ -58,6 +95,12 @@ void TestController::set_command_interface_configuration(
   const controller_interface::InterfaceConfiguration & cfg)
 {
   cmd_iface_cfg_ = cfg;
+}
+
+void TestController::set_state_interface_configuration(
+  const controller_interface::InterfaceConfiguration & cfg)
+{
+  state_iface_cfg_ = cfg;
 }
 
 }  // namespace test_controller

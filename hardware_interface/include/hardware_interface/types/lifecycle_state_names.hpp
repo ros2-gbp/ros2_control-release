@@ -14,22 +14,23 @@
 //
 /// \author: Denis Stogl
 
-#ifndef CONTROLLER_INTERFACE__CONTROLLER_STATE_NAMES_HPP_
-#define CONTROLLER_INTERFACE__CONTROLLER_STATE_NAMES_HPP_
+#ifndef HARDWARE_INTERFACE__TYPES__LIFECYCLE_STATE_NAMES_HPP_
+#define HARDWARE_INTERFACE__TYPES__LIFECYCLE_STATE_NAMES_HPP_
 
 #include <string>
 
-namespace controller_interface
+namespace hardware_interface
 {
-namespace state_names
+namespace lifecycle_state_names
 {
 /// Constants defining string labels corresponding to lifecycle states
+constexpr char UNKNOWN[] = "unknown";
 constexpr char UNCONFIGURED[] = "unconfigured";
 constexpr char INACTIVE[] = "inactive";
 constexpr char ACTIVE[] = "active";
 constexpr char FINALIZED[] = "finalized";
-}  // namespace state_names
+}  // namespace lifecycle_state_names
 
-}  // namespace controller_interface
+}  // namespace hardware_interface
 
-#endif  // CONTROLLER_INTERFACE__CONTROLLER_STATE_NAMES_HPP_
+#endif  // HARDWARE_INTERFACE__TYPES__LIFECYCLE_STATE_NAMES_HPP_

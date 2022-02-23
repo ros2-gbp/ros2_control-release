@@ -37,19 +37,16 @@ public:
   CONTROLLER_MANAGER_PUBLIC
   virtual ~TestController() = default;
 
-  controller_interface::InterfaceConfiguration command_interface_configuration() const override
-  {
-    return cmd_iface_cfg_;
-  }
+  controller_interface::InterfaceConfiguration command_interface_configuration() const override;
 
-  controller_interface::InterfaceConfiguration state_interface_configuration() const override
-  {
-    return controller_interface::InterfaceConfiguration{
-      controller_interface::interface_configuration_type::NONE};
-  }
+  controller_interface::InterfaceConfiguration state_interface_configuration() const override;
 
   CONTROLLER_MANAGER_PUBLIC
-  controller_interface::return_type update() override;
+  controller_interface::return_type update(
+    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+
+  CONTROLLER_MANAGER_PUBLIC
+  rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_init() override;
 
   CONTROLLER_MANAGER_PUBLIC
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(
@@ -63,12 +60,16 @@ public:
   void set_command_interface_configuration(
     const controller_interface::InterfaceConfiguration & cfg);
 
+  CONTROLLER_MANAGER_PUBLIC
+  void set_state_interface_configuration(const controller_interface::InterfaceConfiguration & cfg);
+
   size_t internal_counter = 0;
   bool simulate_cleanup_failure = false;
   // Variable where we store when cleanup was called, pointer because the controller
   // is usually destroyed after cleanup
   size_t * cleanup_calls = nullptr;
   controller_interface::InterfaceConfiguration cmd_iface_cfg_;
+  controller_interface::InterfaceConfiguration state_iface_cfg_;
 };
 
 }  // namespace test_controller

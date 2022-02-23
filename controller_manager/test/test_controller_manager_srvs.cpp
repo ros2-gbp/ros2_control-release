@@ -42,7 +42,7 @@ public:
 
     update_timer_ = cm_->create_wall_timer(std::chrono::milliseconds(10), [&]() {
       cm_->read();
-      cm_->update();
+      cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
       cm_->write();
     });
 
@@ -69,7 +69,7 @@ public:
       while (service_executor.spin_until_future_complete(result, 50ms) !=
              rclcpp::FutureReturnCode::SUCCESS)
       {
-        cm_->update();
+        cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
       }
     }
     else
@@ -119,26 +119,38 @@ TEST_F(TestControllerManagerSrvs, list_controllers_srv)
   ASSERT_EQ(0u, result->controller.size());
 
   auto test_controller = std::make_shared<test_controller::TestController>();
-  controller_interface::InterfaceConfiguration cfg = {
+  controller_interface::InterfaceConfiguration cmd_cfg = {
     controller_interface::interface_configuration_type::INDIVIDUAL,
     {"joint1/position", "joint2/velocity"}};
-  test_controller->set_command_interface_configuration(cfg);
+  controller_interface::InterfaceConfiguration state_cfg = {
+    controller_interface::interface_configuration_type::INDIVIDUAL,
+    {"joint1/position", "joint1/velocity", "joint2/position"}};
+  test_controller->set_command_interface_configuration(cmd_cfg);
+  test_controller->set_state_interface_configuration(state_cfg);
   auto abstract_test_controller = cm_->add_controller(
     test_controller, test_controller::TEST_CONTROLLER_NAME,
     test_controller::TEST_CONTROLLER_CLASS_NAME);
-  EXPECT_EQ(1u, cm_->get_loaded_controllers().size());
+  ASSERT_EQ(1u, cm_->get_loaded_controllers().size());
   result = call_service_and_wait(*client, request, srv_executor);
   ASSERT_EQ(1u, result->controller.size());
   ASSERT_EQ(test_controller::TEST_CONTROLLER_NAME, result->controller[0].name);
   ASSERT_EQ(test_controller::TEST_CONTROLLER_CLASS_NAME, result->controller[0].type);
   ASSERT_EQ("unconfigured", result->controller[0].state);
   ASSERT_TRUE(result->controller[0].claimed_interfaces.empty());
+  ASSERT_TRUE(result->controller[0].required_command_interfaces.empty());
+  ASSERT_TRUE(result->controller[0].required_state_interfaces.empty());
 
   cm_->configure_controller(test_controller::TEST_CONTROLLER_NAME);
   result = call_service_and_wait(*client, request, srv_executor);
   ASSERT_EQ(1u, result->controller.size());
   ASSERT_EQ("inactive", result->controller[0].state);
   ASSERT_TRUE(result->controller[0].claimed_interfaces.empty());
+  ASSERT_THAT(
+    result->controller[0].required_command_interfaces,
+    testing::ElementsAre("joint1/position", "joint2/velocity"));
+  ASSERT_THAT(
+    result->controller[0].required_state_interfaces,
+    testing::ElementsAre("joint1/position", "joint1/velocity", "joint2/position"));
 
   cm_->switch_controller(
     {test_controller::TEST_CONTROLLER_NAME}, {},
@@ -150,6 +162,12 @@ TEST_F(TestControllerManagerSrvs, list_controllers_srv)
   ASSERT_THAT(
     result->controller[0].claimed_interfaces,
     testing::ElementsAre("joint1/position", "joint2/velocity"));
+  ASSERT_THAT(
+    result->controller[0].required_command_interfaces,
+    testing::ElementsAre("joint1/position", "joint2/velocity"));
+  ASSERT_THAT(
+    result->controller[0].required_state_interfaces,
+    testing::ElementsAre("joint1/position", "joint1/velocity", "joint2/position"));
 
   cm_->switch_controller(
     {}, {test_controller::TEST_CONTROLLER_NAME},
@@ -159,9 +177,17 @@ TEST_F(TestControllerManagerSrvs, list_controllers_srv)
   ASSERT_EQ(1u, result->controller.size());
   ASSERT_EQ("inactive", result->controller[0].state);
   ASSERT_TRUE(result->controller[0].claimed_interfaces.empty());
+  ASSERT_THAT(
+    result->controller[0].required_command_interfaces,
+    testing::ElementsAre("joint1/position", "joint2/velocity"));
+  ASSERT_THAT(
+    result->controller[0].required_state_interfaces,
+    testing::ElementsAre("joint1/position", "joint1/velocity", "joint2/position"));
 
-  cfg = {controller_interface::interface_configuration_type::ALL};
-  test_controller->set_command_interface_configuration(cfg);
+  cmd_cfg = {controller_interface::interface_configuration_type::ALL};
+  test_controller->set_command_interface_configuration(cmd_cfg);
+  state_cfg = {controller_interface::interface_configuration_type::ALL};
+  test_controller->set_state_interface_configuration(state_cfg);
   cm_->switch_controller(
     {test_controller::TEST_CONTROLLER_NAME}, {},
     controller_manager_msgs::srv::SwitchController::Request::STRICT, true, rclcpp::Duration(0, 0));
@@ -171,7 +197,20 @@ TEST_F(TestControllerManagerSrvs, list_controllers_srv)
   ASSERT_EQ("active", result->controller[0].state);
   ASSERT_THAT(
     result->controller[0].claimed_interfaces,
-    testing::ElementsAre("joint1/position", "joint2/velocity", "joint3/velocity"));
+    testing::ElementsAre(
+      "joint1/position", "joint1/max_velocity", "joint2/velocity", "joint3/velocity",
+      "joint2/max_acceleration", "configuration/max_tcp_jerk"));
+  ASSERT_THAT(
+    result->controller[0].required_command_interfaces,
+    testing::ElementsAre(
+      "configuration/max_tcp_jerk", "joint1/max_velocity", "joint1/position",
+      "joint2/max_acceleration", "joint2/velocity", "joint3/velocity"));
+  ASSERT_THAT(
+    result->controller[0].required_state_interfaces,
+    testing::ElementsAre(
+      "configuration/max_tcp_jerk", "joint1/position", "joint1/some_unlisted_interface",
+      "joint1/velocity", "joint2/acceleration", "joint2/position", "joint2/velocity",
+      "joint3/acceleration", "joint3/position", "joint3/velocity", "sensor1/velocity"));
 
   cm_->switch_controller(
     {}, {test_controller::TEST_CONTROLLER_NAME},
@@ -181,6 +220,17 @@ TEST_F(TestControllerManagerSrvs, list_controllers_srv)
   ASSERT_EQ(1u, result->controller.size());
   ASSERT_EQ("inactive", result->controller[0].state);
   ASSERT_TRUE(result->controller[0].claimed_interfaces.empty());
+  ASSERT_THAT(
+    result->controller[0].required_command_interfaces,
+    testing::ElementsAre(
+      "configuration/max_tcp_jerk", "joint1/max_velocity", "joint1/position",
+      "joint2/max_acceleration", "joint2/velocity", "joint3/velocity"));
+  ASSERT_THAT(
+    result->controller[0].required_state_interfaces,
+    testing::ElementsAre(
+      "configuration/max_tcp_jerk", "joint1/position", "joint1/some_unlisted_interface",
+      "joint1/velocity", "joint2/acceleration", "joint2/position", "joint2/velocity",
+      "joint3/acceleration", "joint3/position", "joint3/velocity", "sensor1/velocity"));
 
   ASSERT_EQ(
     controller_interface::return_type::OK,
@@ -215,8 +265,7 @@ TEST_F(TestControllerManagerSrvs, reload_controller_libraries_srv)
   std::weak_ptr<controller_interface::ControllerInterface> test_controller_weak(test_controller);
 
   ASSERT_EQ(
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED,
-    test_controller->get_current_state().id());
+    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, test_controller->get_state().id());
   ASSERT_GT(test_controller.use_count(), 1)
     << "Controller manager should have have a copy of this shared ptr";
 
@@ -238,8 +287,7 @@ TEST_F(TestControllerManagerSrvs, reload_controller_libraries_srv)
   test_controller_weak = test_controller;
   cm_->configure_controller(test_controller::TEST_CONTROLLER_NAME);
 
-  ASSERT_EQ(
-    lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, test_controller->get_current_state().id());
+  ASSERT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, test_controller->get_state().id());
   ASSERT_GT(test_controller.use_count(), 1)
     << "Controller manager should have have a copy of this shared ptr";
 
@@ -263,15 +311,13 @@ TEST_F(TestControllerManagerSrvs, reload_controller_libraries_srv)
   cm_->switch_controller(
     {test_controller::TEST_CONTROLLER_NAME}, {},
     controller_manager_msgs::srv::SwitchController::Request::STRICT, true, rclcpp::Duration(0, 0));
-  ASSERT_EQ(
-    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, test_controller->get_current_state().id());
+  ASSERT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, test_controller->get_state().id());
 
   // Failed reload due to active controller
   request->force_kill = false;
   result = call_service_and_wait(*client, request, srv_executor);
   ASSERT_FALSE(result->ok) << "Cannot reload if controllers are running";
-  ASSERT_EQ(
-    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, test_controller->get_current_state().id());
+  ASSERT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, test_controller->get_state().id());
   ASSERT_GT(test_controller.use_count(), 1)
     << "Controller manager should still have have a copy of "
        "this shared ptr, no unloading was performed";
@@ -313,7 +359,7 @@ TEST_F(TestControllerManagerSrvs, load_controller_srv)
   EXPECT_EQ(1u, cm_->get_loaded_controllers().size());
   EXPECT_EQ(
     lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED,
-    cm_->get_loaded_controllers()[0].c->get_current_state().id());
+    cm_->get_loaded_controllers()[0].c->get_state().id());
 }
 
 TEST_F(TestControllerManagerSrvs, unload_controller_srv)
@@ -366,7 +412,7 @@ TEST_F(TestControllerManagerSrvs, configure_controller_srv)
   EXPECT_EQ(1u, cm_->get_loaded_controllers().size());
   EXPECT_EQ(
     lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
-    cm_->get_loaded_controllers()[0].c->get_current_state().id());
+    cm_->get_loaded_controllers()[0].c->get_state().id());
 }
 
 TEST_F(TestControllerManagerSrvs, load_configure_controller_srv)
@@ -392,7 +438,7 @@ TEST_F(TestControllerManagerSrvs, load_configure_controller_srv)
   EXPECT_EQ(test_controller::TEST_CONTROLLER_NAME, cm_->get_loaded_controllers()[0].info.name);
   EXPECT_EQ(
     lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
-    cm_->get_loaded_controllers()[0].c->get_current_state().id());
+    cm_->get_loaded_controllers()[0].c->get_state().id());
 }
 
 TEST_F(TestControllerManagerSrvs, load_start_controller_srv)
@@ -418,7 +464,7 @@ TEST_F(TestControllerManagerSrvs, load_start_controller_srv)
   EXPECT_EQ(test_controller::TEST_CONTROLLER_NAME, cm_->get_loaded_controllers()[0].info.name);
   EXPECT_EQ(
     lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
-    cm_->get_loaded_controllers()[0].c->get_current_state().id());
+    cm_->get_loaded_controllers()[0].c->get_state().id());
 }
 
 TEST_F(TestControllerManagerSrvs, configure_start_controller_srv)
@@ -447,5 +493,5 @@ TEST_F(TestControllerManagerSrvs, configure_start_controller_srv)
   EXPECT_EQ(1u, cm_->get_loaded_controllers().size());
   EXPECT_EQ(
     lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
-    cm_->get_loaded_controllers()[0].c->get_current_state().id());
+    cm_->get_loaded_controllers()[0].c->get_state().id());
 }

@@ -38,6 +38,7 @@ constexpr const auto kCommandInterfaceTag = "command_interface";
 constexpr const auto kStateInterfaceTag = "state_interface";
 constexpr const auto kMinTag = "min";
 constexpr const auto kMaxTag = "max";
+constexpr const auto kInitialValueTag = "initial_value";
 constexpr const auto kDataTypeAttribute = "data_type";
 constexpr const auto kSizeAttribute = "size";
 constexpr const auto kNameAttribute = "name";
@@ -122,16 +123,22 @@ double get_parameter_value_or(
 {
   while (params_it)
   {
-    // Fill the map with parameters
-    const auto tag_name = params_it->Name();
-    if (strcmp(tag_name, parameter_name) == 0)
+    try
     {
-      const auto tag_text = params_it->GetText();
-      if (!tag_text)
+      // Fill the map with parameters
+      const auto tag_name = params_it->Name();
+      if (strcmp(tag_name, parameter_name) == 0)
       {
-        throw std::runtime_error("text not specified in the " + std::string(tag_name) + " tag");
+        const auto tag_text = params_it->GetText();
+        if (tag_text)
+        {
+          return std::stod(tag_text);
+        }
       }
-      return std::stod(tag_text);
+    }
+    catch (const std::exception & e)
+    {
+      return default_value;
     }
 
     params_it = params_it->NextSiblingElement();
@@ -258,6 +265,13 @@ hardware_interface::InterfaceInfo parse_interfaces_from_xml(
     interface.max = interface_param->second;
   }
 
+  // Optional initial_value attribute
+  interface_param = interface_params.find(kInitialValueTag);
+  if (interface_param != interface_params.end())
+  {
+    interface.initial_value = interface_param->second;
+  }
+
   // Default to a single double
   interface.data_type = "double";
   interface.size = 1;
@@ -360,7 +374,7 @@ JointInfo parse_transmission_joint_from_xml(const tinyxml2::XMLElement * element
   joint_info.name = get_attribute_value(element_it, kNameAttribute, element_it->Name());
   joint_info.role = get_attribute_value(element_it, kRoleAttribute, element_it->Name());
   joint_info.mechanical_reduction =
-    get_parameter_value_or(element_it->FirstChildElement(), kReductionAttribute, 0.0);
+    get_parameter_value_or(element_it->FirstChildElement(), kReductionAttribute, 1.0);
   joint_info.offset =
     get_parameter_value_or(element_it->FirstChildElement(), kOffsetAttribute, 0.0);
   return joint_info;
