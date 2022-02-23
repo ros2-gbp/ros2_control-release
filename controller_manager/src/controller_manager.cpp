@@ -24,14 +24,33 @@
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-namespace controller_manager
-{
+namespace
+{  // utility
+
 static constexpr const char * kControllerInterfaceName = "controller_interface";
 static constexpr const char * kControllerInterface = "controller_interface::ControllerInterface";
+
+// Changed services history QoS to keep all so we don't lose any client service calls
+static const rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
+  RMW_QOS_POLICY_HISTORY_KEEP_ALL,
+  1,  // message queue depth
+  RMW_QOS_POLICY_RELIABILITY_RELIABLE,
+  RMW_QOS_POLICY_DURABILITY_VOLATILE,
+  RMW_QOS_DEADLINE_DEFAULT,
+  RMW_QOS_LIFESPAN_DEFAULT,
+  RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+  RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+  false};
 
 inline bool is_controller_inactive(const controller_interface::ControllerInterface & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
+}
+
+inline bool is_controller_inactive(
+  const controller_interface::ControllerInterfaceSharedPtr & controller)
+{
+  return is_controller_inactive(*controller);
 }
 
 inline bool is_controller_active(controller_interface::ControllerInterface & controller)
@@ -39,11 +58,21 @@ inline bool is_controller_active(controller_interface::ControllerInterface & con
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE;
 }
 
-bool controller_name_compare(const ControllerSpec & a, const std::string & name)
+inline bool is_controller_active(
+  const controller_interface::ControllerInterfaceSharedPtr & controller)
+{
+  return is_controller_active(*controller);
+}
+
+bool controller_name_compare(const controller_manager::ControllerSpec & a, const std::string & name)
 {
   return a.info.name == name;
 }
 
+}  // namespace
+
+namespace controller_manager
+{
 rclcpp::NodeOptions get_cm_node_options()
 {
   rclcpp::NodeOptions node_options;
@@ -108,62 +137,62 @@ void ControllerManager::init_services()
   using namespace std::placeholders;
   list_controllers_service_ = create_service<controller_manager_msgs::srv::ListControllers>(
     "~/list_controllers", std::bind(&ControllerManager::list_controllers_srv_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_controller_types_service_ =
     create_service<controller_manager_msgs::srv::ListControllerTypes>(
       "~/list_controller_types",
       std::bind(&ControllerManager::list_controller_types_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_controller_service_ = create_service<controller_manager_msgs::srv::LoadController>(
     "~/load_controller", std::bind(&ControllerManager::load_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   configure_controller_service_ = create_service<controller_manager_msgs::srv::ConfigureController>(
     "~/configure_controller",
     std::bind(&ControllerManager::configure_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_and_configure_controller_service_ =
     create_service<controller_manager_msgs::srv::LoadConfigureController>(
       "~/load_and_configure_controller",
       std::bind(&ControllerManager::load_and_configure_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_and_start_controller_service_ =
     create_service<controller_manager_msgs::srv::LoadStartController>(
       "~/load_and_start_controller",
       std::bind(&ControllerManager::load_and_start_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   configure_and_start_controller_service_ =
     create_service<controller_manager_msgs::srv::ConfigureStartController>(
       "~/configure_and_start_controller",
       std::bind(&ControllerManager::configure_and_start_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   reload_controller_libraries_service_ =
     create_service<controller_manager_msgs::srv::ReloadControllerLibraries>(
       "~/reload_controller_libraries",
       std::bind(&ControllerManager::reload_controller_libraries_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   switch_controller_service_ = create_service<controller_manager_msgs::srv::SwitchController>(
     "~/switch_controller",
     std::bind(&ControllerManager::switch_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   unload_controller_service_ = create_service<controller_manager_msgs::srv::UnloadController>(
     "~/unload_controller",
     std::bind(&ControllerManager::unload_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_hardware_components_service_ =
     create_service<controller_manager_msgs::srv::ListHardwareComponents>(
       "~/list_hardware_components",
       std::bind(&ControllerManager::list_hardware_components_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_hardware_interfaces_service_ =
     create_service<controller_manager_msgs::srv::ListHardwareInterfaces>(
       "~/list_hardware_interfaces",
       std::bind(&ControllerManager::list_hardware_interfaces_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   set_hardware_component_state_service_ =
     create_service<controller_manager_msgs::srv::SetHardwareComponentState>(
       "~/set_hardware_component_state",
       std::bind(&ControllerManager::set_hardware_component_state_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
 }
 
 controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_controller(
@@ -587,7 +616,7 @@ controller_interface::return_type ControllerManager::switch_controller(
   // update the claimed interface controller info
   for (auto & controller : to)
   {
-    if (controller.c->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+    if (is_controller_active(controller.c))
     {
       auto command_interface_config = controller.c->command_interface_configuration();
       if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
@@ -873,28 +902,32 @@ void ControllerManager::list_controllers_srv_cb(
     cs.claimed_interfaces = controllers[i].info.claimed_interfaces;
     cs.state = controllers[i].c->get_state().label();
 
-    // Get information about interfaces
-    auto command_interface_config = controllers[i].c->command_interface_configuration();
-    if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
+    // Get information about interfaces if controller are in 'inactive' or 'active' state
+    if (is_controller_active(controllers[i].c) || is_controller_inactive(controllers[i].c))
     {
-      cs.required_command_interfaces = resource_manager_->command_interface_keys();
-    }
-    else if (
-      command_interface_config.type ==
-      controller_interface::interface_configuration_type::INDIVIDUAL)
-    {
-      cs.required_command_interfaces = command_interface_config.names;
-    }
+      auto command_interface_config = controllers[i].c->command_interface_configuration();
+      if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
+      {
+        cs.required_command_interfaces = resource_manager_->command_interface_keys();
+      }
+      else if (
+        command_interface_config.type ==
+        controller_interface::interface_configuration_type::INDIVIDUAL)
+      {
+        cs.required_command_interfaces = command_interface_config.names;
+      }
 
-    auto state_interface_config = controllers[i].c->state_interface_configuration();
-    if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
-    {
-      cs.required_state_interfaces = resource_manager_->state_interface_keys();
-    }
-    else if (
-      state_interface_config.type == controller_interface::interface_configuration_type::INDIVIDUAL)
-    {
-      cs.required_state_interfaces = state_interface_config.names;
+      auto state_interface_config = controllers[i].c->state_interface_configuration();
+      if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
+      {
+        cs.required_state_interfaces = resource_manager_->state_interface_keys();
+      }
+      else if (
+        state_interface_config.type ==
+        controller_interface::interface_configuration_type::INDIVIDUAL)
+      {
+        cs.required_state_interfaces = state_interface_config.names;
+      }
     }
   }
 
