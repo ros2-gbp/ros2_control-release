@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>hardware_interface</name>
-  <version>2.3.0</version>
+  <version>0.10.0</version>
   <description>ROS2 ros_control hardware interface</description>
   <maintainer email="karsten@osrfoundation.org">Karsten Knese</maintainer>
   <maintainer email="bence.magyar.robotics@gmail.com">Bence Magyar</maintainer>
@@ -11,7 +11,6 @@
 
   <depend>control_msgs</depend>
   <depend>pluginlib</depend>
-  <depend>rclcpp_lifecycle</depend>
   <depend>rcpputils</depend>
   <depend>tinyxml2_vendor</depend>
 

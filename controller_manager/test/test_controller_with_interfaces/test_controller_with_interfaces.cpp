@@ -26,14 +26,7 @@ TestControllerWithInterfaces::TestControllerWithInterfaces()
 {
 }
 
-rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-TestControllerWithInterfaces::on_init()
-{
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
-}
-
-controller_interface::return_type TestControllerWithInterfaces::update(
-  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+controller_interface::return_type TestControllerWithInterfaces::update()
 {
   return controller_interface::return_type::OK;
 }

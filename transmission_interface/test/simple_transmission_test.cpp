@@ -159,12 +159,22 @@ TEST_P(BlackBoxTest, IdentityMap)
   testIdentityMap(trans, HW_IF_EFFORT, -1.0);
 }
 
-INSTANTIATE_TEST_SUITE_P(
+#ifdef __APPLE__
+INSTANTIATE_TEST_CASE_P(
+  IdentityMap, BlackBoxTest,
+  ::testing::Values(
+    SimpleTransmission(10.0), SimpleTransmission(-10.0), SimpleTransmission(10.0, 1.0),
+    SimpleTransmission(10.0, -1.0), SimpleTransmission(-10.0, 1.0), SimpleTransmission(-10.0, -1.0))
+  // cppcheck-suppress syntaxError
+  , );
+#else
+INSTANTIATE_TEST_CASE_P(
   IdentityMap, BlackBoxTest,
   ::testing::Values(
     SimpleTransmission(10.0), SimpleTransmission(-10.0), SimpleTransmission(10.0, 1.0),
     SimpleTransmission(10.0, -1.0), SimpleTransmission(-10.0, 1.0),
     SimpleTransmission(-10.0, -1.0)));
+#endif
 
 class WhiteBoxTest : public TransmissionSetup, public ::testing::Test
 {

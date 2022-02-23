@@ -89,13 +89,13 @@ public:
   void release_interfaces();
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual LifecycleNodeInterface::CallbackReturn on_init() = 0;
-
-  CONTROLLER_INTERFACE_PUBLIC
   virtual return_type init(const std::string & controller_name);
 
   CONTROLLER_INTERFACE_PUBLIC
-  virtual return_type update(const rclcpp::Time & time, const rclcpp::Duration & period) = 0;
+  virtual return_type init(const std::string & controller_name, rclcpp::NodeOptions & node_options);
+
+  CONTROLLER_INTERFACE_PUBLIC
+  virtual return_type update() = 0;
 
   CONTROLLER_INTERFACE_PUBLIC
   std::shared_ptr<rclcpp::Node> get_node();
@@ -146,17 +146,13 @@ public:
   const rclcpp_lifecycle::State & shutdown();
 
   CONTROLLER_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & get_state() const;
-
-  CONTROLLER_INTERFACE_PUBLIC
-  unsigned int get_update_rate() const;
+  const rclcpp_lifecycle::State & get_current_state() const;
 
 protected:
   std::vector<hardware_interface::LoanedCommandInterface> command_interfaces_;
   std::vector<hardware_interface::LoanedStateInterface> state_interfaces_;
   std::shared_ptr<rclcpp::Node> node_;
   rclcpp_lifecycle::State lifecycle_state_;
-  unsigned int update_rate_ = 0;
 };
 
 using ControllerInterfaceSharedPtr = std::shared_ptr<ControllerInterface>;

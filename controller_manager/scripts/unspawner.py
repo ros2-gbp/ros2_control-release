@@ -16,7 +16,6 @@
 
 import argparse
 import sys
-import warnings
 
 from controller_manager import switch_controllers, unload_controller
 
@@ -64,9 +63,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    warnings.warn(
-        "'unspawner.py' is deprecated, please use 'unspawner' (without .py extension)",
-        DeprecationWarning
-    )
-    ret = main()
-    sys.exit(ret)
+    main()
