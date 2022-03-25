@@ -18,23 +18,18 @@
 #include <utility>
 #include <vector>
 
-#include "./test_controller/test_controller.hpp"
 #include "controller_manager/controller_manager.hpp"
 #include "controller_manager_msgs/srv/list_controllers.hpp"
 #include "controller_manager_test_common.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "test_controller/test_controller.hpp"
 
 using ::testing::_;
 using ::testing::Return;
 
-struct Strictness
-{
-  int strictness = STRICT;
-  controller_interface::return_type expected_return;
-  unsigned int expected_counter;
-};
-class TestControllerManager : public ControllerManagerFixture,
-                              public testing::WithParamInterface<Strictness>
+class TestControllerManager
+: public ControllerManagerFixture<controller_manager::ControllerManager>,
+  public testing::WithParamInterface<Strictness>
 {
 };
 
@@ -211,7 +206,5 @@ TEST_P(TestControllerManager, per_controller_update_rate)
   EXPECT_EQ(test_controller->get_update_rate(), 4u);
 }
 
-Strictness strict{STRICT, controller_interface::return_type::ERROR, 0u};
-Strictness best_effort{BEST_EFFORT, controller_interface::return_type::OK, 1u};
 INSTANTIATE_TEST_SUITE_P(
   test_strict_best_effort, TestControllerManager, testing::Values(strict, best_effort));
