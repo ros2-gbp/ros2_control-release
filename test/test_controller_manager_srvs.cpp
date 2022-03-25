@@ -18,72 +18,18 @@
 #include <string>
 #include <vector>
 
+#include "controller_manager_test_common.hpp"
+
 #include "controller_interface/controller_interface.hpp"
 #include "controller_manager/controller_manager.hpp"
 #include "controller_manager_msgs/srv/list_controller_types.hpp"
 #include "controller_manager_msgs/srv/list_controllers.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
-#include "controller_manager_test_common.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "test_controller/test_controller.hpp"
 
 using ::testing::_;
 using ::testing::Return;
-
-using namespace std::chrono_literals;
-
-class TestControllerManagerSrvs : public ControllerManagerFixture
-{
-public:
-  TestControllerManagerSrvs() {}
-
-  void SetUp() override
-  {
-    ControllerManagerFixture::SetUp();
-
-    update_timer_ = cm_->create_wall_timer(std::chrono::milliseconds(10), [&]() {
-      cm_->read();
-      cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
-      cm_->write();
-    });
-
-    executor_->add_node(cm_);
-
-    executor_spin_future_ = std::async(std::launch::async, [this]() -> void { executor_->spin(); });
-    // This sleep is needed to prevent a too fast test from ending before the
-    // executor has began to spin, which causes it to hang
-    std::this_thread::sleep_for(50ms);
-  }
-
-  void TearDown() override { executor_->cancel(); }
-
-  template <typename T>
-  std::shared_ptr<typename T::Response> call_service_and_wait(
-    rclcpp::Client<T> & client, std::shared_ptr<typename T::Request> request,
-    rclcpp::Executor & service_executor, bool update_controller_while_spinning = false)
-  {
-    EXPECT_TRUE(client.wait_for_service(std::chrono::milliseconds(500)));
-    auto result = client.async_send_request(request);
-    // Wait for the result.
-    if (update_controller_while_spinning)
-    {
-      while (service_executor.spin_until_future_complete(result, 50ms) !=
-             rclcpp::FutureReturnCode::SUCCESS)
-      {
-        cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
-      }
-    }
-    else
-    {
-      EXPECT_EQ(
-        service_executor.spin_until_future_complete(result), rclcpp::FutureReturnCode::SUCCESS);
-    }
-    return result.get();
-  }
-
-protected:
-  rclcpp::TimerBase::SharedPtr update_timer_;
-  std::future<void> executor_spin_future_;
-};
 
 TEST_F(TestControllerManagerSrvs, list_controller_types)
 {
@@ -198,8 +144,8 @@ TEST_F(TestControllerManagerSrvs, list_controllers_srv)
   ASSERT_THAT(
     result->controller[0].claimed_interfaces,
     testing::ElementsAre(
-      "joint1/position", "joint1/max_velocity", "joint2/velocity", "joint3/velocity",
-      "joint2/max_acceleration", "configuration/max_tcp_jerk"));
+      "joint2/velocity", "joint3/velocity", "joint2/max_acceleration", "configuration/max_tcp_jerk",
+      "joint1/position", "joint1/max_velocity"));
   ASSERT_THAT(
     result->controller[0].required_command_interfaces,
     testing::ElementsAre(
@@ -276,7 +222,8 @@ TEST_F(TestControllerManagerSrvs, reload_controller_libraries_srv)
   request->force_kill = false;
   result = call_service_and_wait(*client, request, srv_executor, true);
   ASSERT_TRUE(result->ok);
-  ASSERT_EQ(cleanup_calls, 1u);
+  // Cleanup is not called from UNCONFIGURED: https://design.ros2.org/articles/node_lifecycle.html
+  ASSERT_EQ(cleanup_calls, 0u);
   ASSERT_EQ(test_controller.use_count(), 0)
     << "No more references to the controller after reloading.";
   test_controller.reset();
