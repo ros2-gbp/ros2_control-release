@@ -1,1 +1,1 @@
-{"base": "6320e380", "parent": "debian/rolling/ros2_control_test_assets", "previous": "aefc61d5", "trim": "", "trimbase": ""}
+{"base": "f1be63fc", "parent": "debian/humble/ros2_control_test_assets", "previous": "afb7806a", "trim": "", "trimbase": ""}
