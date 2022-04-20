@@ -1,1 +1,1 @@
-{"base": "2288857c", "parent": "debian/rolling/hardware_interface", "previous": "ff8845f9", "trim": "", "trimbase": ""}
+{"base": "6ecbb654", "parent": "debian/humble/hardware_interface", "previous": "bd6c70cc", "trim": "", "trimbase": ""}
