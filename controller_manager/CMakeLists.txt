@@ -6,6 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(ament_cmake_core REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(controller_interface REQUIRED)
@@ -51,14 +52,6 @@ install(TARGETS ros2_control_node
 
 install(DIRECTORY include/
   DESTINATION include
-)
-
-install(PROGRAMS
-  scripts/spawner
-  scripts/spawner.py  # Deprecated
-  scripts/unspawner
-  scripts/unspawner.py  # Deprecated
-  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
@@ -110,6 +103,14 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_controller_manager ros2_control_test_assets)
 
   ament_add_gmock(
+    test_controller_manager_with_namespace.cpp
+    test/test_controller_manager_with_namespace.cpp
+  )
+  target_include_directories(test_controller_manager_with_namespace.cpp PRIVATE include)
+  target_link_libraries(test_controller_manager_with_namespace.cpp controller_manager test_controller)
+  ament_target_dependencies(test_controller_manager_with_namespace.cpp ros2_control_test_assets)
+
+  ament_add_gmock(
     test_load_controller
     test/test_load_controller.cpp
     APPEND_ENV AMENT_PREFIX_PATH=${ament_index_build_path}_$<CONFIG>
@@ -157,10 +158,22 @@ if(BUILD_TESTING)
   target_include_directories(test_spawner_unspawner PRIVATE include)
   target_link_libraries(test_spawner_unspawner controller_manager test_controller)
   ament_target_dependencies(test_spawner_unspawner ros2_control_test_assets)
+
+  ament_add_gmock(
+    test_hardware_management_srvs
+    test/test_hardware_management_srvs.cpp
+  )
+  target_include_directories(test_hardware_management_srvs PRIVATE include)
+  target_link_libraries(test_hardware_management_srvs controller_manager test_controller)
+  ament_target_dependencies(
+    test_hardware_management_srvs
+    controller_manager_msgs
+    ros2_control_test_assets
+  )
 endif()
 
 # Install Python modules
-ament_python_install_package(${PROJECT_NAME})
+ament_python_install_package(${PROJECT_NAME} SCRIPTS_DESTINATION lib/${PROJECT_NAME})
 
 ament_export_libraries(
   controller_manager

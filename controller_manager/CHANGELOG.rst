@@ -2,23 +2,90 @@
 Changelog for package controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.5.0 (2022-04-29)
+2.7.0 (2022-04-29)
 ------------------
-* Spawner waits for services (`#683 <https://github.com/ros-controls/ros2_control/issues/683>`_) (`#697 <https://github.com/ros-controls/ros2_control/issues/697>`_)
-* Contributors: Tyler Weaver
+* Update ControllerManager documenation describing some concepts (`#677 <https://github.com/ros-controls/ros2_control/issues/677>`_)
+* Make node private in ControllerInterface (`#699 <https://github.com/ros-controls/ros2_control/issues/699>`_)
+* Contributors: Chen Bainian, Denis Štogl, Jack Center, Bence Magyar
 
-1.4.0 (2022-02-18)
+2.6.0 (2022-04-20)
 ------------------
-* added a fixed control period to loop (`#647 <https://github.com/ros-controls/ros2_control/issues/647>`_) (`#650 <https://github.com/ros-controls/ros2_control/issues/650>`_)
-* Contributors: Jack Center
+* Add controller_manager_msgs dependency to test_hardware_management_srvs (`#702 <https://github.com/ros-controls/ros2_control/issues/702>`_)
+* Remove unused variable from the test (`#700 <https://github.com/ros-controls/ros2_control/issues/700>`_)
+* Enable namespaces for controllers. (`#693 <https://github.com/ros-controls/ros2_control/issues/693>`_)
+* Spawner waits for services (`#683 <https://github.com/ros-controls/ros2_control/issues/683>`_)
+* Contributors: Denis Štogl, Rufus Wong, Tyler Weaver
 
-1.3.0 (2021-12-21)
+2.5.0 (2022-03-25)
 ------------------
-* fix get_update_rate visibility in windows (`#586 <https://github.com/ros-controls/ros2_control/issues/586>`_) (`#588 <https://github.com/ros-controls/ros2_control/issues/588>`_)
-  (cherry picked from commit 3f4a55bd898d5ae16fbefb6b19822dce0dbeba2a)
-  Co-authored-by: Melvin Wang <melvin.mc.wang@gmail.com>
+* Make ControllerManager tests more flexible and reusable for different scenarios. Use more parameterized tests regarding strictness. (`#661 <https://github.com/ros-controls/ros2_control/issues/661>`_)
+* Use lifecycle nodes in controllers again (`#538 <https://github.com/ros-controls/ros2_control/issues/538>`_)
+  * Add lifecycle nodes
+  * Add custom 'configure' to controller interface to get 'update_rate' parameter.
+  * Disable external interfaces of LifecycleNode.
+* Small fixes in controller manager tests. (`#660 <https://github.com/ros-controls/ros2_control/issues/660>`_)
+* Enable controller manager services to control hardware lifecycle #abi-breaking (`#637 <https://github.com/ros-controls/ros2_control/issues/637>`_)
+  * Implement CM services for hardware lifecycle management.
+  * Added default behavior to activate all controller and added description of CM parameters.
+* Contributors: Denis Štogl, Vatan Aksoy Tezer, Bence Magyar
+
+2.4.0 (2022-02-23)
+------------------
+* Fixes of issue with seg-fault when checking interfaces on unconfigured controllers. (`#580 <https://github.com/ros-controls/ros2_control/issues/580>`_)
+* Update CM service QoS so that we don't lose service calls when using many controllers. (`#643 <https://github.com/ros-controls/ros2_control/issues/643>`_)
+* Contributors: Denis Štogl, Bence Magyar
+
+2.3.0 (2022-02-18)
+------------------
+* added a fixed control period to loop (`#647 <https://github.com/ros-controls/ros2_control/issues/647>`_)
+* install spawner/unspawner using console_script entrypoint (`#607 <https://github.com/ros-controls/ros2_control/issues/607>`_)
+* Add BEST_EFFORT in the controller switch tests. (`#582 <https://github.com/ros-controls/ros2_control/issues/582>`_)
+* Resolve unused parameter warnings (`#636 <https://github.com/ros-controls/ros2_control/issues/636>`_)
+* Contributors: Bence Magyar, Denis Štogl, Jack Center, Melvin Wang, Xi-Huang
+
+2.2.0 (2022-01-24)
+------------------
+* Resource Manager API changes for hardware lifecycle #api-breaking #abi-breaking (`#589 <https://github.com/ros-controls/ros2_control/issues/589>`_)
+  * Towards selective starting and stoping of hardware components. Cleaning and renaming.
+  * Move Lifecycle of hardware component to the bottom for better overview.
+  * Use the same nomenclature as for controllers. 'start' -> 'activate'; 'stop' -> 'deactivate'
+  * Add selective starting and stopping of hardware resources.
+  Add HardwareComponentInfo structure in resource manager.
+  Use constants for HW parameters in tests of resource_manager.
+  Add list hardware components in CM to get details about them and check their status.
+  Use clear name for 'guard' and move release cmd itfs for better readability.
+  RM: Add lock for accesing maps with stored interfaces.
+  Separate hardware components-related services after controllers-related services.
+  Add service for activate/deactive hardware components.
+  Add activation and deactivation through ResourceStorage. This helps to manage available command interfaces.
+  * Use lifecycle_msgs/State in ListHardwareCompoents for state representation.
+  * Simplify repeatable code in methods.
+  * Add HW shutdown structure into ResouceManager.
+  * Fill out service callback in CM and add parameter for auto-configure.
+  * Move claimed_command_itf_map to ResourceStorage from ResourceManager.
+  * Do not automatically configure hardware in RM.
+  * Lifecycle and claiming in Resource Manager is working.
+  * Extend controller manager to support HW lifecycle.
+  * Add also available and claimed status into list components service output.
+  * Add SetHardwareComponentState service.
+  * Make all output in services debug-output.
+  * Remove specific services for hardware lifecycle management and leave only 'set_hardware_component_state' service.
+  * Make init_resource_manager less stateful.
+  * Keep old api to start/activate all components per default.
+  * Remove 'moving'/'non-moving' interface-handling.
+  * Remove obsolete 'import_components' methods without hardware info and fix post_initialization test.
+  Co-authored-by: Bence Magyar <bence.magyar.robotics@gmail.com>
+* Contributors: Denis Štogl
+
+2.1.0 (2022-01-11)
+------------------
+
+2.0.0 (2021-12-29)
+------------------
+* Add service-skeletons for controlling hardware lifecycle. (`#585 <https://github.com/ros-controls/ros2_control/issues/585>`_)
+* fix get_update_rate visibility in windows (`#586 <https://github.com/ros-controls/ros2_control/issues/586>`_)
 * Make output of not available controller nicer and make it informational. (`#577 <https://github.com/ros-controls/ros2_control/issues/577>`_)
-* Contributors: Denis Štogl, mergify[bot]
+* Contributors: Denis Štogl, Melvin Wang
 
 1.2.0 (2021-11-05)
 ------------------

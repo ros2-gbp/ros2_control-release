@@ -21,29 +21,61 @@
 #include <vector>
 
 #include "controller_interface/controller_interface.hpp"
+#include "controller_manager_msgs/msg/hardware_component_state.hpp"
+#include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/state.hpp"
 
-namespace controller_manager
-{
+namespace
+{  // utility
+
 static constexpr const char * kControllerInterfaceName = "controller_interface";
 static constexpr const char * kControllerInterface = "controller_interface::ControllerInterface";
+
+// Changed services history QoS to keep all so we don't lose any client service calls
+static const rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
+  RMW_QOS_POLICY_HISTORY_KEEP_ALL,
+  1,  // message queue depth
+  RMW_QOS_POLICY_RELIABILITY_RELIABLE,
+  RMW_QOS_POLICY_DURABILITY_VOLATILE,
+  RMW_QOS_DEADLINE_DEFAULT,
+  RMW_QOS_LIFESPAN_DEFAULT,
+  RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+  RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+  false};
 
 inline bool is_controller_inactive(const controller_interface::ControllerInterface & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
 }
 
-inline bool is_controller_active(controller_interface::ControllerInterface & controller)
+inline bool is_controller_inactive(
+  const controller_interface::ControllerInterfaceSharedPtr & controller)
+{
+  return is_controller_inactive(*controller);
+}
+
+inline bool is_controller_active(const controller_interface::ControllerInterface & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE;
 }
 
-bool controller_name_compare(const ControllerSpec & a, const std::string & name)
+inline bool is_controller_active(
+  const controller_interface::ControllerInterfaceSharedPtr & controller)
+{
+  return is_controller_active(*controller);
+}
+
+bool controller_name_compare(const controller_manager::ControllerSpec & a, const std::string & name)
 {
   return a.info.name == name;
 }
 
+}  // namespace
+
+namespace controller_manager
+{
 rclcpp::NodeOptions get_cm_node_options()
 {
   rclcpp::NodeOptions node_options;
@@ -74,10 +106,7 @@ ControllerManager::ControllerManager(
     throw std::runtime_error("Unable to initialize resource manager, no robot description found.");
   }
 
-  resource_manager_->load_urdf(robot_description);
-
-  // TODO(all): Here we should start only "auto-start" resources
-  resource_manager_->start_components();
+  init_resource_manager(robot_description);
 
   init_services();
 }
@@ -95,6 +124,39 @@ ControllerManager::ControllerManager(
   init_services();
 }
 
+void ControllerManager::init_resource_manager(const std::string & robot_description)
+{
+  // TODO(destogl): manage this when there is an error - CM should not die because URDF is wrong...
+  resource_manager_->load_urdf(robot_description);
+
+  using lifecycle_msgs::msg::State;
+
+  std::vector<std::string> configure_components_on_start = std::vector<std::string>({});
+  get_parameter("configure_components_on_start", configure_components_on_start);
+  rclcpp_lifecycle::State inactive_state(
+    State::PRIMARY_STATE_INACTIVE, hardware_interface::lifecycle_state_names::INACTIVE);
+  for (const auto & component : configure_components_on_start)
+  {
+    resource_manager_->set_component_state(component, inactive_state);
+  }
+
+  std::vector<std::string> activate_components_on_start = std::vector<std::string>({});
+  get_parameter("activate_components_on_start", activate_components_on_start);
+  rclcpp_lifecycle::State active_state(
+    State::PRIMARY_STATE_ACTIVE, hardware_interface::lifecycle_state_names::ACTIVE);
+  for (const auto & component : activate_components_on_start)
+  {
+    resource_manager_->set_component_state(component, active_state);
+  }
+
+  // if both parameter are empty or non-existing preserve behavior where all components are
+  // activated per default
+  if (configure_components_on_start.empty() && activate_components_on_start.empty())
+  {
+    resource_manager_->activate_all_components();
+  }
+}
+
 void ControllerManager::init_services()
 {
   // TODO(anyone): Due to issues with the MutliThreadedExecutor, this control loop does not rely on
@@ -106,52 +168,62 @@ void ControllerManager::init_services()
   using namespace std::placeholders;
   list_controllers_service_ = create_service<controller_manager_msgs::srv::ListControllers>(
     "~/list_controllers", std::bind(&ControllerManager::list_controllers_srv_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_controller_types_service_ =
     create_service<controller_manager_msgs::srv::ListControllerTypes>(
       "~/list_controller_types",
       std::bind(&ControllerManager::list_controller_types_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
-  list_hardware_interfaces_service_ =
-    create_service<controller_manager_msgs::srv::ListHardwareInterfaces>(
-      "~/list_hardware_interfaces",
-      std::bind(&ControllerManager::list_hardware_interfaces_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_controller_service_ = create_service<controller_manager_msgs::srv::LoadController>(
     "~/load_controller", std::bind(&ControllerManager::load_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   configure_controller_service_ = create_service<controller_manager_msgs::srv::ConfigureController>(
     "~/configure_controller",
     std::bind(&ControllerManager::configure_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_and_configure_controller_service_ =
     create_service<controller_manager_msgs::srv::LoadConfigureController>(
       "~/load_and_configure_controller",
       std::bind(&ControllerManager::load_and_configure_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_and_start_controller_service_ =
     create_service<controller_manager_msgs::srv::LoadStartController>(
       "~/load_and_start_controller",
       std::bind(&ControllerManager::load_and_start_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   configure_and_start_controller_service_ =
     create_service<controller_manager_msgs::srv::ConfigureStartController>(
       "~/configure_and_start_controller",
       std::bind(&ControllerManager::configure_and_start_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   reload_controller_libraries_service_ =
     create_service<controller_manager_msgs::srv::ReloadControllerLibraries>(
       "~/reload_controller_libraries",
       std::bind(&ControllerManager::reload_controller_libraries_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   switch_controller_service_ = create_service<controller_manager_msgs::srv::SwitchController>(
     "~/switch_controller",
     std::bind(&ControllerManager::switch_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   unload_controller_service_ = create_service<controller_manager_msgs::srv::UnloadController>(
     "~/unload_controller",
     std::bind(&ControllerManager::unload_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
+  list_hardware_components_service_ =
+    create_service<controller_manager_msgs::srv::ListHardwareComponents>(
+      "~/list_hardware_components",
+      std::bind(&ControllerManager::list_hardware_components_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
+  list_hardware_interfaces_service_ =
+    create_service<controller_manager_msgs::srv::ListHardwareInterfaces>(
+      "~/list_hardware_interfaces",
+      std::bind(&ControllerManager::list_hardware_interfaces_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
+  set_hardware_component_state_service_ =
+    create_service<controller_manager_msgs::srv::SetHardwareComponentState>(
+      "~/set_hardware_component_state",
+      std::bind(&ControllerManager::set_hardware_component_state_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
 }
 
 controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_controller(
@@ -240,8 +312,8 @@ controller_interface::return_type ControllerManager::unload_controller(
   }
 
   RCLCPP_DEBUG(get_logger(), "Cleanup controller");
-  controller.c->cleanup();
-  executor_->remove_node(controller.c->get_node());
+  controller.c->get_node()->cleanup();
+  executor_->remove_node(controller.c->get_node()->get_node_base_interface());
   to.erase(found_it);
 
   // Destroys the old controllers list when the realtime thread is finished with it.
@@ -299,7 +371,7 @@ controller_interface::return_type ControllerManager::configure_controller(
   {
     RCLCPP_DEBUG(
       get_logger(), "Controller '%s' is cleaned-up before configuring", controller_name.c_str());
-    new_state = controller->cleanup();
+    new_state = controller->get_node()->cleanup();
     if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED)
     {
       RCLCPP_ERROR(
@@ -434,7 +506,7 @@ controller_interface::return_type ControllerManager::switch_controller(
     std::vector<std::string> command_interface_names = {};
     if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
     {
-      command_interface_names = resource_manager_->command_interface_keys();
+      command_interface_names = resource_manager_->available_command_interfaces();
     }
     if (
       command_interface_config.type ==
@@ -575,12 +647,12 @@ controller_interface::return_type ControllerManager::switch_controller(
   // update the claimed interface controller info
   for (auto & controller : to)
   {
-    if (controller.c->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+    if (is_controller_active(controller.c))
     {
       auto command_interface_config = controller.c->command_interface_configuration();
       if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
       {
-        controller.info.claimed_interfaces = resource_manager_->command_interface_keys();
+        controller.info.claimed_interfaces = resource_manager_->available_command_interfaces();
       }
       if (
         command_interface_config.type ==
@@ -633,7 +705,9 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::add_contro
     return nullptr;
   }
 
-  if (controller.c->init(controller.info.name) == controller_interface::return_type::ERROR)
+  if (
+    controller.c->init(controller.info.name, get_namespace()) ==
+    controller_interface::return_type::ERROR)
   {
     to.clear();
     RCLCPP_ERROR(
@@ -652,7 +726,7 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::add_contro
       controller.info.name.c_str());
     controller.c->get_node()->set_parameter(use_sim_time);
   }
-  executor_->add_node(controller.c->get_node());
+  executor_->add_node(controller.c->get_node()->get_node_base_interface());
   to.emplace_back(controller);
 
   // Destroys the old controllers list when the realtime thread is finished with it.
@@ -710,7 +784,7 @@ void ControllerManager::stop_controllers()
     auto controller = found_it->c;
     if (is_controller_active(*controller))
     {
-      const auto new_state = controller->deactivate();
+      const auto new_state = controller->get_node()->deactivate();
       controller->release_interfaces();
       if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
       {
@@ -748,7 +822,7 @@ void ControllerManager::start_controllers()
     std::vector<std::string> command_interface_names = {};
     if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
     {
-      command_interface_names = resource_manager_->command_interface_keys();
+      command_interface_names = resource_manager_->available_command_interfaces();
     }
     if (
       command_interface_config.type ==
@@ -792,7 +866,7 @@ void ControllerManager::start_controllers()
     std::vector<std::string> state_interface_names = {};
     if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
     {
-      state_interface_names = resource_manager_->state_interface_keys();
+      state_interface_names = resource_manager_->available_state_interfaces();
     }
     if (
       state_interface_config.type == controller_interface::interface_configuration_type::INDIVIDUAL)
@@ -821,7 +895,7 @@ void ControllerManager::start_controllers()
     }
     controller->assign_interfaces(std::move(command_loans), std::move(state_loans));
 
-    const auto new_state = controller->activate();
+    const auto new_state = controller->get_node()->activate();
     if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
     {
       RCLCPP_ERROR(
@@ -861,28 +935,32 @@ void ControllerManager::list_controllers_srv_cb(
     cs.claimed_interfaces = controllers[i].info.claimed_interfaces;
     cs.state = controllers[i].c->get_state().label();
 
-    // Get information about interfaces
-    auto command_interface_config = controllers[i].c->command_interface_configuration();
-    if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
+    // Get information about interfaces if controller are in 'inactive' or 'active' state
+    if (is_controller_active(controllers[i].c) || is_controller_inactive(controllers[i].c))
     {
-      cs.required_command_interfaces = resource_manager_->command_interface_keys();
-    }
-    else if (
-      command_interface_config.type ==
-      controller_interface::interface_configuration_type::INDIVIDUAL)
-    {
-      cs.required_command_interfaces = command_interface_config.names;
-    }
+      auto command_interface_config = controllers[i].c->command_interface_configuration();
+      if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
+      {
+        cs.required_command_interfaces = resource_manager_->command_interface_keys();
+      }
+      else if (
+        command_interface_config.type ==
+        controller_interface::interface_configuration_type::INDIVIDUAL)
+      {
+        cs.required_command_interfaces = command_interface_config.names;
+      }
 
-    auto state_interface_config = controllers[i].c->state_interface_configuration();
-    if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
-    {
-      cs.required_state_interfaces = resource_manager_->state_interface_keys();
-    }
-    else if (
-      state_interface_config.type == controller_interface::interface_configuration_type::INDIVIDUAL)
-    {
-      cs.required_state_interfaces = state_interface_config.names;
+      auto state_interface_config = controllers[i].c->state_interface_configuration();
+      if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
+      {
+        cs.required_state_interfaces = resource_manager_->state_interface_keys();
+      }
+      else if (
+        state_interface_config.type ==
+        controller_interface::interface_configuration_type::INDIVIDUAL)
+      {
+        cs.required_state_interfaces = state_interface_config.names;
+      }
     }
   }
 
@@ -907,28 +985,6 @@ void ControllerManager::list_controller_types_srv_cb(
   }
 
   RCLCPP_DEBUG(get_logger(), "list types service finished");
-}
-
-void ControllerManager::list_hardware_interfaces_srv_cb(
-  const std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Request>,
-  std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Response> response)
-{
-  auto state_interface_names = resource_manager_->state_interface_keys();
-  for (const auto & state_interface_name : state_interface_names)
-  {
-    controller_manager_msgs::msg::HardwareInterface hwi;
-    hwi.name = state_interface_name;
-    hwi.is_claimed = false;
-    response->state_interfaces.push_back(hwi);
-  }
-  auto command_interface_names = resource_manager_->command_interface_keys();
-  for (const auto & command_interface_name : command_interface_names)
-  {
-    controller_manager_msgs::msg::HardwareInterface hwi;
-    hwi.name = command_interface_name;
-    hwi.is_claimed = resource_manager_->command_interface_is_claimed(command_interface_name);
-    response->command_interfaces.push_back(hwi);
-  }
 }
 
 void ControllerManager::load_controller_service_cb(
@@ -1159,6 +1215,117 @@ void ControllerManager::unload_controller_service_cb(
     get_logger(), "unloading service finished for controller '%s' ", request->name.c_str());
 }
 
+void ControllerManager::list_hardware_components_srv_cb(
+  const std::shared_ptr<controller_manager_msgs::srv::ListHardwareComponents::Request>,
+  std::shared_ptr<controller_manager_msgs::srv::ListHardwareComponents::Response> response)
+{
+  RCLCPP_DEBUG(get_logger(), "list hardware components service called");
+  std::lock_guard<std::mutex> guard(services_lock_);
+  RCLCPP_DEBUG(get_logger(), "list hardware components service locked");
+
+  auto hw_components_info = resource_manager_->get_components_status();
+
+  response->component.reserve(hw_components_info.size());
+
+  for (const auto & [component_name, component_info] : hw_components_info)
+  {
+    auto component = controller_manager_msgs::msg::HardwareComponentState();
+    component.name = component_name;
+    component.type = component_info.type;
+    component.class_type = component_info.class_type;
+    component.state.id = component_info.state.id();
+    component.state.label = component_info.state.label();
+
+    component.command_interfaces.reserve(component_info.command_interfaces.size());
+    for (const auto & interface : component_info.command_interfaces)
+    {
+      controller_manager_msgs::msg::HardwareInterface hwi;
+      hwi.name = interface;
+      hwi.is_available = resource_manager_->command_interface_is_available(interface);
+      hwi.is_claimed = resource_manager_->command_interface_is_claimed(interface);
+      component.command_interfaces.push_back(hwi);
+    }
+
+    component.state_interfaces.reserve(component_info.state_interfaces.size());
+    for (const auto & interface : component_info.state_interfaces)
+    {
+      controller_manager_msgs::msg::HardwareInterface hwi;
+      hwi.name = interface;
+      hwi.is_available = resource_manager_->state_interface_is_available(interface);
+      hwi.is_claimed = false;
+      component.state_interfaces.push_back(hwi);
+    }
+
+    response->component.push_back(component);
+  }
+
+  RCLCPP_DEBUG(get_logger(), "list hardware components service finished");
+}
+
+void ControllerManager::list_hardware_interfaces_srv_cb(
+  const std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Request>,
+  std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Response> response)
+{
+  RCLCPP_DEBUG(get_logger(), "list hardware interfaces service called");
+  std::lock_guard<std::mutex> guard(services_lock_);
+  RCLCPP_DEBUG(get_logger(), "list hardware interfaces service locked");
+
+  auto state_interface_names = resource_manager_->state_interface_keys();
+  for (const auto & state_interface_name : state_interface_names)
+  {
+    controller_manager_msgs::msg::HardwareInterface hwi;
+    hwi.name = state_interface_name;
+    hwi.is_available = resource_manager_->state_interface_is_available(state_interface_name);
+    hwi.is_claimed = false;
+    response->state_interfaces.push_back(hwi);
+  }
+  auto command_interface_names = resource_manager_->command_interface_keys();
+  for (const auto & command_interface_name : command_interface_names)
+  {
+    controller_manager_msgs::msg::HardwareInterface hwi;
+    hwi.name = command_interface_name;
+    hwi.is_available = resource_manager_->command_interface_is_available(command_interface_name);
+    hwi.is_claimed = resource_manager_->command_interface_is_claimed(command_interface_name);
+    response->command_interfaces.push_back(hwi);
+  }
+
+  RCLCPP_DEBUG(get_logger(), "list hardware interfaces service finished");
+}
+
+void ControllerManager::set_hardware_component_state_srv_cb(
+  const std::shared_ptr<controller_manager_msgs::srv::SetHardwareComponentState::Request> request,
+  std::shared_ptr<controller_manager_msgs::srv::SetHardwareComponentState::Response> response)
+{
+  RCLCPP_DEBUG(get_logger(), "set hardware component state service called");
+  std::lock_guard<std::mutex> guard(services_lock_);
+  RCLCPP_DEBUG(get_logger(), "set hardware component state service locked");
+
+  RCLCPP_DEBUG(get_logger(), "set hardware component state '%s'", request->name.c_str());
+
+  auto hw_components_info = resource_manager_->get_components_status();
+  if (hw_components_info.find(request->name) != hw_components_info.end())
+  {
+    rclcpp_lifecycle::State target_state(
+      request->target_state.id,
+      // the ternary operator is needed because label in State constructor cannot be an empty string
+      request->target_state.label.empty() ? "-" : request->target_state.label);
+    response->ok =
+      (resource_manager_->set_component_state(request->name, target_state) ==
+       hardware_interface::return_type::OK);
+    hw_components_info = resource_manager_->get_components_status();
+    response->state.id = hw_components_info[request->name].state.id();
+    response->state.label = hw_components_info[request->name].state.label();
+  }
+  else
+  {
+    RCLCPP_ERROR(
+      get_logger(), "hardware component with name '%s' does not exist", request->name.c_str());
+    response->ok = false;
+  }
+
+  RCLCPP_DEBUG(get_logger(), "set hardware component state service finished");
+}
+
 std::vector<std::string> ControllerManager::get_controller_names()
 {
   std::vector<std::string> names;
@@ -1190,7 +1357,7 @@ controller_interface::return_type ControllerManager::update(
     // https://github.com/ros-controls/ros2_control/issues/153
     if (is_controller_active(*loaded_controller.c))
     {
-      auto controller_update_rate = loaded_controller.c->get_update_rate();
+      const auto controller_update_rate = loaded_controller.c->get_update_rate();
 
       bool controller_go =
         controller_update_rate == 0 || ((update_loop_counter_ % controller_update_rate) == 0);
