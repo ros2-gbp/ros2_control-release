@@ -13,10 +13,8 @@
 // limitations under the License.
 
 #include "test_controller_with_options.hpp"
-
 #include <gtest/gtest.h>
 #include <string>
-
 #include "rclcpp/rclcpp.hpp"
 
 class FriendControllerWithOptions : public controller_with_options::ControllerWithOptions
