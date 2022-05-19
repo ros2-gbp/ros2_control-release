@@ -26,6 +26,8 @@
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "rclcpp/duration.hpp"
+#include "rclcpp/time.hpp"
 
 namespace hardware_interface
 {
@@ -111,6 +113,58 @@ public:
    * \return true if interface is available, false otherwise.
    */
   bool state_interface_is_available(const std::string & name) const;
+
+  /// Add controllers' reference interfaces to resource manager.
+  /**
+   * Interface for transferring management of reference interfaces to resource manager.
+   * When chaining controllers, reference interfaces are used as command interface of preceding
+   * controllers.
+   * Therefore, they should be managed in the same way as command interface of hardware.
+   *
+   * \param[in] controller_name name of the controller which reference interfaces are imported.
+   * \param[in] interfaces list of controller's reference interfaces as CommandInterfaces.
+   */
+  void import_controller_reference_interfaces(
+    const std::string & controller_name, std::vector<CommandInterface> & interfaces);
+
+  /// Get list of reference interface of a controller.
+  /**
+   * Returns lists of stored reference interfaces names for a controller.
+   *
+   * \param[in] controller_name for which list of reference interface names is returned.
+   * \returns list of reference interface names.
+   */
+  std::vector<std::string> get_controller_reference_interface_names(
+    const std::string & controller_name);
+
+  /// Add controller's reference interface to available list.
+  /**
+   * Adds interfaces of a controller with given name to the available list. This method should be
+   * called when a controller gets activated with chained mode turned on. That means, the
+   * controller's reference interfaces can be used by another controller in chained architectures.
+   *
+   * \param[in] controller_name name of the controller which interfaces should become available.
+   */
+  void make_controller_reference_interfaces_available(const std::string & controller_name);
+
+  /// Remove controller's reference interface to available list.
+  /**
+   * Removes interfaces of a controller with given name from the available list. This method should
+   * be called when a controller gets deactivated and its reference interfaces cannot be used by
+   * another controller anymore.
+   *
+   * \param[in] controller_name name of the controller which interfaces should become unavailable.
+   */
+  void make_controller_reference_interfaces_unavailable(const std::string & controller_name);
+
+  /// Remove controllers reference interfaces from resource manager.
+  /**
+   * Remove reference interfaces from resource manager, i.e., resource storage.
+   * The interfaces will be deleted from all internal maps and lists.
+   *
+   * \param[in] controller_name list of interface names that will be deleted from resource manager.
+   */
+  void remove_controller_reference_interfaces(const std::string & controller_name);
 
   /// Checks whether a command interface is already claimed.
   /**
@@ -291,7 +345,7 @@ public:
    * Part of the real-time critical update loop.
    * It is realtime-safe if used hadware interfaces are implemented adequately.
    */
-  void read();
+  void read(const rclcpp::Time & time, const rclcpp::Duration & period);
 
   /// Write all loaded hardware components.
   /**
@@ -300,7 +354,7 @@ public:
    * Part of the real-time critical update loop.
    * It is realtime-safe if used hadware interfaces are implemented adequately.
    */
-  void write();
+  void write(const rclcpp::Time & time, const rclcpp::Duration & period);
 
   /// Activates all available hardware components in the system.
   /**
