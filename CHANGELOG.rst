@@ -2,6 +2,20 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.9.0 (2022-05-19)
+------------------
+
+2.8.0 (2022-05-13)
+------------------
+
+2.7.0 (2022-04-29)
+------------------
+
+2.6.0 (2022-04-20)
+------------------
+* Port four bar linkage and differential transmission loaders from ROS1 (`#656 <https://github.com/ros-controls/ros2_control/issues/656>`_)
+* Contributors: Márk Szitanics
+
 2.5.0 (2022-03-25)
 ------------------
 
