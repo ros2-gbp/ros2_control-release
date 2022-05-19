@@ -2,6 +2,35 @@
 Changelog for package controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.9.0 (2022-05-19)
+------------------
+* Adding base class for chained controllers: `ChainedControllersInterface` (`#663 <https://github.com/ros-controls/ros2_control/issues/663>`_)
+  * Extending ControllerInterface with methods for chainable controllers.
+  * Switching to chained_mode is only forbidden if controller is active.
+  * Default implementation for 'on_set_chained_mode' method.
+  * Use two internal methods instead of 'update' directly on chained controllers.
+* Add ControllerInterfaceBase class with methods for chainable controller (`#717 <https://github.com/ros-controls/ros2_control/issues/717>`_)
+* Contributors: Denis Štogl
+
+2.8.0 (2022-05-13)
+------------------
+* Pass time and period to read() and write() (`#715 <https://github.com/ros-controls/ros2_control/issues/715>`_)
+* Contributors: Bence Magyar
+
+2.7.0 (2022-04-29)
+------------------
+* Update ControllerManager documenation describing some concepts (`#677 <https://github.com/ros-controls/ros2_control/issues/677>`_)
+* Make node private in ControllerInterface (`#699 <https://github.com/ros-controls/ros2_control/issues/699>`_)
+* Contributors: Chen Bainian, Denis Štogl, Jack Center, Bence Magyar
+
+2.6.0 (2022-04-20)
+------------------
+* Add controller_manager_msgs dependency to test_hardware_management_srvs (`#702 <https://github.com/ros-controls/ros2_control/issues/702>`_)
+* Remove unused variable from the test (`#700 <https://github.com/ros-controls/ros2_control/issues/700>`_)
+* Enable namespaces for controllers. (`#693 <https://github.com/ros-controls/ros2_control/issues/693>`_)
+* Spawner waits for services (`#683 <https://github.com/ros-controls/ros2_control/issues/683>`_)
+* Contributors: Denis Štogl, Rufus Wong, Tyler Weaver
+
 2.5.0 (2022-03-25)
 ------------------
 * Make ControllerManager tests more flexible and reusable for different scenarios. Use more parameterized tests regarding strictness. (`#661 <https://github.com/ros-controls/ros2_control/issues/661>`_)
