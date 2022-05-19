@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "controller_interface/controller_interface.hpp"
+#include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
@@ -30,8 +30,11 @@
 namespace
 {  // utility
 
-static constexpr const char * kControllerInterfaceName = "controller_interface";
-static constexpr const char * kControllerInterface = "controller_interface::ControllerInterface";
+static constexpr const char * kControllerInterfaceNamespace = "controller_interface";
+static constexpr const char * kControllerInterfaceClassName =
+  "controller_interface::ControllerInterface";
+static constexpr const char * kChainableControllerInterfaceClassName =
+  "controller_interface::ChainableControllerInterface";
 
 // Changed services history QoS to keep all so we don't lose any client service calls
 static const rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
@@ -45,24 +48,24 @@ static const rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
   RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
   false};
 
-inline bool is_controller_inactive(const controller_interface::ControllerInterface & controller)
+inline bool is_controller_inactive(const controller_interface::ControllerInterfaceBase & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
 }
 
 inline bool is_controller_inactive(
-  const controller_interface::ControllerInterfaceSharedPtr & controller)
+  const controller_interface::ControllerInterfaceBaseSharedPtr & controller)
 {
   return is_controller_inactive(*controller);
 }
 
-inline bool is_controller_active(const controller_interface::ControllerInterface & controller)
+inline bool is_controller_active(const controller_interface::ControllerInterfaceBase & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE;
 }
 
 inline bool is_controller_active(
-  const controller_interface::ControllerInterfaceSharedPtr & controller)
+  const controller_interface::ControllerInterfaceBaseSharedPtr & controller)
 {
   return is_controller_active(*controller);
 }
@@ -92,7 +95,10 @@ ControllerManager::ControllerManager(
   resource_manager_(std::make_unique<hardware_interface::ResourceManager>()),
   executor_(executor),
   loader_(std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
-    kControllerInterfaceName, kControllerInterface))
+    kControllerInterfaceNamespace, kControllerInterfaceClassName)),
+  chainable_loader_(
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
 {
   if (!get_parameter("update_rate", update_rate_))
   {
@@ -119,7 +125,10 @@ ControllerManager::ControllerManager(
   resource_manager_(std::move(resource_manager)),
   executor_(executor),
   loader_(std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
-    kControllerInterfaceName, kControllerInterface))
+    kControllerInterfaceNamespace, kControllerInterfaceClassName)),
+  chainable_loader_(
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
 {
   init_services();
 }
@@ -226,12 +235,14 @@ void ControllerManager::init_services()
       rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
 }
 
-controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_controller(
+controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
   const std::string & controller_name, const std::string & controller_type)
 {
   RCLCPP_INFO(get_logger(), "Loading controller '%s'", controller_name.c_str());
 
-  if (!loader_->isClassAvailable(controller_type))
+  if (
+    !loader_->isClassAvailable(controller_type) &&
+    !chainable_loader_->isClassAvailable(controller_type))
   {
     RCLCPP_ERROR(get_logger(), "Loader for controller '%s' not found.", controller_name.c_str());
     RCLCPP_INFO(get_logger(), "Available classes:");
@@ -239,10 +250,24 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_contr
     {
       RCLCPP_INFO(get_logger(), "  %s", available_class.c_str());
     }
+    for (const auto & available_class : chainable_loader_->getDeclaredClasses())
+    {
+      RCLCPP_INFO(get_logger(), "  %s", available_class.c_str());
+    }
     return nullptr;
   }
 
-  auto controller = loader_->createSharedInstance(controller_type);
+  controller_interface::ControllerInterfaceBaseSharedPtr controller;
+
+  if (loader_->isClassAvailable(controller_type))
+  {
+    controller = loader_->createSharedInstance(controller_type);
+  }
+  if (chainable_loader_->isClassAvailable(controller_type))
+  {
+    controller = chainable_loader_->createSharedInstance(controller_type);
+  }
+
   ControllerSpec controller_spec;
   controller_spec.c = controller;
   controller_spec.info.name = controller_name;
@@ -251,7 +276,7 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_contr
   return add_controller_impl(controller_spec);
 }
 
-controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_controller(
+controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
   const std::string & controller_name)
 {
   const std::string param_name = controller_name + ".type";
@@ -680,7 +705,7 @@ controller_interface::return_type ControllerManager::switch_controller(
   return controller_interface::return_type::OK;
 }
 
-controller_interface::ControllerInterfaceSharedPtr ControllerManager::add_controller_impl(
+controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::add_controller_impl(
   const ControllerSpec & controller)
 {
   // lock controllers
@@ -980,7 +1005,14 @@ void ControllerManager::list_controller_types_srv_cb(
   for (const auto & cur_type : cur_types)
   {
     response->types.push_back(cur_type);
-    response->base_classes.push_back(kControllerInterface);
+    response->base_classes.push_back(kControllerInterfaceClassName);
+    RCLCPP_DEBUG(get_logger(), "%s", cur_type.c_str());
+  }
+  cur_types = chainable_loader_->getDeclaredClasses();
+  for (const auto & cur_type : cur_types)
+  {
+    response->types.push_back(cur_type);
+    response->base_classes.push_back(kChainableControllerInterfaceClassName);
     RCLCPP_DEBUG(get_logger(), "%s", cur_type.c_str());
   }
 
@@ -1173,10 +1205,13 @@ void ControllerManager::reload_controller_libraries_service_cb(
 
   // Force a reload on all the PluginLoaders (internally, this recreates the plugin loaders)
   loader_ = std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
-    kControllerInterfaceName, kControllerInterface);
+    kControllerInterfaceNamespace, kControllerInterfaceClassName);
+  chainable_loader_ =
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName);
   RCLCPP_INFO(
     get_logger(), "Controller manager: reloaded controller libraries for '%s'",
-    kControllerInterfaceName);
+    kControllerInterfaceNamespace);
 
   response->ok = true;
 
