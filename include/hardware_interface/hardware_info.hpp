@@ -84,6 +84,7 @@ struct ActuatorInfo
   std::string name;
   std::vector<std::string> interfaces;
   std::string role;
+  double mechanical_reduction = 1.0;
   double offset = 0.0;
 };
 
@@ -129,6 +130,10 @@ struct HardwareInfo
    * Optional for Actuator and System Hardware.
    */
   std::vector<TransmissionInfo> transmissions;
+  /**
+   * The XML contents prior to parsing
+   */
+  std::string original_xml;
 };
 
 }  // namespace hardware_interface
