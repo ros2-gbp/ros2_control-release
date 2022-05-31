@@ -1,0 +1,12 @@
+Source: ros-galactic-hardware-interface
+Section: misc
+Priority: optional
+Maintainer: Karsten Knese <karsten@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), ros-galactic-ament-cmake, ros-galactic-ament-cmake-gmock, ros-galactic-ament-lint-auto, ros-galactic-ament-lint-common, ros-galactic-control-msgs, ros-galactic-lifecycle-msgs, ros-galactic-pluginlib, ros-galactic-rclcpp-lifecycle, ros-galactic-rcpputils, ros-galactic-rcutils, ros-galactic-ros2-control-test-assets, ros-galactic-tinyxml2-vendor, ros-galactic-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-galactic-hardware-interface
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-galactic-control-msgs, ros-galactic-lifecycle-msgs, ros-galactic-pluginlib, ros-galactic-rclcpp-lifecycle, ros-galactic-rcpputils, ros-galactic-rcutils, ros-galactic-tinyxml2-vendor, ros-galactic-ros-workspace
+Description: ROS2 ros_control hardware interface
