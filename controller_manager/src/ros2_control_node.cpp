@@ -23,6 +23,8 @@
 
 using namespace std::chrono_literals;
 
+const int DEFAULT_UPDATE_RATE = 100;
+
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
@@ -38,14 +40,18 @@ int main(int argc, char ** argv)
   // When the MutliThreadedExecutor issues are fixed (ros2/rclcpp#1168), this loop should be
   // converted back to a timer.
   std::thread cm_thread([cm]() {
-    RCLCPP_INFO(cm->get_logger(), "update rate is %d Hz", cm->get_update_rate());
+    // load controller_manager update time parameter
+    int update_rate = DEFAULT_UPDATE_RATE;
+    if (!cm->get_parameter("update_rate", update_rate))
+    {
+      RCLCPP_WARN(cm->get_logger(), "'update_rate' parameter not set, using default value.");
+    }
+    RCLCPP_INFO(cm->get_logger(), "update rate is %d Hz", update_rate);
 
-    rclcpp::Time current_time = cm->now();
-    rclcpp::Time previous_time = current_time;
-    rclcpp::Time end_period = current_time;
+    rclcpp::Time end_period = cm->now();
 
     // Use nanoseconds to avoid chrono's rounding
-    rclcpp::Duration period(std::chrono::nanoseconds(1000000000 / cm->get_update_rate()));
+    rclcpp::Duration period(std::chrono::nanoseconds(1000000000 / update_rate));
 
     while (rclcpp::ok())
     {
@@ -55,9 +61,7 @@ int main(int argc, char ** argv)
 
       // execute "real-time" update loop
       cm->read();
-      current_time = cm->now();
-      cm->update(current_time, current_time - previous_time);
-      previous_time = current_time;
+      cm->update();
       cm->write();
     }
   });

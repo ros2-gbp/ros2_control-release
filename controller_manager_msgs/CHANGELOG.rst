@@ -2,30 +2,17 @@
 Changelog for package controller_manager_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.5.1 (2022-05-31)
+0.10.1 (2022-05-31)
+-------------------
+
+0.10.0 (2022-02-23)
+-------------------
+
+0.9.0 (2021-12-20)
 ------------------
 
-1.5.0 (2022-04-29)
+0.8.1 (2021-10-25)
 ------------------
-
-1.4.0 (2022-02-18)
-------------------
-
-1.3.0 (2021-12-21)
-------------------
-
-1.2.0 (2021-11-05)
-------------------
-
-1.1.0 (2021-10-25)
-------------------
-* controller_manager: Use command_interface_configuration for the claimed interfaces when calling list_controllers (`#544 <https://github.com/ros-controls/ros2_control/issues/544>`_)
-* Contributors: Jafar Abdi, Denis Štogl
-
-1.0.0 (2021-09-29)
-------------------
-* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
-* Contributors: Bence Magyar
 
 0.8.0 (2021-08-28)
 ------------------

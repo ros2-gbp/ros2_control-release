@@ -3,7 +3,7 @@ on:
   pull_request:
 
 env:
-  ROS_DISTRO: galactic
+  ROS_DISTRO: foxy
 
 jobs:
   abi_check:

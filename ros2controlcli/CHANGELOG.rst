@@ -2,36 +2,17 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.5.1 (2022-05-31)
+0.10.1 (2022-05-31)
+-------------------
+
+0.10.0 (2022-02-23)
+-------------------
+
+0.9.0 (2021-12-20)
 ------------------
 
-1.5.0 (2022-04-29)
+0.8.1 (2021-10-25)
 ------------------
-
-1.4.0 (2022-02-18)
-------------------
-
-1.3.0 (2021-12-21)
-------------------
-
-1.2.0 (2021-11-05)
-------------------
-* Add verbose flag to CLI command list_controllers (`#569 <https://github.com/ros-controls/ros2_control/issues/569>`_)
-* Contributors: Xi-Huang
-
-1.1.0 (2021-10-25)
-------------------
-* Fixup formatting 🔧 of "list_controllers.py" and do not check formating on build stage. (`#555 <https://github.com/ros-controls/ros2_control/issues/555>`_)
-  * Do not check formating on build stage.
-  * Change formatting of strings.
-  * Make output a bit easier to read.
-* controller_manager: Use command_interface_configuration for the claimed interfaces when calling list_controllers (`#544 <https://github.com/ros-controls/ros2_control/issues/544>`_)
-* Contributors: Denis Štogl, Jafar Abdi
-
-1.0.0 (2021-09-29)
-------------------
-* Removed deprecated CLI verbs (`#420 <https://github.com/ros-controls/ros2_control/issues/420>`_)
-* Contributors: Mathias Aarbo
 
 0.8.0 (2021-08-28)
 ------------------

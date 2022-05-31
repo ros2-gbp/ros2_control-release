@@ -8,11 +8,11 @@ on:
     # Run every morning to detect flakiness and broken dependencies
     - cron: '17 8 * * *'
 env:
-  ROS_DISTRO: galactic
+  ROS_DISTRO: foxy
 
 jobs:
   ci_binary:
-    name: Galactic binary job
+    name: Foxy binary job
     runs-on: ubuntu-latest
     strategy:
       matrix:

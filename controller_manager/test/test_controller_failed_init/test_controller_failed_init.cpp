@@ -25,20 +25,13 @@ TestControllerFailedInit::TestControllerFailedInit() : controller_interface::Con
 {
 }
 
-rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-TestControllerFailedInit::on_init()
-{
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
-}
-
 controller_interface::return_type TestControllerFailedInit::init(
   const std::string & /* controller_name */)
 {
   return controller_interface::return_type::ERROR;
 }
 
-controller_interface::return_type TestControllerFailedInit::update(
-  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+controller_interface::return_type TestControllerFailedInit::update()
 {
   return controller_interface::return_type::OK;
 }

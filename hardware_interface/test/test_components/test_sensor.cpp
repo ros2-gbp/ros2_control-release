@@ -15,26 +15,29 @@
 #include <memory>
 #include <vector>
 
+#include "hardware_interface/base_interface.hpp"
 #include "hardware_interface/sensor_interface.hpp"
 
+using hardware_interface::BaseInterface;
 using hardware_interface::return_type;
 using hardware_interface::SensorInterface;
 using hardware_interface::StateInterface;
+using hardware_interface::status;
 
-class TestSensor : public SensorInterface
+class TestSensor : public BaseInterface<SensorInterface>
 {
-  CallbackReturn on_init(const hardware_interface::HardwareInfo & info) override
+  return_type configure(const hardware_interface::HardwareInfo & info) override
   {
-    if (SensorInterface::on_init(info) != CallbackReturn::SUCCESS)
+    if (configure_default(info) != return_type::OK)
     {
-      return CallbackReturn::ERROR;
+      return return_type::ERROR;
     }
     // can only give feedback state for velocity
     if (info_.sensors[0].state_interfaces.size() != 1)
     {
-      return CallbackReturn::ERROR;
+      return return_type::ERROR;
     }
-    return CallbackReturn::SUCCESS;
+    return return_type::OK;
   }
 
   std::vector<StateInterface> export_state_interfaces() override
@@ -44,6 +47,18 @@ class TestSensor : public SensorInterface
       info_.sensors[0].name, info_.sensors[0].state_interfaces[0].name, &velocity_state_));
 
     return state_interfaces;
+  }
+
+  return_type start() override
+  {
+    status_ = status::STARTED;
+    return return_type::OK;
+  }
+
+  return_type stop() override
+  {
+    status_ = status::STOPPED;
+    return return_type::OK;
   }
 
   return_type read() override { return return_type::OK; }

@@ -29,7 +29,6 @@
 #include "hardware_interface/sensor_interface.hpp"
 #include "hardware_interface/system.hpp"
 #include "hardware_interface/system_interface.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
 #include "pluginlib/class_loader.hpp"
 #include "rcutils/logging_macros.h"
 
@@ -51,23 +50,6 @@ public:
   {
   }
 
-  // A new generic method to do initialization checks
-  template <class HardwareT>
-  void check_hardware_initialization_and_configure(
-    HardwareT & hardware, const HardwareInfo & hardware_info)
-  {
-    if (
-      hardware.initialize(hardware_info).id() !=
-      lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED)
-    {
-      throw std::runtime_error(std::string("Failed to initialize '") + hardware_info.name + "'");
-    }
-    if (hardware.configure().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
-    {
-      throw std::runtime_error(std::string("Failed to configure '") + hardware_info.name + "'");
-    }
-  }
-
   template <class HardwareT, class HardwareInterfaceT>
   void initialize_hardware(
     const HardwareInfo & hardware_info, pluginlib::ClassLoader<HardwareInterfaceT> & loader,
@@ -81,7 +63,7 @@ public:
     HardwareT hardware(std::move(interface));
     container.emplace_back(std::move(hardware));
     hardware_status_map_.emplace(
-      std::make_pair(container.back().get_name(), container.back().get_state()));
+      std::make_pair(container.back().get_name(), container.back().get_status()));
   }
 
   template <class HardwareT>
@@ -113,7 +95,10 @@ public:
     std::unordered_map<std::string, bool> & claimed_command_interface_map)
   {
     initialize_hardware<Actuator, ActuatorInterface>(hardware_info, actuator_loader_, actuators_);
-    check_hardware_initialization_and_configure(actuators_.back(), hardware_info);
+    if (return_type::OK != actuators_.back().configure(hardware_info))
+    {
+      throw std::runtime_error(std::string("Failed to configure '") + hardware_info.name + "'");
+    }
     import_state_interfaces(actuators_.back());
     import_command_interfaces(actuators_.back(), claimed_command_interface_map);
   }
@@ -121,7 +106,10 @@ public:
   void initialize_sensor(const HardwareInfo & hardware_info)
   {
     initialize_hardware<Sensor, SensorInterface>(hardware_info, sensor_loader_, sensors_);
-    check_hardware_initialization_and_configure(sensors_.back(), hardware_info);
+    if (return_type::OK != sensors_.back().configure(hardware_info))
+    {
+      throw std::runtime_error(std::string("Failed to configure '") + hardware_info.name + "'");
+    }
     import_state_interfaces(sensors_.back());
   }
 
@@ -130,35 +118,10 @@ public:
     std::unordered_map<std::string, bool> & claimed_command_interface_map)
   {
     initialize_hardware<System, SystemInterface>(hardware_info, system_loader_, systems_);
-    check_hardware_initialization_and_configure(systems_.back(), hardware_info);
-    import_state_interfaces(systems_.back());
-    import_command_interfaces(systems_.back(), claimed_command_interface_map);
-  }
-
-  void initialize_actuator(
-    std::unique_ptr<ActuatorInterface> actuator, const HardwareInfo & hardware_info,
-    std::unordered_map<std::string, bool> & claimed_command_interface_map)
-  {
-    this->actuators_.emplace_back(Actuator(std::move(actuator)));
-    check_hardware_initialization_and_configure(actuators_.back(), hardware_info);
-    import_state_interfaces(actuators_.back());
-    import_command_interfaces(actuators_.back(), claimed_command_interface_map);
-  }
-
-  void initialize_sensor(
-    std::unique_ptr<SensorInterface> sensor, const HardwareInfo & hardware_info)
-  {
-    this->sensors_.emplace_back(Sensor(std::move(sensor)));
-    check_hardware_initialization_and_configure(sensors_.back(), hardware_info);
-    import_state_interfaces(sensors_.back());
-  }
-
-  void initialize_system(
-    std::unique_ptr<SystemInterface> system, const HardwareInfo & hardware_info,
-    std::unordered_map<std::string, bool> & claimed_command_interface_map)
-  {
-    this->systems_.emplace_back(System(std::move(system)));
-    check_hardware_initialization_and_configure(systems_.back(), hardware_info);
+    if (return_type::OK != systems_.back().configure(hardware_info))
+    {
+      throw std::runtime_error(std::string("Failed to configure '") + hardware_info.name + "'");
+    }
     import_state_interfaces(systems_.back());
     import_command_interfaces(systems_.back(), claimed_command_interface_map);
   }
@@ -172,7 +135,7 @@ public:
   std::vector<Sensor> sensors_;
   std::vector<System> systems_;
 
-  std::unordered_map<std::string, rclcpp_lifecycle::State> hardware_status_map_;
+  std::unordered_map<std::string, status> hardware_status_map_;
 
   std::map<std::string, StateInterface> state_interface_map_;
   std::map<std::string, CommandInterface> command_interface_map_;
@@ -329,44 +292,24 @@ void ResourceManager::import_component(std::unique_ptr<SystemInterface> system)
     resource_storage_->systems_.back(), claimed_command_interface_map_);
 }
 
-void ResourceManager::import_component(
-  std::unique_ptr<ActuatorInterface> actuator, const HardwareInfo & hardware_info)
-{
-  resource_storage_->initialize_actuator(
-    std::move(actuator), hardware_info, claimed_command_interface_map_);
-}
-
-void ResourceManager::import_component(
-  std::unique_ptr<SensorInterface> sensor, const HardwareInfo & hardware_info)
-{
-  resource_storage_->initialize_sensor(std::move(sensor), hardware_info);
-}
-
-void ResourceManager::import_component(
-  std::unique_ptr<SystemInterface> system, const HardwareInfo & hardware_info)
-{
-  resource_storage_->initialize_system(
-    std::move(system), hardware_info, claimed_command_interface_map_);
-}
-
 size_t ResourceManager::system_components_size() const
 {
   return resource_storage_->systems_.size();
 }
 
-std::unordered_map<std::string, rclcpp_lifecycle::State> ResourceManager::get_components_states()
+std::unordered_map<std::string, status> ResourceManager::get_components_status()
 {
   for (auto & component : resource_storage_->actuators_)
   {
-    resource_storage_->hardware_status_map_[component.get_name()] = component.get_state();
+    resource_storage_->hardware_status_map_[component.get_name()] = component.get_status();
   }
   for (auto & component : resource_storage_->sensors_)
   {
-    resource_storage_->hardware_status_map_[component.get_name()] = component.get_state();
+    resource_storage_->hardware_status_map_[component.get_name()] = component.get_status();
   }
   for (auto & component : resource_storage_->systems_)
   {
-    resource_storage_->hardware_status_map_[component.get_name()] = component.get_state();
+    resource_storage_->hardware_status_map_[component.get_name()] = component.get_status();
   }
 
   return resource_storage_->hardware_status_map_;
@@ -452,15 +395,15 @@ void ResourceManager::start_components()
 {
   for (auto & component : resource_storage_->actuators_)
   {
-    component.activate();
+    component.start();
   }
   for (auto & component : resource_storage_->sensors_)
   {
-    component.activate();
+    component.start();
   }
   for (auto & component : resource_storage_->systems_)
   {
-    component.activate();
+    component.start();
   }
 }
 
@@ -468,15 +411,15 @@ void ResourceManager::stop_components()
 {
   for (auto & component : resource_storage_->actuators_)
   {
-    component.deactivate();
+    component.stop();
   }
   for (auto & component : resource_storage_->sensors_)
   {
-    component.deactivate();
+    component.stop();
   }
   for (auto & component : resource_storage_->systems_)
   {
-    component.deactivate();
+    component.stop();
   }
 }
 

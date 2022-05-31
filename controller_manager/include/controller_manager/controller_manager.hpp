@@ -49,7 +49,7 @@ class ControllerManager : public rclcpp::Node
 {
 public:
   static constexpr bool kWaitForAllResources = false;
-  static constexpr auto kInfiniteTimeout = 0;
+  static constexpr double kInfiniteTimeout = 0.0;
 
   CONTROLLER_MANAGER_PUBLIC
   ControllerManager(
@@ -123,14 +123,14 @@ public:
     const std::vector<std::string> & start_controllers,
     const std::vector<std::string> & stop_controllers, int strictness,
     bool start_asap = kWaitForAllResources,
-    const rclcpp::Duration & timeout = rclcpp::Duration::from_nanoseconds(kInfiniteTimeout));
+    const rclcpp::Duration & timeout =
+      rclcpp::Duration(static_cast<rcl_duration_value_t>(kInfiniteTimeout)));
 
   CONTROLLER_MANAGER_PUBLIC
   void read();
 
   CONTROLLER_MANAGER_PUBLIC
-  controller_interface::return_type update(
-    const rclcpp::Time & time, const rclcpp::Duration & period);
+  controller_interface::return_type update();
 
   CONTROLLER_MANAGER_PUBLIC
   void write();
@@ -143,10 +143,6 @@ public:
   // TODO(anyone): Due to issues with the MutliThreadedExecutor, this control loop does not rely on
   // the executor (see issue #260).
   // rclcpp::CallbackGroup::SharedPtr deterministic_callback_group_;
-
-  // Per controller update rate support
-  CONTROLLER_MANAGER_PUBLIC
-  unsigned int get_update_rate() const;
 
 protected:
   CONTROLLER_MANAGER_PUBLIC
@@ -222,10 +218,6 @@ protected:
   void unload_controller_service_cb(
     const std::shared_ptr<controller_manager_msgs::srv::UnloadController::Request> request,
     std::shared_ptr<controller_manager_msgs::srv::UnloadController::Response> response);
-
-  // Per controller update rate support
-  unsigned int update_loop_counter_ = 0;
-  unsigned int update_rate_ = 100;
 
 private:
   std::vector<std::string> get_controller_names();
