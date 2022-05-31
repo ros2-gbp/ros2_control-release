@@ -2,60 +2,26 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.9.0 (2022-05-19)
+1.5.1 (2022-05-31)
 ------------------
-* Adding base class for chained controllers: `ChainedControllersInterface` (`#663 <https://github.com/ros-controls/ros2_control/issues/663>`_)
-  * Extending ControllerInterface with methods for chainable controllers.
-  * Switching to chained_mode is only forbidden if controller is active.
-  * Default implementation for 'on_set_chained_mode' method.
-  * Use two internal methods instead of 'update' directly on chained controllers.
-* Add ControllerInterfaceBase class with methods for chainable controller (`#717 <https://github.com/ros-controls/ros2_control/issues/717>`_)
-* Contributors: Denis Štogl
+* Make interface_list_contains_interface_type inline (`#721 <https://github.com/ros-controls/ros2_control/issues/721>`_) (`#723 <https://github.com/ros-controls/ros2_control/issues/723>`_)
+* Contributors: Bence Magyar
 
-2.8.0 (2022-05-13)
+1.5.0 (2022-04-29)
 ------------------
 
-2.7.0 (2022-04-29)
-------------------
-* Make node private in ControllerInterface (`#699 <https://github.com/ros-controls/ros2_control/issues/699>`_)
-* Contributors: Jack Center
-
-2.6.0 (2022-04-20)
-------------------
-* Add CallbackReturn into controller_interface namespace for simpler usage in controllers. (`#701 <https://github.com/ros-controls/ros2_control/issues/701>`_)
-* Enable namespaces for controllers. (`#693 <https://github.com/ros-controls/ros2_control/issues/693>`_)
-* Add tests for ControllerInterface class and clarify use of 'update_rate' parameter. (`#662 <https://github.com/ros-controls/ros2_control/issues/662>`_)
-  #behaviorchange
-* Contributors: Denis Štogl
-
-2.5.0 (2022-03-25)
-------------------
-* Use lifecycle nodes in controllers again (`#538 <https://github.com/ros-controls/ros2_control/issues/538>`_)
-  * Add lifecycle nodes
-  * Add custom 'configure' to controller interface to get 'update_rate' parameter.
-  * Disable external interfaces of LifecycleNode.
-* Cleaning Controller Interface from obsolete code. (`#655 <https://github.com/ros-controls/ros2_control/issues/655>`_)
-* Contributors: Denis Štogl, Vatan Aksoy Tezer, Bence Magyar
-
-2.4.0 (2022-02-23)
+1.4.0 (2022-02-18)
 ------------------
 
-2.3.0 (2022-02-18)
+1.3.0 (2021-12-21)
 ------------------
-
-2.2.0 (2022-01-24)
-------------------
-
-2.1.0 (2022-01-11)
-------------------
-
-2.0.0 (2021-12-29)
-------------------
-* fix get_update_rate visibility in windows (`#586 <https://github.com/ros-controls/ros2_control/issues/586>`_)
+* fix get_update_rate visibility in windows (`#586 <https://github.com/ros-controls/ros2_control/issues/586>`_) (`#588 <https://github.com/ros-controls/ros2_control/issues/588>`_)
+  (cherry picked from commit 3f4a55bd898d5ae16fbefb6b19822dce0dbeba2a)
+  Co-authored-by: Melvin Wang <melvin.mc.wang@gmail.com>
 * Use lifecycle name constants from hardware interface in controller interface (`#575 <https://github.com/ros-controls/ros2_control/issues/575>`_)
   * Use lifecycle name constants from hardware interface in controller interface
   * Remove controller_state_names.hpp since it is not needed.
-* Contributors: Melvin Wang, Xi-Huang
+* Contributors: Xi-Huang, mergify[bot]
 
 1.2.0 (2021-11-05)
 ------------------

@@ -28,10 +28,10 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
-namespace hardware_interface
-{
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
+namespace hardware_interface
+{
 System::System(std::unique_ptr<SystemInterface> impl) : impl_(std::move(impl)) {}
 
 const rclcpp_lifecycle::State & System::initialize(const HardwareInfo & system_info)
@@ -212,14 +212,14 @@ std::string System::get_name() const { return impl_->get_name(); }
 
 const rclcpp_lifecycle::State & System::get_state() const { return impl_->get_state(); }
 
-return_type System::read(const rclcpp::Time & time, const rclcpp::Duration & period)
+return_type System::read()
 {
   return_type result = return_type::ERROR;
   if (
     impl_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE ||
     impl_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
   {
-    result = impl_->read(time, period);
+    result = impl_->read();
     if (result == return_type::ERROR)
     {
       error();
@@ -228,14 +228,14 @@ return_type System::read(const rclcpp::Time & time, const rclcpp::Duration & per
   return result;
 }
 
-return_type System::write(const rclcpp::Time & time, const rclcpp::Duration & period)
+return_type System::write()
 {
   return_type result = return_type::ERROR;
   if (
     impl_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE ||
     impl_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
   {
-    result = impl_->write(time, period);
+    result = impl_->write();
     if (result == return_type::ERROR)
     {
       error();

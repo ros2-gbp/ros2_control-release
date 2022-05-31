@@ -19,22 +19,13 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/resource_manager.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
-#include "rclcpp_lifecycle/state.hpp"
 #include "ros2_control_test_assets/components_urdfs.hpp"
 #include "ros2_control_test_assets/descriptions.hpp"
-
-namespace
-{
-const auto TIME = rclcpp::Time(0);
-const auto PERIOD = rclcpp::Duration::from_seconds(0.01);
-}  // namespace
 
 class TestGenericSystem : public ::testing::Test
 {
@@ -253,18 +244,16 @@ protected:
     <joint name="joint1">
       <command_interface name="position"/>
       <command_interface name="velocity"/>
-      <state_interface name="position">
-        <param name="initial_value">3.45</param>
-      </state_interface>
+      <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <param name="initial_position">3.45</param>
     </joint>
     <joint name="joint2">
       <command_interface name="position"/>
       <command_interface name="velocity"/>
-      <state_interface name="position">
-        <param name="initial_value">2.78</param>
-      </state_interface>
+      <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <param name="initial_position">2.78</param>
     </joint>
   </ros2_control>
 )";
@@ -332,10 +321,9 @@ protected:
     <joint name="joint1">
       <command_interface name="position"/>
       <command_interface name="velocity"/>
-      <state_interface name="position">
-        <param name="initial_value">3.45</param>
-      </state_interface>
+      <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <param name="initial_position">3.45</param>
     </joint>
     <joint name="joint2">
       <command_interface name="position"/>
@@ -408,42 +396,6 @@ protected:
   std::string valid_urdf_ros2_control_system_robot_with_gpio_fake_command_;
 };
 
-void set_components_state(
-  hardware_interface::ResourceManager & rm, const std::vector<std::string> & components,
-  const uint8_t state_id, const std::string & state_name)
-{
-  for (const auto & component : components)
-  {
-    rclcpp_lifecycle::State state(state_id, state_name);
-    rm.set_component_state(component, state);
-  }
-}
-
-auto configure_components = [](
-                              hardware_interface::ResourceManager & rm,
-                              const std::vector<std::string> & components = {"GenericSystem2dof"}) {
-  set_components_state(
-    rm, components, lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
-    hardware_interface::lifecycle_state_names::INACTIVE);
-};
-
-auto activate_components = [](
-                             hardware_interface::ResourceManager & rm,
-                             const std::vector<std::string> & components = {"GenericSystem2dof"}) {
-  set_components_state(
-    rm, components, lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
-    hardware_interface::lifecycle_state_names::ACTIVE);
-};
-
-auto deactivate_components =
-  [](
-    hardware_interface::ResourceManager & rm,
-    const std::vector<std::string> & components = {"GenericSystem2dof"}) {
-    set_components_state(
-      rm, components, lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
-      hardware_interface::lifecycle_state_names::INACTIVE);
-  };
-
 TEST_F(TestGenericSystem, load_generic_system_2dof)
 {
   auto urdf = ros2_control_test_assets::urdf_head + hardware_system_2dof_ +
@@ -457,8 +409,6 @@ TEST_F(TestGenericSystem, generic_system_2dof_symetric_interfaces)
   auto urdf = ros2_control_test_assets::urdf_head + hardware_system_2dof_ +
               ros2_control_test_assets::urdf_tail;
   hardware_interface::ResourceManager rm(urdf);
-  // Activate components to get all interfaces available
-  activate_components(rm);
 
   // Check interfaces
   EXPECT_EQ(1u, rm.system_components_size());
@@ -488,8 +438,6 @@ TEST_F(TestGenericSystem, generic_system_2dof_asymetric_interfaces)
   auto urdf = ros2_control_test_assets::urdf_head + hardware_system_2dof_asymetric_ +
               ros2_control_test_assets::urdf_tail;
   hardware_interface::ResourceManager rm(urdf);
-  // Activate components to get all interfaces available
-  activate_components(rm);
 
   // Check interfaces
   EXPECT_EQ(1u, rm.system_components_size());
@@ -534,21 +482,12 @@ TEST_F(TestGenericSystem, generic_system_2dof_asymetric_interfaces)
 void generic_system_functional_test(const std::string & urdf, const double offset = 0)
 {
   hardware_interface::ResourceManager rm(urdf);
+
   // check is hardware is configured
-  auto status_map = rm.get_components_status();
+  std::unordered_map<std::string, rclcpp_lifecycle::State> states_map;
+  states_map = rm.get_components_states();
   EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::UNCONFIGURED);
-  configure_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::INACTIVE);
-  activate_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::ACTIVE);
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::INACTIVE);
 
   // Check initial values
   hardware_interface::LoanedStateInterface j1p_s = rm.claim_state_interface("joint1/position");
@@ -587,7 +526,7 @@ void generic_system_functional_test(const std::string & urdf, const double offse
   ASSERT_EQ(0.44, j2v_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   ASSERT_EQ(3.45, j1p_s.get_value());
   ASSERT_EQ(0.0, j1v_s.get_value());
   ASSERT_EQ(2.78, j2p_s.get_value());
@@ -598,7 +537,7 @@ void generic_system_functional_test(const std::string & urdf, const double offse
   ASSERT_EQ(0.44, j2v_c.get_value());
 
   // read() mirrors commands + offset to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.11 + offset, j1p_s.get_value());
   ASSERT_EQ(0.22, j1v_s.get_value());
   ASSERT_EQ(0.33 + offset, j2p_s.get_value());
@@ -624,11 +563,15 @@ void generic_system_functional_test(const std::string & urdf, const double offse
   ASSERT_EQ(0.77, j2p_c.get_value());
   ASSERT_EQ(0.88, j2v_c.get_value());
 
-  deactivate_components(rm);
-  status_map = rm.get_components_status();
+  rm.start_components();
+  states_map = rm.get_components_states();
   EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::INACTIVE);
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::ACTIVE);
+
+  rm.stop_components();
+  states_map = rm.get_components_states();
+  EXPECT_EQ(
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::INACTIVE);
 }
 
 TEST_F(TestGenericSystem, generic_system_2dof_functionality)
@@ -644,8 +587,6 @@ TEST_F(TestGenericSystem, generic_system_2dof_other_interfaces)
   auto urdf = ros2_control_test_assets::urdf_head + hardware_system_2dof_with_other_interface_ +
               ros2_control_test_assets::urdf_tail;
   hardware_interface::ResourceManager rm(urdf);
-  // Activate components to get all interfaces available
-  activate_components(rm);
 
   // Check interfaces
   EXPECT_EQ(1u, rm.system_components_size());
@@ -700,7 +641,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_other_interfaces)
   ASSERT_EQ(0.99, vo_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   ASSERT_EQ(1.55, j1p_s.get_value());
   ASSERT_EQ(0.1, j1v_s.get_value());
   ASSERT_EQ(0.65, j2p_s.get_value());
@@ -711,7 +652,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_other_interfaces)
   ASSERT_EQ(0.99, vo_c.get_value());
 
   // read() mirrors commands to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.11, j1p_s.get_value());
   ASSERT_EQ(0.1, j1v_s.get_value());
   ASSERT_EQ(0.33, j2p_s.get_value());
@@ -727,8 +668,6 @@ TEST_F(TestGenericSystem, generic_system_2dof_sensor)
   auto urdf = ros2_control_test_assets::urdf_head + hardware_system_2dof_with_sensor_ +
               ros2_control_test_assets::urdf_tail;
   hardware_interface::ResourceManager rm(urdf);
-  // Activate components to get all interfaces available
-  activate_components(rm);
 
   // Check interfaces
   EXPECT_EQ(1u, rm.system_components_size());
@@ -796,7 +735,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_sensor)
   ASSERT_EQ(0.33, j2p_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   ASSERT_EQ(0.0, j1p_s.get_value());
   ASSERT_EQ(0.0, j1v_s.get_value());
   ASSERT_EQ(0.0, j2p_s.get_value());
@@ -809,7 +748,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_sensor)
   ASSERT_EQ(0.33, j2p_c.get_value());
 
   // read() mirrors commands to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.11, j1p_s.get_value());
   ASSERT_EQ(0.0, j1v_s.get_value());
   ASSERT_EQ(0.33, j2p_s.get_value());
@@ -825,8 +764,6 @@ TEST_F(TestGenericSystem, generic_system_2dof_sensor)
 void test_generic_system_with_fake_sensor_commands(std::string urdf)
 {
   hardware_interface::ResourceManager rm(urdf);
-  // Activate components to get all interfaces available
-  activate_components(rm);
 
   // Check interfaces
   EXPECT_EQ(1u, rm.system_components_size());
@@ -910,7 +847,7 @@ void test_generic_system_with_fake_sensor_commands(std::string urdf)
   ASSERT_EQ(4.44, sty_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   ASSERT_EQ(0.0, j1p_s.get_value());
   ASSERT_EQ(0.0, j1v_s.get_value());
   ASSERT_EQ(0.0, j2p_s.get_value());
@@ -927,7 +864,7 @@ void test_generic_system_with_fake_sensor_commands(std::string urdf)
   ASSERT_EQ(4.44, sty_c.get_value());
 
   // read() mirrors commands to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.11, j1p_s.get_value());
   ASSERT_EQ(0.0, j1v_s.get_value());
   ASSERT_EQ(0.33, j2p_s.get_value());
@@ -964,8 +901,6 @@ TEST_F(TestGenericSystem, generic_system_2dof_sensor_fake_command_True)
 void test_generic_system_with_mimic_joint(std::string urdf)
 {
   hardware_interface::ResourceManager rm(urdf);
-  // Activate components to get all interfaces available
-  activate_components(rm);
 
   // Check interfaces
   EXPECT_EQ(1u, rm.system_components_size());
@@ -1009,7 +944,7 @@ void test_generic_system_with_mimic_joint(std::string urdf)
   ASSERT_EQ(0.05, j1v_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   ASSERT_EQ(1.57, j1p_s.get_value());
   ASSERT_EQ(0.0, j1v_s.get_value());
   ASSERT_EQ(0.0, j2p_s.get_value());
@@ -1018,7 +953,7 @@ void test_generic_system_with_mimic_joint(std::string urdf)
   ASSERT_EQ(0.05, j1v_c.get_value());
 
   // read() mirrors commands to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.11, j1p_s.get_value());
   ASSERT_EQ(0.05, j1v_s.get_value());
   ASSERT_EQ(-0.22, j2p_s.get_value());
@@ -1065,21 +1000,9 @@ TEST_F(TestGenericSystem, generic_system_2dof_functionality_with_offset_custom_i
   hardware_interface::ResourceManager rm(urdf);
 
   // check is hardware is configured
-  auto status_map = rm.get_components_status();
+  auto states_map = rm.get_components_states();
   EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::UNCONFIGURED);
-
-  configure_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::INACTIVE);
-  activate_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::ACTIVE);
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::INACTIVE);
 
   // Check initial values
   hardware_interface::LoanedStateInterface j1p_s = rm.claim_state_interface("joint1/position");
@@ -1124,7 +1047,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_functionality_with_offset_custom_i
   ASSERT_EQ(0.44, j2v_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   ASSERT_EQ(3.45, j1p_s.get_value());
   ASSERT_EQ(0.0, j1v_s.get_value());
   ASSERT_EQ(2.78, j2p_s.get_value());
@@ -1135,7 +1058,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_functionality_with_offset_custom_i
   ASSERT_EQ(0.44, j2v_c.get_value());
 
   // read() mirrors commands + offset to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.11, j1p_s.get_value());
   ASSERT_EQ(0.11 + offset, c_j1p_s.get_value());
   ASSERT_EQ(0.22, j1v_s.get_value());
@@ -1165,11 +1088,15 @@ TEST_F(TestGenericSystem, generic_system_2dof_functionality_with_offset_custom_i
   ASSERT_EQ(0.77, j2p_c.get_value());
   ASSERT_EQ(0.88, j2v_c.get_value());
 
-  deactivate_components(rm);
-  status_map = rm.get_components_status();
+  rm.start_components();
+  states_map = rm.get_components_states();
   EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::INACTIVE);
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::ACTIVE);
+
+  rm.stop_components();
+  states_map = rm.get_components_states();
+  EXPECT_EQ(
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::INACTIVE);
 }
 
 TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio_)
@@ -1178,24 +1105,14 @@ TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio_)
               valid_urdf_ros2_control_system_robot_with_gpio_ + ros2_control_test_assets::urdf_tail;
   hardware_interface::ResourceManager rm(urdf);
 
-  // check is hardware is started
-  auto status_map = rm.get_components_status();
+  // check is hardware is configured
+  std::unordered_map<std::string, rclcpp_lifecycle::State> states_map;
+  states_map = rm.get_components_states();
   EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::UNCONFIGURED);
-  configure_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::INACTIVE);
-  activate_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::ACTIVE);
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::INACTIVE);
 
   ASSERT_EQ(8u, rm.state_interface_keys().size());
-  ASSERT_EQ(6u, rm.command_interface_keys().size());
+  ASSERT_EQ(6, rm.command_interface_keys().size());
   EXPECT_TRUE(rm.state_interface_exists("joint1/position"));
   EXPECT_TRUE(rm.state_interface_exists("joint1/velocity"));
   EXPECT_TRUE(rm.state_interface_exists("joint2/position"));
@@ -1243,14 +1160,14 @@ TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio_)
   ASSERT_EQ(0.222, gpio2_vac_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   ASSERT_TRUE(std::isnan(gpio1_a_o1_s.get_value()));
   ASSERT_TRUE(std::isnan(gpio2_vac_s.get_value()));
   ASSERT_EQ(0.111, gpio1_a_o1_c.get_value());
   ASSERT_EQ(0.222, gpio2_vac_c.get_value());
 
   // read() mirrors commands + offset to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.111, gpio1_a_o1_s.get_value());
   ASSERT_EQ(0.222, gpio2_vac_s.get_value());
   ASSERT_EQ(0.111, gpio1_a_o1_c.get_value());
@@ -1266,6 +1183,16 @@ TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio_)
   ASSERT_EQ(0.333, gpio1_a_o1_c.get_value());
   ASSERT_EQ(0.444, gpio2_vac_c.get_value());
 
+  rm.start_components();
+  states_map = rm.get_components_states();
+  EXPECT_EQ(
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::ACTIVE);
+
+  rm.stop_components();
+  states_map = rm.get_components_states();
+  EXPECT_EQ(
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::INACTIVE);
+
   // check other functionalities are working well
   generic_system_functional_test(urdf);
 }
@@ -1277,21 +1204,11 @@ TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio_fake_co
               ros2_control_test_assets::urdf_tail;
   hardware_interface::ResourceManager rm(urdf);
 
-  // check is hardware is started
-  auto status_map = rm.get_components_status();
+  // check is hardware is configured
+  std::unordered_map<std::string, rclcpp_lifecycle::State> states_map;
+  states_map = rm.get_components_states();
   EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::UNCONFIGURED);
-  configure_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::INACTIVE);
-  activate_components(rm);
-  status_map = rm.get_components_status();
-  EXPECT_EQ(
-    status_map["GenericSystem2dof"].state.label(),
-    hardware_interface::lifecycle_state_names::ACTIVE);
+    states_map["GenericSystem2dof"].label(), hardware_interface::lifecycle_state_names::INACTIVE);
 
   // Check interfaces
   EXPECT_EQ(1u, rm.system_components_size());
@@ -1359,7 +1276,7 @@ TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio_fake_co
   ASSERT_EQ(2.22, gpio2_vac_c.get_value());
 
   // write() does not change values
-  rm.write(TIME, PERIOD);
+  rm.write();
   EXPECT_TRUE(std::isnan(gpio1_a_o1_s.get_value()));
   EXPECT_TRUE(std::isnan(gpio1_a_i1_s.get_value()));
   EXPECT_TRUE(std::isnan(gpio1_a_o2_s.get_value()));
@@ -1370,7 +1287,7 @@ TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio_fake_co
   ASSERT_EQ(2.22, gpio2_vac_c.get_value());
 
   // read() mirrors commands to states
-  rm.read(TIME, PERIOD);
+  rm.read();
   ASSERT_EQ(0.11, gpio1_a_o1_s.get_value());
   ASSERT_EQ(0.33, gpio1_a_i1_s.get_value());
   ASSERT_EQ(1.11, gpio1_a_o2_s.get_value());

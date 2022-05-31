@@ -28,10 +28,10 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
-namespace hardware_interface
-{
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
+namespace hardware_interface
+{
 Sensor::Sensor(std::unique_ptr<SensorInterface> impl) : impl_(std::move(impl)) {}
 
 const rclcpp_lifecycle::State & Sensor::initialize(const HardwareInfo & sensor_info)
@@ -193,14 +193,14 @@ std::string Sensor::get_name() const { return impl_->get_name(); }
 
 const rclcpp_lifecycle::State & Sensor::get_state() const { return impl_->get_state(); }
 
-return_type Sensor::read(const rclcpp::Time & time, const rclcpp::Duration & period)
+return_type Sensor::read()
 {
   return_type result = return_type::ERROR;
   if (
     impl_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE ||
     impl_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
   {
-    result = impl_->read(time, period);
+    result = impl_->read();
     if (result == return_type::ERROR)
     {
       error();
