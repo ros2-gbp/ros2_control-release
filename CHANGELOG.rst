@@ -2,6 +2,11 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.5.1 (2022-05-31)
+------------------
+* Make interface_list_contains_interface_type inline (`#721 <https://github.com/ros-controls/ros2_control/issues/721>`_) (`#723 <https://github.com/ros-controls/ros2_control/issues/723>`_)
+* Contributors: Bence Magyar
+
 1.5.0 (2022-04-29)
 ------------------
 
