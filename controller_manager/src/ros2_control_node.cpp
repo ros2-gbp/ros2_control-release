@@ -23,8 +23,6 @@
 
 using namespace std::chrono_literals;
 
-const int DEFAULT_UPDATE_RATE = 100;
-
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
@@ -39,32 +37,34 @@ int main(int argc, char ** argv)
   // the executor (see issue #260).
   // When the MutliThreadedExecutor issues are fixed (ros2/rclcpp#1168), this loop should be
   // converted back to a timer.
-  std::thread cm_thread([cm]() {
-    // load controller_manager update time parameter
-    int update_rate = DEFAULT_UPDATE_RATE;
-    if (!cm->get_parameter("update_rate", update_rate))
+  std::thread cm_thread(
+    [cm]()
     {
-      RCLCPP_WARN(cm->get_logger(), "'update_rate' parameter not set, using default value.");
-    }
-    RCLCPP_INFO(cm->get_logger(), "update rate is %d Hz", update_rate);
+      RCLCPP_INFO(cm->get_logger(), "update rate is %d Hz", cm->get_update_rate());
 
-    rclcpp::Time end_period = cm->now();
+      rclcpp::Time current_time = cm->now();
+      rclcpp::Time previous_time = current_time;
+      rclcpp::Time end_period = current_time;
 
-    // Use nanoseconds to avoid chrono's rounding
-    rclcpp::Duration period(std::chrono::nanoseconds(1000000000 / update_rate));
+      // Use nanoseconds to avoid chrono's rounding
+      rclcpp::Duration period(std::chrono::nanoseconds(1000000000 / cm->get_update_rate()));
 
-    while (rclcpp::ok())
-    {
-      // wait until we hit the end of the period
-      end_period += period;
-      std::this_thread::sleep_for(std::chrono::nanoseconds((end_period - cm->now()).nanoseconds()));
+      while (rclcpp::ok())
+      {
+        // wait until we hit the end of the period
+        end_period += period;
+        std::this_thread::sleep_for(
+          std::chrono::nanoseconds((end_period - cm->now()).nanoseconds()));
 
-      // execute "real-time" update loop
-      cm->read();
-      cm->update();
-      cm->write();
-    }
-  });
+        // execute update loop
+        auto period = current_time - previous_time;
+        cm->read(current_time, period);
+        current_time = cm->now();
+        cm->update(current_time, period);
+        previous_time = current_time;
+        cm->write(current_time, period);
+      }
+    });
 
   executor->add_node(cm);
   executor->spin();
