@@ -17,24 +17,16 @@ set(msg_files
 )
 set(srv_files
   srv/ConfigureController.srv
-  srv/ConfigureStartController.srv
   srv/ListControllers.srv
   srv/ListControllerTypes.srv
   srv/ListHardwareComponents.srv
   srv/ListHardwareInterfaces.srv
-  srv/LoadConfigureController.srv
   srv/LoadController.srv
-  srv/LoadStartController.srv
   srv/ReloadControllerLibraries.srv
   srv/SetHardwareComponentState.srv
   srv/SwitchController.srv
   srv/UnloadController.srv
 )
-
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
-endif()
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
