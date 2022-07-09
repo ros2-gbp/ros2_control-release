@@ -2,6 +2,11 @@
 Changelog for package ros2_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.12.0 (2022-07-09)
+-------------------
+* Move Joint Limits structures for use in controllers (`#462 <https://github.com/ros-controls/ros2_control/issues/462>`_)
+* Contributors: Denis Štogl, Andy Zelenak, Bence Magyar
+
 2.11.0 (2022-07-03)
 -------------------
 * Update maintainers of packages (`#753 <https://github.com/ros-controls/ros2_control/issues/753>`_)
