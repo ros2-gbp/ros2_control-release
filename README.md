@@ -1,53 +1,131 @@
-# ros2_control
+robot agnostic hardware_interface package.
+This package will eventually be moved into its own repo.
 
-[![Licence](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+## Best practice for `hardware_interface` implementation
+In the following section you can find some advices which will help you implement interface
+for your specific hardware.
 
-This package is a part of the ros2_control framework.
-For more, please check the [documentation](https://ros-controls.github.io/control.ros.org/).
+### Best practice for having different update rate for each `hardware_interface` by counting loops
+Current implementation of [ros2_control main node](https://github.com/ros-controls/ros2_control/blob/master/controller_manager/src/ros2_control_node.cpp)
+has one update rate that controls the rate of the [`read()`](https://github.com/ros-controls/ros2_control/blob/fe462926416d527d1da163bc3eabd02ee1de9be9/hardware_interface/include/hardware_interface/system_interface.hpp#L169) and [`write()`](https://github.com/ros-controls/ros2_control/blob/fe462926416d527d1da163bc3eabd02ee1de9be9/hardware_interface/include/hardware_interface/system_interface.hpp#L178)
+calls in [`hardware_interface(s)`](https://github.com/ros-controls/ros2_control/blob/master/hardware_interface/include/hardware_interface/system_interface.hpp).
+In this section suggestion on how to run each interface implementation on its own update rate is introduced.
 
+1. Add parameters of main control loop update rate and desired update rate for your hardware interface.
+```
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-## Build status
+  <xacro:macro name="system_interface" params="name main_loop_update_rate desired_hw_update_rate">
 
-ROS2 Distro | Branch | Build status | Documentation | Released packages
-:---------: | :----: | :----------: | :-----------: | :---------------:
-**Rolling** | [`rolling`](https://github.com/ros-controls/ros2_control/tree/rolling) | [![Rolling Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-binary-build-main.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-binary-build-main.yml?branch=master) <br /> [![Rolling Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-semi-binary-build-main.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-semi-binary-build-main.yml?branch=master) | [Documentation](https://control.ros.org/master/index.html) <br /> [API Reference](https://control.ros.org/master/doc/api/index.html) | [ros2_control](https://index.ros.org/p/ros2_control/#rolling)
-**Humble** | [`humble`](https://github.com/ros-controls/ros2_control/tree/humble) | [![Humble Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/humble-binary-build-main.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/humble-binary-build-main.yml?branch=master) <br /> [![Humble Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/humble-semi-binary-build-main.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/humble-semi-binary-build-main.yml?branch=master) | [Documentation](https://control.ros.org/master/index.html) <br /> [API Reference](https://control.ros.org/master/doc/api/index.html) | [ros2_control](https://index.ros.org/p/ros2_control/#humble)
-**Galactic** | [`galactic`](https://github.com/ros-controls/ros2_control/tree/galactic) | [![Galactic Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/galactic-binary-build-main.yml/badge.svg?branch=galactic)](https://github.com/ros-controls/ros2_control/actions/workflows/galactic-binary-build-main.yml?branch=galactic) <br /> [![Galactic Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/galactic-semi-binary-build-main.yml/badge.svg?branch=galactic)](https://github.com/ros-controls/ros2_control/actions/workflows/galactic-semi-binary-build-main.yml?branch=galactic) | [Documentation](https://control.ros.org/galactic/index.html) <br /> [API Reference](https://control.ros.org/galactic/doc/api/index.html) | [ros2_control](https://index.ros.org/p/ros2_control/#galactic)
-**Foxy** | [`foxy`](https://github.com/ros-controls/ros2_control/tree/foxy) | [![Foxy Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/foxy-binary-build-main.yml/badge.svg?branch=foxy)](https://github.com/ros-controls/ros2_control/actions/workflows/foxy-binary-build-main.yml?branch=foxy) <br /> [![Foxy Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/foxy-semi-binary-build-main.yml/badge.svg?branch=foxy)](https://github.com/ros-controls/ros2_control/actions/workflows/foxy-semi-binary-build-main.yml?branch=foxy) | [Documentation](https://control.ros.org/foxy/index.html) <br /> [API Reference](https://control.ros.org/foxy/doc/api/index.html) | [ros2_control](https://index.ros.org/p/ros2_control/#foxy)
+    <ros2_control name="${name}" type="system">
+      <hardware>
+          <plugin>my_system_interface/MySystemHardware</plugin>
+          <param name="main_loop_update_rate">${main_loop_update_rate}</param>
+          <param name="desired_hw_update_rate">${desired_hw_update_rate}</param>
+      </hardware>
+      ...
+    </ros2_control>
 
-[Detailed build status](.github/workflows/README.md)
+  </xacro:macro>
 
-### Explanation of different build types
+</robot>
+```
 
-**NOTE**: There are three build stages checking current and future compatibility of the package.
+2. In you [`on_init()`](https://github.com/ros-controls/ros2_control/blob/fe462926416d527d1da163bc3eabd02ee1de9be9/hardware_interface/include/hardware_interface/system_interface.hpp#L94) specific implementation fetch desired parameters:
+```
+namespace my_system_interface
+{
+hardware_interface::CallbackReturn MySystemHardware::on_init(
+  const hardware_interface::HardwareInfo & info)
+{
+  if (
+    hardware_interface::SystemInterface::on_init(info) !=
+    hardware_interface::CallbackReturn::SUCCESS)
+  {
+    return hardware_interface::CallbackReturn::ERROR;
+  }
 
-1. Binary builds - against released packages (main and testing) in ROS distributions. Shows that direct local build is possible.
+  //   declaration in *.hpp file --> unsigned int main_loop_update_rate_, desired_hw_update_rate_ = 100 ;
+  main_loop_update_rate_ = stoi(info_.hardware_parameters["main_loop_update_rate"]);
+  desired_hw_update_rate_ = stoi(info_.hardware_parameters["desired_hw_update_rate"]);
 
-   Uses repos file: `src/$NAME$/$NAME$-not-released.<ros-distro>.repos`
+  ...
+}
+...
+} // my_system_interface
+```
 
-1. Semi-binary builds - against released core ROS packages (main and testing), but the immediate dependencies are pulled from source.
-   Shows that local build with dependencies is possible and if fails there we can expect that after the next package sync we will not be able to build.
+3. In your `on_activate()` specific implementation reset internal loop counter
+```
+hardware_interface::CallbackReturn MySystemHardware::on_activate(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+    //   declaration in *.hpp file --> unsigned int update_loop_counter_ ;
+    update_loop_counter_ = 0;
+    ...
+}
+```
 
-   Uses repos file: `src/$NAME$/$NAME$.repos`
+4. In your `read(const rclcpp::Time & time, const rclcpp::Duration & period)` and/or
+   `write(const rclcpp::Time & time, const rclcpp::Duration & period)`
+   specific implementations decide if you should interfere with your hardware
+```
+hardware_interface::return_type MySystemHardware::read(const rclcpp::Time & time, const rclcpp::Duration & period)
+{
 
-1. Source build - also core ROS packages are build from source. It shows potential issues in the mid future.
+  bool hardware_go = main_loop_update_rate_ == 0  ||
+                     desired_hw_update_rate_ == 0 ||
+                     ((update_loop_counter_ % desired_hw_update_rate_) == 0);
 
+  if (hardware_go){
+    // hardware comms and operations
 
-## Docker images
-There are a few published docker images that come with the latest releases. More information about them can be found in the `.docker` folder. You can pull them under these tags: `ghcr.io/ros-controls/ros2_control_release` or `ghcr.io/ros-controls/ros2_control_source`.
+  }
+  ...
 
-## Acknowledgements
+  // update counter
+  ++update_loop_counter_;
+  update_loop_counter_ %= main_loop_update_rate_;
+}
+```
 
-<a href="http://rosin-project.eu">
-  <img src="http://rosin-project.eu/wp-content/uploads/rosin_ack_logo_wide.png"
-       alt="rosin_logo" height="60" >
-</a>
+### Best practice for having different update rate for each `hardware_interface` by measuring elapsed time
+Another way to decide if hardware communication should be executed in the`read(const rclcpp::Time & time, const rclcpp::Duration & period)` and/or
+`write(const rclcpp::Time & time, const rclcpp::Duration & period)` implementations is to measure elapsed time since last pass:
 
-Supported by ROSIN - ROS-Industrial Quality-Assured Robot Software Components.
-More information: <a href="http://rosin-project.eu">rosin-project.eu</a>
+```
+hardware_interface::CallbackReturn MySystemHardware::on_activate(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+    //   declaration in *.hpp file --> bool first_read_pass_, first_write_pass_ = true ;
+    first_read_pass_ = first_write_pass_ = true;
+    ...
+}
 
-<img src="http://rosin-project.eu/wp-content/uploads/rosin_eu_flag.jpg"
-     alt="eu_flag" height="45" align="left" >
+hardware_interface::return_type MySystemHardware::read(const rclcpp::Time & time, const rclcpp::Duration & period)
+{
+    if (first_read_pass_ || (time - last_read_time_ ) > period)
+    {
+      first_read_pass_ = false;
+      //   declaration in *.hpp file --> rclcpp::Time last_read_time_ ;
+      last_read_time_ = time;
+      // hardware comms and operations
+      ...
+    }
+    ...
+}
 
-This project has received funding from the European Union’s Horizon 2020
-research and innovation programme under grant agreement no. 732287.
+hardware_interface::return_type MySystemHardware::write(const rclcpp::Time & time, const rclcpp::Duration & period)
+{
+    if (first_write_pass_ || (time - last_write_time_ ) > period)
+    {
+      first_write_pass_ = false;
+      //   declaration in *.hpp file --> rclcpp::Time last_write_time_ ;
+      last_write_time_ = time;
+      // hardware comms and operations
+      ...
+    }
+    ...
+}
+```
