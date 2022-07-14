@@ -2,6 +2,9 @@
 Changelog for package joint_limits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.12.1 (2022-07-14)
+-------------------
+
 2.12.0 (2022-07-09)
 -------------------
 * Move Joint Limits structures for use in controllers (`#462 <https://github.com/ros-controls/ros2_control/issues/462>`_)
