@@ -20,34 +20,51 @@
 #include <utility>
 #include <vector>
 
-#include "controller_interface/controller_interface.hpp"
+#include "controller_interface/controller_interface_base.hpp"
+#include "controller_manager_msgs/msg/hardware_component_state.hpp"
+#include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/state.hpp"
 
-namespace
-{  // utility
+namespace  // utility
+{
+static constexpr const char * kControllerInterfaceNamespace = "controller_interface";
+static constexpr const char * kControllerInterfaceClassName =
+  "controller_interface::ControllerInterface";
+static constexpr const char * kChainableControllerInterfaceClassName =
+  "controller_interface::ChainableControllerInterface";
 
-static constexpr const char * kControllerInterfaceName = "controller_interface";
-static constexpr const char * kControllerInterface = "controller_interface::ControllerInterface";
+// Changed services history QoS to keep all so we don't lose any client service calls
+static const rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
+  RMW_QOS_POLICY_HISTORY_KEEP_ALL,
+  1,  // message queue depth
+  RMW_QOS_POLICY_RELIABILITY_RELIABLE,
+  RMW_QOS_POLICY_DURABILITY_VOLATILE,
+  RMW_QOS_DEADLINE_DEFAULT,
+  RMW_QOS_LIFESPAN_DEFAULT,
+  RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+  RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+  false};
 
-inline bool is_controller_inactive(const controller_interface::ControllerInterface & controller)
+inline bool is_controller_inactive(const controller_interface::ControllerInterfaceBase & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
 }
 
 inline bool is_controller_inactive(
-  const controller_interface::ControllerInterfaceSharedPtr & controller)
+  const controller_interface::ControllerInterfaceBaseSharedPtr & controller)
 {
   return is_controller_inactive(*controller);
 }
 
-inline bool is_controller_active(controller_interface::ControllerInterface & controller)
+inline bool is_controller_active(const controller_interface::ControllerInterfaceBase & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE;
 }
 
 inline bool is_controller_active(
-  const controller_interface::ControllerInterfaceSharedPtr & controller)
+  const controller_interface::ControllerInterfaceBaseSharedPtr & controller)
 {
   return is_controller_active(*controller);
 }
@@ -55,6 +72,56 @@ inline bool is_controller_active(
 bool controller_name_compare(const controller_manager::ControllerSpec & a, const std::string & name)
 {
   return a.info.name == name;
+}
+
+/// Checks if a command interface belongs to a controller based on its prefix.
+/**
+ * A command interface can be provided by a controller in which case is called "reference"
+ * interface.
+ * This means that the @interface_name starts with the name of a controller.
+ *
+ * \param[in] interface_name to be found in the map.
+ * \param[in] controllers list of controllers to compare their names to interface's prefix.
+ * \param[out] following_controller_it iterator to the following controller that reference interface
+ * @interface_name belongs to.
+ * \return true if interface has a controller name as prefix, false otherwise.
+ */
+bool command_interface_is_reference_interface_of_controller(
+  const std::string interface_name,
+  const std::vector<controller_manager::ControllerSpec> & controllers,
+  controller_manager::ControllersListIterator & following_controller_it)
+{
+  auto split_pos = interface_name.find_first_of('/');
+  if (split_pos == std::string::npos)  // '/' exist in the string (should be always false)
+  {
+    RCLCPP_FATAL(
+      rclcpp::get_logger("ControllerManager::utils"),
+      "Character '/', was not find in the interface name '%s'. This should never happen. "
+      "Stop the controller manager immediately and restart it.",
+      interface_name.c_str());
+    throw std::runtime_error("Mismatched interface name. See the FATAL message above.");
+  }
+
+  auto interface_prefix = interface_name.substr(0, split_pos);
+  following_controller_it = std::find_if(
+    controllers.begin(), controllers.end(),
+    std::bind(controller_name_compare, std::placeholders::_1, interface_prefix));
+
+  RCLCPP_DEBUG(
+    rclcpp::get_logger("ControllerManager::utils"),
+    "Deduced interface prefix '%s' - searching for the controller with the same name.",
+    interface_prefix.c_str());
+
+  if (following_controller_it == controllers.end())
+  {
+    RCLCPP_DEBUG(
+      rclcpp::get_logger("ControllerManager::utils"),
+      "Required command interface '%s' with prefix '%s' is not reference interface.",
+      interface_name.c_str(), interface_prefix.c_str());
+
+    return false;
+  }
+  return true;
 }
 
 }  // namespace
@@ -77,7 +144,10 @@ ControllerManager::ControllerManager(
   resource_manager_(std::make_unique<hardware_interface::ResourceManager>()),
   executor_(executor),
   loader_(std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
-    kControllerInterfaceName, kControllerInterface))
+    kControllerInterfaceNamespace, kControllerInterfaceClassName)),
+  chainable_loader_(
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
 {
   if (!get_parameter("update_rate", update_rate_))
   {
@@ -91,10 +161,7 @@ ControllerManager::ControllerManager(
     throw std::runtime_error("Unable to initialize resource manager, no robot description found.");
   }
 
-  resource_manager_->load_urdf(robot_description);
-
-  // TODO(all): Here we should start only "auto-start" resources
-  resource_manager_->start_components();
+  init_resource_manager(robot_description);
 
   init_services();
 }
@@ -107,9 +174,45 @@ ControllerManager::ControllerManager(
   resource_manager_(std::move(resource_manager)),
   executor_(executor),
   loader_(std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
-    kControllerInterfaceName, kControllerInterface))
+    kControllerInterfaceNamespace, kControllerInterfaceClassName)),
+  chainable_loader_(
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
 {
   init_services();
+}
+
+void ControllerManager::init_resource_manager(const std::string & robot_description)
+{
+  // TODO(destogl): manage this when there is an error - CM should not die because URDF is wrong...
+  resource_manager_->load_urdf(robot_description);
+
+  using lifecycle_msgs::msg::State;
+
+  std::vector<std::string> configure_components_on_start = std::vector<std::string>({});
+  get_parameter("configure_components_on_start", configure_components_on_start);
+  rclcpp_lifecycle::State inactive_state(
+    State::PRIMARY_STATE_INACTIVE, hardware_interface::lifecycle_state_names::INACTIVE);
+  for (const auto & component : configure_components_on_start)
+  {
+    resource_manager_->set_component_state(component, inactive_state);
+  }
+
+  std::vector<std::string> activate_components_on_start = std::vector<std::string>({});
+  get_parameter("activate_components_on_start", activate_components_on_start);
+  rclcpp_lifecycle::State active_state(
+    State::PRIMARY_STATE_ACTIVE, hardware_interface::lifecycle_state_names::ACTIVE);
+  for (const auto & component : activate_components_on_start)
+  {
+    resource_manager_->set_component_state(component, active_state);
+  }
+
+  // if both parameter are empty or non-existing preserve behavior where all components are
+  // activated per default
+  if (configure_components_on_start.empty() && activate_components_on_start.empty())
+  {
+    resource_manager_->activate_all_components();
+  }
 }
 
 void ControllerManager::init_services()
@@ -123,71 +226,85 @@ void ControllerManager::init_services()
   using namespace std::placeholders;
   list_controllers_service_ = create_service<controller_manager_msgs::srv::ListControllers>(
     "~/list_controllers", std::bind(&ControllerManager::list_controllers_srv_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_controller_types_service_ =
     create_service<controller_manager_msgs::srv::ListControllerTypes>(
       "~/list_controller_types",
       std::bind(&ControllerManager::list_controller_types_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
-  list_hardware_interfaces_service_ =
-    create_service<controller_manager_msgs::srv::ListHardwareInterfaces>(
-      "~/list_hardware_interfaces",
-      std::bind(&ControllerManager::list_hardware_interfaces_srv_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_controller_service_ = create_service<controller_manager_msgs::srv::LoadController>(
     "~/load_controller", std::bind(&ControllerManager::load_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   configure_controller_service_ = create_service<controller_manager_msgs::srv::ConfigureController>(
     "~/configure_controller",
     std::bind(&ControllerManager::configure_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
-  load_and_configure_controller_service_ =
-    create_service<controller_manager_msgs::srv::LoadConfigureController>(
-      "~/load_and_configure_controller",
-      std::bind(&ControllerManager::load_and_configure_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
-  load_and_start_controller_service_ =
-    create_service<controller_manager_msgs::srv::LoadStartController>(
-      "~/load_and_start_controller",
-      std::bind(&ControllerManager::load_and_start_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
-  configure_and_start_controller_service_ =
-    create_service<controller_manager_msgs::srv::ConfigureStartController>(
-      "~/configure_and_start_controller",
-      std::bind(&ControllerManager::configure_and_start_controller_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   reload_controller_libraries_service_ =
     create_service<controller_manager_msgs::srv::ReloadControllerLibraries>(
       "~/reload_controller_libraries",
       std::bind(&ControllerManager::reload_controller_libraries_service_cb, this, _1, _2),
-      rmw_qos_profile_services_default, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   switch_controller_service_ = create_service<controller_manager_msgs::srv::SwitchController>(
     "~/switch_controller",
     std::bind(&ControllerManager::switch_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   unload_controller_service_ = create_service<controller_manager_msgs::srv::UnloadController>(
     "~/unload_controller",
     std::bind(&ControllerManager::unload_controller_service_cb, this, _1, _2),
-    rmw_qos_profile_services_default, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
+  list_hardware_components_service_ =
+    create_service<controller_manager_msgs::srv::ListHardwareComponents>(
+      "~/list_hardware_components",
+      std::bind(&ControllerManager::list_hardware_components_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
+  list_hardware_interfaces_service_ =
+    create_service<controller_manager_msgs::srv::ListHardwareInterfaces>(
+      "~/list_hardware_interfaces",
+      std::bind(&ControllerManager::list_hardware_interfaces_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
+  set_hardware_component_state_service_ =
+    create_service<controller_manager_msgs::srv::SetHardwareComponentState>(
+      "~/set_hardware_component_state",
+      std::bind(&ControllerManager::set_hardware_component_state_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
 }
 
-controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_controller(
+controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
   const std::string & controller_name, const std::string & controller_type)
 {
   RCLCPP_INFO(get_logger(), "Loading controller '%s'", controller_name.c_str());
 
-  if (!loader_->isClassAvailable(controller_type))
+  if (
+    !loader_->isClassAvailable(controller_type) &&
+    !chainable_loader_->isClassAvailable(controller_type))
   {
-    RCLCPP_ERROR(get_logger(), "Loader for controller '%s' not found.", controller_name.c_str());
+    RCLCPP_ERROR(
+      get_logger(), "Loader for controller '%s' (type '%s') not found.", controller_name.c_str(),
+      controller_type.c_str());
     RCLCPP_INFO(get_logger(), "Available classes:");
     for (const auto & available_class : loader_->getDeclaredClasses())
     {
       RCLCPP_INFO(get_logger(), "  %s", available_class.c_str());
     }
+    for (const auto & available_class : chainable_loader_->getDeclaredClasses())
+    {
+      RCLCPP_INFO(get_logger(), "  %s", available_class.c_str());
+    }
     return nullptr;
   }
+  RCLCPP_DEBUG(get_logger(), "Loader for controller '%s' found.", controller_name.c_str());
 
-  auto controller = loader_->createSharedInstance(controller_type);
+  controller_interface::ControllerInterfaceBaseSharedPtr controller;
+
+  if (loader_->isClassAvailable(controller_type))
+  {
+    controller = loader_->createSharedInstance(controller_type);
+  }
+  if (chainable_loader_->isClassAvailable(controller_type))
+  {
+    controller = chainable_loader_->createSharedInstance(controller_type);
+  }
+
   ControllerSpec controller_spec;
   controller_spec.c = controller;
   controller_spec.info.name = controller_name;
@@ -196,7 +313,7 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_contr
   return add_controller_impl(controller_spec);
 }
 
-controller_interface::ControllerInterfaceSharedPtr ControllerManager::load_controller(
+controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
   const std::string & controller_name)
 {
   const std::string param_name = controller_name + ".type";
@@ -257,8 +374,10 @@ controller_interface::return_type ControllerManager::unload_controller(
   }
 
   RCLCPP_DEBUG(get_logger(), "Cleanup controller");
-  controller.c->cleanup();
-  executor_->remove_node(controller.c->get_node());
+  // TODO(destogl): remove reference interface if chainable; i.e., add a separate method for
+  // cleaning-up controllers?
+  controller.c->get_node()->cleanup();
+  executor_->remove_node(controller.c->get_node()->get_node_base_interface());
   to.erase(found_it);
 
   // Destroys the old controllers list when the realtime thread is finished with it.
@@ -316,7 +435,9 @@ controller_interface::return_type ControllerManager::configure_controller(
   {
     RCLCPP_DEBUG(
       get_logger(), "Controller '%s' is cleaned-up before configuring", controller_name.c_str());
-    new_state = controller->cleanup();
+    // TODO(destogl): remove reference interface if chainable; i.e., add a separate method for
+    // cleaning-up controllers?
+    new_state = controller->get_node()->cleanup();
     if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED)
     {
       RCLCPP_ERROR(
@@ -335,29 +456,71 @@ controller_interface::return_type ControllerManager::configure_controller(
     return controller_interface::return_type::ERROR;
   }
 
+  // CHAINABLE CONTROLLERS: get reference interfaces from chainable controllers
+  if (controller->is_chainable())
+  {
+    RCLCPP_DEBUG(
+      get_logger(),
+      "Controller '%s' is chainable. Interfaces are being exported to resource manager.",
+      controller_name.c_str());
+    auto interfaces = controller->export_reference_interfaces();
+    if (interfaces.empty())
+    {
+      // TODO(destogl): Add test for this!
+      RCLCPP_ERROR(
+        get_logger(), "Controller '%s' is chainable, but does not export any reference interfaces.",
+        controller_name.c_str());
+      return controller_interface::return_type::ERROR;
+    }
+    resource_manager_->import_controller_reference_interfaces(controller_name, interfaces);
+
+    // TODO(destogl): check and resort controllers in the vector
+  }
+
   return controller_interface::return_type::OK;
 }
 
+void ControllerManager::clear_requests()
+{
+  deactivate_request_.clear();
+  activate_request_.clear();
+  to_chained_mode_request_.clear();
+  from_chained_mode_request_.clear();
+  activate_command_interface_request_.clear();
+  deactivate_command_interface_request_.clear();
+}
+
 controller_interface::return_type ControllerManager::switch_controller(
-  const std::vector<std::string> & start_controllers,
-  const std::vector<std::string> & stop_controllers, int strictness, bool start_asap,
+  const std::vector<std::string> & activate_controllers,
+  const std::vector<std::string> & deactivate_controllers, int strictness, bool activate_asap,
   const rclcpp::Duration & timeout)
 {
   switch_params_ = SwitchParams();
 
-  if (!stop_request_.empty() || !start_request_.empty())
+  if (!deactivate_request_.empty() || !activate_request_.empty())
   {
     RCLCPP_FATAL(
       get_logger(),
-      "The internal stop and start request lists are not empty at the beginning of the "
-      "switchController() call. This should not happen.");
+      "The internal deactivate and activate request lists are not empty at the beginning of the "
+      "switch_controller() call. This should never happen.");
+    throw std::runtime_error("CM's internal state is not correct. See the FATAL message above.");
   }
-  if (!stop_command_interface_request_.empty() || !start_command_interface_request_.empty())
+  if (
+    !deactivate_command_interface_request_.empty() || !activate_command_interface_request_.empty())
   {
     RCLCPP_FATAL(
       get_logger(),
-      "The internal stop and start requests command interface lists are not empty at the "
-      "switch_controller() call. This should not happen.");
+      "The internal deactivate and activat requests command interface lists are not empty at the "
+      "switch_controller() call. This should never happen.");
+    throw std::runtime_error("CM's internal state is not correct. See the FATAL message above.");
+  }
+  if (!from_chained_mode_request_.empty() || !to_chained_mode_request_.empty())
+  {
+    RCLCPP_FATAL(
+      get_logger(),
+      "The internal 'from' and 'to' chained mode requests are not empty at the "
+      "switch_controller() call. This should never happen.");
+    throw std::runtime_error("CM's internal state is not correct. See the FATAL message above.");
   }
   if (strictness == 0)
   {
@@ -372,23 +535,24 @@ controller_interface::return_type ControllerManager::switch_controller(
   }
 
   RCLCPP_DEBUG(get_logger(), "Switching controllers:");
-  for (const auto & controller : start_controllers)
+  for (const auto & controller : activate_controllers)
   {
-    RCLCPP_DEBUG(get_logger(), "- Starting controller '%s'", controller.c_str());
+    RCLCPP_DEBUG(get_logger(), "- Activating controller '%s'", controller.c_str());
   }
-  for (const auto & controller : stop_controllers)
+  for (const auto & controller : deactivate_controllers)
   {
-    RCLCPP_DEBUG(get_logger(), "- Stopping controller '%s'", controller.c_str());
+    RCLCPP_DEBUG(get_logger(), "- Deactivating controller '%s'", controller.c_str());
   }
 
   const auto list_controllers = [this, strictness](
                                   const std::vector<std::string> & controller_list,
                                   std::vector<std::string> & request_list,
-                                  const std::string & action) {
+                                  const std::string & action)
+  {
     // lock controllers
     std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
 
-    // list all controllers to stop/start
+    // list all controllers to (de)activate
     for (const auto & controller : controller_list)
     {
       const auto & updated_controllers = rt_controllers_wrapper_.get_updated_list(guard);
@@ -399,19 +563,15 @@ controller_interface::return_type ControllerManager::switch_controller(
 
       if (found_it == updated_controllers.end())
       {
-        if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT)
-        {
-          RCLCPP_ERROR(
-            get_logger(),
-            R"(Could not '%s' controller with name '%s' because
-                no controller with this name exists)",
-            action.c_str(), controller.c_str());
-          return controller_interface::return_type::ERROR;
-        }
         RCLCPP_WARN(
           get_logger(),
           "Could not '%s' controller with name '%s' because no controller with this name exists",
           action.c_str(), controller.c_str());
+        if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT)
+        {
+          RCLCPP_ERROR(get_logger(), "Aborting, no controller is switched! ('STRICT' switch)");
+          return controller_interface::return_type::ERROR;
+        }
       }
       else
       {
@@ -427,67 +587,176 @@ controller_interface::return_type ControllerManager::switch_controller(
     return controller_interface::return_type::OK;
   };
 
-  // list all controllers to stop
-  auto ret = list_controllers(stop_controllers, stop_request_, "stop");
+  // list all controllers to deactivate (check if all controllers exist)
+  auto ret = list_controllers(deactivate_controllers, deactivate_request_, "deactivate");
   if (ret != controller_interface::return_type::OK)
   {
-    stop_request_.clear();
+    deactivate_request_.clear();
     return ret;
   }
 
-  // list all controllers to start
-  ret = list_controllers(start_controllers, start_request_, "start");
+  // list all controllers to activate (check if all controllers exist)
+  ret = list_controllers(activate_controllers, activate_request_, "activate");
   if (ret != controller_interface::return_type::OK)
   {
-    stop_request_.clear();
-    start_request_.clear();
+    deactivate_request_.clear();
+    activate_request_.clear();
     return ret;
   }
-
-  const auto list_interfaces = [this](
-                                 const ControllerSpec controller,
-                                 std::vector<std::string> & request_interface_list) {
-    auto command_interface_config = controller.c->command_interface_configuration();
-    std::vector<std::string> command_interface_names = {};
-    if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
-    {
-      command_interface_names = resource_manager_->command_interface_keys();
-    }
-    if (
-      command_interface_config.type ==
-      controller_interface::interface_configuration_type::INDIVIDUAL)
-    {
-      command_interface_names = command_interface_config.names;
-    }
-    request_interface_list.insert(
-      request_interface_list.end(), command_interface_names.begin(), command_interface_names.end());
-  };
 
   // lock controllers
   std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
 
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
 
+  // if a preceding controller is deactivated, all first-level controllers should be switched 'from'
+  // chained mode
+  propagate_deactivation_of_chained_mode(controllers);
+
+  // check if controllers should be switched 'to' chained mode when controllers are activated
+  for (auto ctrl_it = activate_request_.begin(); ctrl_it != activate_request_.end(); ++ctrl_it)
+  {
+    auto controller_it = std::find_if(
+      controllers.begin(), controllers.end(),
+      std::bind(controller_name_compare, std::placeholders::_1, *ctrl_it));
+    controller_interface::return_type ret = controller_interface::return_type::OK;
+
+    // if controller is not inactive then do not do any following-controllers checks
+    if (!is_controller_inactive(controller_it->c))
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "Controller with name '%s' is not inactive so its following"
+        "controllers do not have to be checked, because it cannot be activated.",
+        controller_it->info.name.c_str());
+      ret = controller_interface::return_type::ERROR;
+    }
+    else
+    {
+      ret = check_following_controllers_for_activate(controllers, strictness, controller_it);
+    }
+
+    if (ret != controller_interface::return_type::OK)
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "Could not activate controller with name '%s'. Check above warnings for more details. "
+        "Check the state of the controllers and their required interfaces using "
+        "`ros2 control list_controllers -v` CLI to get more information.",
+        (*ctrl_it).c_str());
+      if (strictness == controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT)
+      {
+        // TODO(destogl): automatic manipulation of the chain:
+        // || strictness ==
+        //  controller_manager_msgs::srv::SwitchController::Request::MANIPULATE_CONTROLLERS_CHAIN);
+        // remove controller that can not be activated from the activation request and step-back
+        // iterator to correctly step to the next element in the list in the loop
+        activate_request_.erase(ctrl_it);
+        --ctrl_it;
+      }
+      if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT)
+      {
+        RCLCPP_ERROR(get_logger(), "Aborting, no controller is switched! (::STRICT switch)");
+        // reset all lists
+        clear_requests();
+        return controller_interface::return_type::ERROR;
+      }
+    }
+  }
+
+  // check if controllers should be deactivated if used in chained mode
+  for (auto ctrl_it = deactivate_request_.begin(); ctrl_it != deactivate_request_.end(); ++ctrl_it)
+  {
+    auto controller_it = std::find_if(
+      controllers.begin(), controllers.end(),
+      std::bind(controller_name_compare, std::placeholders::_1, *ctrl_it));
+    controller_interface::return_type ret = controller_interface::return_type::OK;
+
+    // if controller is not active then skip preceding-controllers checks
+    if (!is_controller_active(controller_it->c))
+    {
+      RCLCPP_WARN(
+        get_logger(), "Controller with name '%s' can not be deactivated since it is not active.",
+        controller_it->info.name.c_str());
+      ret = controller_interface::return_type::ERROR;
+    }
+    else
+    {
+      ret = check_preceeding_controllers_for_deactivate(controllers, strictness, controller_it);
+    }
+
+    if (ret != controller_interface::return_type::OK)
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "Could not deactivate controller with name '%s'. Check above warnings for more details. "
+        "Check the state of the controllers and their required interfaces using "
+        "`ros2 control list_controllers -v` CLI to get more information.",
+        (*ctrl_it).c_str());
+      if (strictness == controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT)
+      {
+        // remove controller that can not be activated from the activation request and step-back
+        // iterator to correctly step to the next element in the list in the loop
+        deactivate_request_.erase(ctrl_it);
+        --ctrl_it;
+      }
+      if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT)
+      {
+        RCLCPP_ERROR(get_logger(), "Aborting, no controller is switched! (::STRICT switch)");
+        // reset all lists
+        clear_requests();
+        return controller_interface::return_type::ERROR;
+      }
+    }
+  }
+
   for (const auto & controller : controllers)
   {
-    auto stop_list_it = std::find(stop_request_.begin(), stop_request_.end(), controller.info.name);
-    bool in_stop_list = stop_list_it != stop_request_.end();
+    auto to_chained_mode_list_it = std::find(
+      to_chained_mode_request_.begin(), to_chained_mode_request_.end(), controller.info.name);
+    bool in_to_chained_mode_list = to_chained_mode_list_it != to_chained_mode_request_.end();
 
-    auto start_list_it =
-      std::find(start_request_.begin(), start_request_.end(), controller.info.name);
-    bool in_start_list = start_list_it != start_request_.end();
+    auto from_chained_mode_list_it = std::find(
+      from_chained_mode_request_.begin(), from_chained_mode_request_.end(), controller.info.name);
+    bool in_from_chained_mode_list = from_chained_mode_list_it != from_chained_mode_request_.end();
+
+    auto deactivate_list_it =
+      std::find(deactivate_request_.begin(), deactivate_request_.end(), controller.info.name);
+    bool in_deactivate_list = deactivate_list_it != deactivate_request_.end();
 
     const bool is_active = is_controller_active(*controller.c);
     const bool is_inactive = is_controller_inactive(*controller.c);
 
-    auto handle_conflict = [&](const std::string & msg) {
+    // restart controllers that need to switch their 'chained mode' - add to (de)activate lists
+    if (in_to_chained_mode_list || in_from_chained_mode_list)
+    {
+      if (is_active && !in_deactivate_list)
+      {
+        deactivate_request_.push_back(controller.info.name);
+        activate_request_.push_back(controller.info.name);
+      }
+    }
+
+    // get pointers to places in deactivate and activate lists ((de)activate lists have changed)
+    deactivate_list_it =
+      std::find(deactivate_request_.begin(), deactivate_request_.end(), controller.info.name);
+    in_deactivate_list = deactivate_list_it != deactivate_request_.end();
+
+    auto activate_list_it =
+      std::find(activate_request_.begin(), activate_request_.end(), controller.info.name);
+    bool in_activate_list = activate_list_it != activate_request_.end();
+
+    auto handle_conflict = [&](const std::string & msg)
+    {
       if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT)
       {
         RCLCPP_ERROR(get_logger(), "%s", msg.c_str());
-        stop_request_.clear();
-        stop_command_interface_request_.clear();
-        start_request_.clear();
-        start_command_interface_request_.clear();
+        deactivate_request_.clear();
+        deactivate_command_interface_request_.clear();
+        activate_request_.clear();
+        activate_command_interface_request_.clear();
+        to_chained_mode_request_.clear();
+        from_chained_mode_request_.clear();
         return controller_interface::return_type::ERROR;
       }
       RCLCPP_WARN(get_logger(), "%s", msg.c_str());
@@ -495,87 +764,104 @@ controller_interface::return_type ControllerManager::switch_controller(
     };
 
     // check for double stop
-    if (!is_active && in_stop_list)
+    if (!is_active && in_deactivate_list)
     {
       auto ret = handle_conflict(
-        "Could not stop controller '" + controller.info.name + "' since it is not active");
+        "Could not deactivate controller '" + controller.info.name + "' since it is not active");
       if (ret != controller_interface::return_type::OK)
       {
         return ret;
       }
-      in_stop_list = false;
-      stop_request_.erase(stop_list_it);
+      in_deactivate_list = false;
+      deactivate_request_.erase(deactivate_list_it);
     }
 
-    // check for doubled start
-    if (is_active && !in_stop_list && in_start_list)
+    // check for doubled activation
+    if (is_active && !in_deactivate_list && in_activate_list)
     {
       auto ret = handle_conflict(
-        "Could not start controller '" + controller.info.name + "' since it is already active");
+        "Could not activate controller '" + controller.info.name + "' since it is already active");
       if (ret != controller_interface::return_type::OK)
       {
         return ret;
       }
-      in_start_list = false;
-      start_request_.erase(start_list_it);
+      in_activate_list = false;
+      activate_request_.erase(activate_list_it);
     }
 
-    // check for illegal start of an unconfigured/finalized controller
-    if (!is_inactive && !in_stop_list && in_start_list)
+    // check for illegal activation of an unconfigured/finalized controller
+    if (!is_inactive && !in_deactivate_list && in_activate_list)
     {
       auto ret = handle_conflict(
-        "Could not start controller '" + controller.info.name +
+        "Could not activate controller '" + controller.info.name +
         "' since it is not in inactive state");
       if (ret != controller_interface::return_type::OK)
       {
         return ret;
       }
-      in_start_list = false;
-      start_request_.erase(start_list_it);
+      in_activate_list = false;
+      activate_request_.erase(activate_list_it);
     }
 
-    if (in_start_list)
+    const auto extract_interfaces_for_controller =
+      [this](const ControllerSpec controller, std::vector<std::string> & request_interface_list)
     {
-      list_interfaces(controller, start_command_interface_request_);
+      auto command_interface_config = controller.c->command_interface_configuration();
+      std::vector<std::string> command_interface_names = {};
+      if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
+      {
+        command_interface_names = resource_manager_->available_command_interfaces();
+      }
+      if (
+        command_interface_config.type ==
+        controller_interface::interface_configuration_type::INDIVIDUAL)
+      {
+        command_interface_names = command_interface_config.names;
+      }
+      request_interface_list.insert(
+        request_interface_list.end(), command_interface_names.begin(),
+        command_interface_names.end());
+    };
+
+    if (in_activate_list)
+    {
+      extract_interfaces_for_controller(controller, activate_command_interface_request_);
     }
-    if (in_stop_list)
+    if (in_deactivate_list)
     {
-      list_interfaces(controller, stop_command_interface_request_);
+      extract_interfaces_for_controller(controller, deactivate_command_interface_request_);
     }
   }
 
-  if (start_request_.empty() && stop_request_.empty())
+  if (activate_request_.empty() && deactivate_request_.empty())
   {
-    RCLCPP_INFO(get_logger(), "Empty start and stop list, not requesting switch");
-    start_command_interface_request_.clear();
-    stop_command_interface_request_.clear();
+    RCLCPP_INFO(get_logger(), "Empty activate and deactivate list, not requesting switch");
+    clear_requests();
     return controller_interface::return_type::OK;
   }
 
-  if (!start_command_interface_request_.empty() || !stop_command_interface_request_.empty())
+  if (
+    !activate_command_interface_request_.empty() || !deactivate_command_interface_request_.empty())
   {
     if (!resource_manager_->prepare_command_mode_switch(
-          start_command_interface_request_, stop_command_interface_request_))
+          activate_command_interface_request_, deactivate_command_interface_request_))
     {
       RCLCPP_ERROR(
         get_logger(),
         "Could not switch controllers since prepare command mode switch was rejected.");
-      start_request_.clear();
-      stop_request_.clear();
-      start_command_interface_request_.clear();
-      stop_command_interface_request_.clear();
+      clear_requests();
       return controller_interface::return_type::ERROR;
     }
   }
   // start the atomic controller switching
   switch_params_.strictness = strictness;
-  switch_params_.start_asap = start_asap;
+  switch_params_.activate_asap = activate_asap;
   switch_params_.init_time = rclcpp::Clock().now();
   switch_params_.timeout = timeout;
   switch_params_.do_switch = true;
 
   // wait until switch is finished
-  RCLCPP_DEBUG(get_logger(), "Request atomic controller switch from realtime loop");
+  RCLCPP_DEBUG(get_logger(), "Requested atomic controller switch from realtime loop");
   while (rclcpp::ok() && switch_params_.do_switch)
   {
     if (!rclcpp::ok())
@@ -597,7 +883,7 @@ controller_interface::return_type ControllerManager::switch_controller(
       auto command_interface_config = controller.c->command_interface_configuration();
       if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
       {
-        controller.info.claimed_interfaces = resource_manager_->command_interface_keys();
+        controller.info.claimed_interfaces = resource_manager_->available_command_interfaces();
       }
       if (
         command_interface_config.type ==
@@ -616,16 +902,13 @@ controller_interface::return_type ControllerManager::switch_controller(
   // clear unused list
   rt_controllers_wrapper_.get_unused_list(guard).clear();
 
-  start_request_.clear();
-  stop_request_.clear();
+  clear_requests();
 
-  start_command_interface_request_.clear();
-  stop_command_interface_request_.clear();
   RCLCPP_DEBUG(get_logger(), "Successfully switched controllers");
   return controller_interface::return_type::OK;
 }
 
-controller_interface::ControllerInterfaceSharedPtr ControllerManager::add_controller_impl(
+controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::add_controller_impl(
   const ControllerSpec & controller)
 {
   // lock controllers
@@ -650,7 +933,9 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::add_contro
     return nullptr;
   }
 
-  if (controller.c->init(controller.info.name) == controller_interface::return_type::ERROR)
+  if (
+    controller.c->init(controller.info.name, get_namespace()) ==
+    controller_interface::return_type::ERROR)
   {
     to.clear();
     RCLCPP_ERROR(
@@ -669,7 +954,7 @@ controller_interface::ControllerInterfaceSharedPtr ControllerManager::add_contro
       controller.info.name.c_str());
     controller.c->get_node()->set_parameter(use_sim_time);
   }
-  executor_->add_node(controller.c->get_node());
+  executor_->add_node(controller.c->get_node()->get_node_base_interface());
   to.emplace_back(controller);
 
   // Destroys the old controllers list when the realtime thread is finished with it.
@@ -687,31 +972,36 @@ void ControllerManager::manage_switch()
 {
   // Ask hardware interfaces to change mode
   if (!resource_manager_->perform_command_mode_switch(
-        start_command_interface_request_, stop_command_interface_request_))
+        activate_command_interface_request_, deactivate_command_interface_request_))
   {
     RCLCPP_ERROR(get_logger(), "Error while performing mode switch.");
   }
 
-  stop_controllers();
+  deactivate_controllers();
 
-  // start controllers once the switch is fully complete
-  if (!switch_params_.start_asap)
+  switch_chained_mode(to_chained_mode_request_, true);
+  switch_chained_mode(from_chained_mode_request_, false);
+
+  // activate controllers once the switch is fully complete
+  if (!switch_params_.activate_asap)
   {
-    start_controllers();
+    activate_controllers();
   }
   else
   {
-    // start controllers as soon as their required joints are done switching
-    start_controllers_asap();
+    // activate controllers as soon as their required joints are done switching
+    activate_controllers_asap();
   }
+
+  // TODO(destogl): move here "do_switch = false"
 }
 
-void ControllerManager::stop_controllers()
+void ControllerManager::deactivate_controllers()
 {
   std::vector<ControllerSpec> & rt_controller_list =
     rt_controllers_wrapper_.update_and_get_used_by_rt_list();
   // stop controllers
-  for (const auto & request : stop_request_)
+  for (const auto & request : deactivate_request_)
   {
     auto found_it = std::find_if(
       rt_controller_list.begin(), rt_controller_list.end(),
@@ -727,7 +1017,7 @@ void ControllerManager::stop_controllers()
     auto controller = found_it->c;
     if (is_controller_active(*controller))
     {
-      const auto new_state = controller->deactivate();
+      const auto new_state = controller->get_node()->deactivate();
       controller->release_interfaces();
       if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
       {
@@ -739,11 +1029,68 @@ void ControllerManager::stop_controllers()
   }
 }
 
-void ControllerManager::start_controllers()
+void ControllerManager::switch_chained_mode(
+  const std::vector<std::string> & chained_mode_switch_list, bool to_chained_mode)
 {
   std::vector<ControllerSpec> & rt_controller_list =
     rt_controllers_wrapper_.update_and_get_used_by_rt_list();
-  for (const auto & request : start_request_)
+
+  for (const auto & request : chained_mode_switch_list)
+  {
+    auto found_it = std::find_if(
+      rt_controller_list.begin(), rt_controller_list.end(),
+      std::bind(controller_name_compare, std::placeholders::_1, request));
+    if (found_it == rt_controller_list.end())
+    {
+      RCLCPP_FATAL(
+        get_logger(),
+        "Got request to turn %s chained mode for controller '%s', but controller is not in the "
+        "realtime controller list. (This should never happen!)",
+        (to_chained_mode ? "ON" : "OFF"), request.c_str());
+      continue;
+    }
+    auto controller = found_it->c;
+    if (!is_controller_active(*controller))
+    {
+      if (controller->set_chained_mode(to_chained_mode))
+      {
+        if (to_chained_mode)
+        {
+          resource_manager_->make_controller_reference_interfaces_available(request);
+        }
+        else
+        {
+          resource_manager_->make_controller_reference_interfaces_unavailable(request);
+        }
+      }
+      else
+      {
+        RCLCPP_ERROR(
+          get_logger(),
+          "Got request to turn %s chained mode for controller '%s', but controller refused to do "
+          "it! The control will probably not work as expected. Try to restart all controllers. "
+          "If "
+          "the error persist check controllers' individual configuration.",
+          (to_chained_mode ? "ON" : "OFF"), request.c_str());
+      }
+    }
+    else
+    {
+      RCLCPP_FATAL(
+        get_logger(),
+        "Got request to turn %s chained mode for controller '%s', but this can not happen if "
+        "controller is in '%s' state. (This should never happen!)",
+        (to_chained_mode ? "ON" : "OFF"), request.c_str(),
+        hardware_interface::lifecycle_state_names::ACTIVE);
+    }
+  }
+}
+
+void ControllerManager::activate_controllers()
+{
+  std::vector<ControllerSpec> & rt_controller_list =
+    rt_controllers_wrapper_.update_and_get_used_by_rt_list();
+  for (const auto & request : activate_request_)
   {
     auto found_it = std::find_if(
       rt_controller_list.begin(), rt_controller_list.end(),
@@ -752,7 +1099,7 @@ void ControllerManager::start_controllers()
     {
       RCLCPP_ERROR(
         get_logger(),
-        "Got request to start controller '%s' but it is not in the realtime controller list",
+        "Got request to activate controller '%s' but it is not in the realtime controller list",
         request.c_str());
       continue;
     }
@@ -765,7 +1112,7 @@ void ControllerManager::start_controllers()
     std::vector<std::string> command_interface_names = {};
     if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
     {
-      command_interface_names = resource_manager_->command_interface_keys();
+      command_interface_names = resource_manager_->available_command_interfaces();
     }
     if (
       command_interface_config.type ==
@@ -809,7 +1156,7 @@ void ControllerManager::start_controllers()
     std::vector<std::string> state_interface_names = {};
     if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
     {
-      state_interface_names = resource_manager_->state_interface_keys();
+      state_interface_names = resource_manager_->available_state_interfaces();
     }
     if (
       state_interface_config.type == controller_interface::interface_configuration_type::INDIVIDUAL)
@@ -838,7 +1185,7 @@ void ControllerManager::start_controllers()
     }
     controller->assign_interfaces(std::move(command_loans), std::move(state_loans));
 
-    const auto new_state = controller->activate();
+    const auto new_state = controller->get_node()->activate();
     if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
     {
       RCLCPP_ERROR(
@@ -846,14 +1193,14 @@ void ControllerManager::start_controllers()
         controller->get_node()->get_name(), new_state.label().c_str());
     }
   }
-  // All controllers started, switching done
+  // All controllers activated, switching done
   switch_params_.do_switch = false;
 }
 
-void ControllerManager::start_controllers_asap()
+void ControllerManager::activate_controllers_asap()
 {
   //  https://github.com/ros-controls/ros2_control/issues/263
-  start_controllers();
+  activate_controllers();
 }
 
 void ControllerManager::list_controllers_srv_cb(
@@ -868,15 +1215,26 @@ void ControllerManager::list_controllers_srv_cb(
   // lock controllers
   std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
-  response->controller.resize(controllers.size());
-
+  // create helper containers to create chained controller connections
+  std::unordered_map<std::string, std::vector<std::string>> controller_chain_interface_map;
+  std::unordered_map<std::string, std::set<std::string>> controller_chain_map;
+  std::vector<size_t> chained_controller_indices;
   for (size_t i = 0; i < controllers.size(); ++i)
   {
-    controller_manager_msgs::msg::ControllerState & cs = response->controller[i];
-    cs.name = controllers[i].info.name;
-    cs.type = controllers[i].info.type;
-    cs.claimed_interfaces = controllers[i].info.claimed_interfaces;
-    cs.state = controllers[i].c->get_state().label();
+    controller_chain_map[controllers[i].info.name] = {};
+  }
+
+  response->controller.reserve(controllers.size());
+  for (size_t i = 0; i < controllers.size(); ++i)
+  {
+    controller_manager_msgs::msg::ControllerState controller_state;
+
+    controller_state.name = controllers[i].info.name;
+    controller_state.type = controllers[i].info.type;
+    controller_state.claimed_interfaces = controllers[i].info.claimed_interfaces;
+    controller_state.state = controllers[i].c->get_state().label();
+    controller_state.is_chainable = controllers[i].c->is_chainable();
+    controller_state.is_chained = controllers[i].c->is_in_chained_mode();
 
     // Get information about interfaces if controller are in 'inactive' or 'active' state
     if (is_controller_active(controllers[i].c) || is_controller_inactive(controllers[i].c))
@@ -884,26 +1242,66 @@ void ControllerManager::list_controllers_srv_cb(
       auto command_interface_config = controllers[i].c->command_interface_configuration();
       if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
       {
-        cs.required_command_interfaces = resource_manager_->command_interface_keys();
+        controller_state.required_command_interfaces = resource_manager_->command_interface_keys();
       }
       else if (
         command_interface_config.type ==
         controller_interface::interface_configuration_type::INDIVIDUAL)
       {
-        cs.required_command_interfaces = command_interface_config.names;
+        controller_state.required_command_interfaces = command_interface_config.names;
       }
 
       auto state_interface_config = controllers[i].c->state_interface_configuration();
       if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
       {
-        cs.required_state_interfaces = resource_manager_->state_interface_keys();
+        controller_state.required_state_interfaces = resource_manager_->state_interface_keys();
       }
       else if (
         state_interface_config.type ==
         controller_interface::interface_configuration_type::INDIVIDUAL)
       {
-        cs.required_state_interfaces = state_interface_config.names;
+        controller_state.required_state_interfaces = state_interface_config.names;
       }
+    }
+    // check for chained interfaces
+    for (const auto & interface : controller_state.required_command_interfaces)
+    {
+      auto prefix_interface_type_pair = split_command_interface(interface);
+      auto prefix = prefix_interface_type_pair.first;
+      auto interface_type = prefix_interface_type_pair.second;
+      if (controller_chain_map.find(prefix) != controller_chain_map.end())
+      {
+        controller_chain_map[controller_state.name].insert(prefix);
+        controller_chain_interface_map[controller_state.name].push_back(interface_type);
+      }
+    }
+    auto references = controllers[i].c->export_reference_interfaces();
+    controller_state.reference_interfaces.reserve(references.size());
+    for (const auto & reference : references)
+    {
+      controller_state.reference_interfaces.push_back(reference.get_interface_name());
+    }
+    response->controller.push_back(controller_state);
+    // keep track of controllers that are part of a chain
+    if (
+      !controller_chain_interface_map[controller_state.name].empty() ||
+      controllers[i].c->is_chainable())
+    {
+      chained_controller_indices.push_back(i);
+    }
+  }
+
+  // create chain connections for all controllers in a chain
+  for (const auto & index : chained_controller_indices)
+  {
+    auto & controller_state = response->controller[index];
+    auto chained_set = controller_chain_map[controller_state.name];
+    for (const auto & chained_name : chained_set)
+    {
+      controller_manager_msgs::msg::ChainConnection connection;
+      connection.name = chained_name;
+      connection.reference_interfaces = controller_chain_interface_map[controller_state.name];
+      controller_state.chain_connections.push_back(connection);
     }
   }
 
@@ -923,33 +1321,18 @@ void ControllerManager::list_controller_types_srv_cb(
   for (const auto & cur_type : cur_types)
   {
     response->types.push_back(cur_type);
-    response->base_classes.push_back(kControllerInterface);
+    response->base_classes.push_back(kControllerInterfaceClassName);
+    RCLCPP_DEBUG(get_logger(), "%s", cur_type.c_str());
+  }
+  cur_types = chainable_loader_->getDeclaredClasses();
+  for (const auto & cur_type : cur_types)
+  {
+    response->types.push_back(cur_type);
+    response->base_classes.push_back(kChainableControllerInterfaceClassName);
     RCLCPP_DEBUG(get_logger(), "%s", cur_type.c_str());
   }
 
   RCLCPP_DEBUG(get_logger(), "list types service finished");
-}
-
-void ControllerManager::list_hardware_interfaces_srv_cb(
-  const std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Request>,
-  std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Response> response)
-{
-  auto state_interface_names = resource_manager_->state_interface_keys();
-  for (const auto & state_interface_name : state_interface_names)
-  {
-    controller_manager_msgs::msg::HardwareInterface hwi;
-    hwi.name = state_interface_name;
-    hwi.is_claimed = false;
-    response->state_interfaces.push_back(hwi);
-  }
-  auto command_interface_names = resource_manager_->command_interface_keys();
-  for (const auto & command_interface_name : command_interface_names)
-  {
-    controller_manager_msgs::msg::HardwareInterface hwi;
-    hwi.name = command_interface_name;
-    hwi.is_claimed = resource_manager_->command_interface_is_claimed(command_interface_name);
-    response->command_interfaces.push_back(hwi);
-  }
 }
 
 void ControllerManager::load_controller_service_cb(
@@ -981,90 +1364,6 @@ void ControllerManager::configure_controller_service_cb(
 
   RCLCPP_DEBUG(
     get_logger(), "configuring service finished for controller '%s' ", request->name.c_str());
-}
-
-void ControllerManager::load_and_configure_controller_service_cb(
-  const std::shared_ptr<controller_manager_msgs::srv::LoadConfigureController::Request> request,
-  std::shared_ptr<controller_manager_msgs::srv::LoadConfigureController::Response> response)
-{
-  // lock services
-  RCLCPP_DEBUG(
-    get_logger(), "loading and configure service called for controller '%s' ",
-    request->name.c_str());
-  std::lock_guard<std::mutex> guard(services_lock_);
-  RCLCPP_DEBUG(get_logger(), "loading and configure service locked");
-
-  response->ok = load_controller(request->name).get();
-
-  if (response->ok)
-  {
-    response->ok = configure_controller(request->name) == controller_interface::return_type::OK;
-  }
-
-  RCLCPP_DEBUG(
-    get_logger(), "loading and configure service finished for controller '%s' ",
-    request->name.c_str());
-}
-
-void ControllerManager::load_and_start_controller_service_cb(
-  const std::shared_ptr<controller_manager_msgs::srv::LoadStartController::Request> request,
-  std::shared_ptr<controller_manager_msgs::srv::LoadStartController::Response> response)
-{
-  // lock services
-  RCLCPP_DEBUG(
-    get_logger(), "loading and activating service called for controller '%s' ",
-    request->name.c_str());
-  std::lock_guard<std::mutex> guard(services_lock_);
-  RCLCPP_DEBUG(get_logger(), "loading and activating service locked");
-
-  response->ok = load_controller(request->name).get();
-
-  if (response->ok)
-  {
-    response->ok = configure_controller(request->name) == controller_interface::return_type::OK;
-  }
-
-  if (response->ok)
-  {
-    std::vector<std::string> start_controller = {request->name};
-    std::vector<std::string> empty;
-    response->ok = switch_controller(
-                     start_controller, empty,
-                     controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT) ==
-                   controller_interface::return_type::OK;
-  }
-
-  RCLCPP_DEBUG(
-    get_logger(), "loading and activating service finished for controller '%s' ",
-    request->name.c_str());
-}
-
-void ControllerManager::configure_and_start_controller_service_cb(
-  const std::shared_ptr<controller_manager_msgs::srv::ConfigureStartController::Request> request,
-  std::shared_ptr<controller_manager_msgs::srv::ConfigureStartController::Response> response)
-{
-  // lock services
-  RCLCPP_DEBUG(
-    get_logger(), "configuring and activating service called for controller '%s' ",
-    request->name.c_str());
-  std::lock_guard<std::mutex> guard(services_lock_);
-  RCLCPP_DEBUG(get_logger(), "configuring and activating service locked");
-
-  response->ok = configure_controller(request->name) == controller_interface::return_type::OK;
-
-  if (response->ok)
-  {
-    std::vector<std::string> start_controller = {request->name};
-    std::vector<std::string> empty;
-    response->ok = switch_controller(
-                     start_controller, empty,
-                     controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT) ==
-                   controller_interface::return_type::OK;
-  }
-
-  RCLCPP_DEBUG(
-    get_logger(), "configuring and activating service finished for controller '%s' ",
-    request->name.c_str());
 }
 
 void ControllerManager::reload_controller_libraries_service_cb(
@@ -1138,10 +1437,13 @@ void ControllerManager::reload_controller_libraries_service_cb(
 
   // Force a reload on all the PluginLoaders (internally, this recreates the plugin loaders)
   loader_ = std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
-    kControllerInterfaceName, kControllerInterface);
+    kControllerInterfaceNamespace, kControllerInterfaceClassName);
+  chainable_loader_ =
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName);
   RCLCPP_INFO(
     get_logger(), "Controller manager: reloaded controller libraries for '%s'",
-    kControllerInterfaceName);
+    kControllerInterfaceNamespace);
 
   response->ok = true;
 
@@ -1157,9 +1459,46 @@ void ControllerManager::switch_controller_service_cb(
   std::lock_guard<std::mutex> guard(services_lock_);
   RCLCPP_DEBUG(get_logger(), "switching service locked");
 
+  //   response->ok = switch_controller(
+  //     request->activate_controllers, request->deactivate_controllers, request->strictness,
+  //     request->activate_asap, request->timeout) == controller_interface::return_type::OK;
+  // TODO(destogl): remove this after deprecated fields are removed from service and use the
+  // commented three lines above
+  // BEGIN: remove when deprecated removed
+  auto activate_controllers = request->activate_controllers;
+  auto deactivate_controllers = request->deactivate_controllers;
+
+  if (!request->start_controllers.empty())
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'start_controllers' field is deprecated, use 'activate_controllers' field instead!");
+    activate_controllers.insert(
+      activate_controllers.end(), request->start_controllers.begin(),
+      request->start_controllers.end());
+  }
+  if (!request->stop_controllers.empty())
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'stop_controllers' field is deprecated, use 'deactivate_controllers' field instead!");
+    deactivate_controllers.insert(
+      deactivate_controllers.end(), request->stop_controllers.begin(),
+      request->stop_controllers.end());
+  }
+
+  auto activate_asap = request->activate_asap;
+  if (request->start_asap)
+  {
+    RCLCPP_WARN(
+      get_logger(), "'start_asap' field is deprecated, use 'activate_asap' field instead!");
+    activate_asap = request->start_asap;
+  }
+
   response->ok = switch_controller(
-                   request->start_controllers, request->stop_controllers, request->strictness,
-                   request->start_asap, request->timeout) == controller_interface::return_type::OK;
+                   activate_controllers, deactivate_controllers, request->strictness, activate_asap,
+                   request->timeout) == controller_interface::return_type::OK;
+  // END: remove when deprecated removed
 
   RCLCPP_DEBUG(get_logger(), "switching service finished");
 }
@@ -1180,6 +1519,117 @@ void ControllerManager::unload_controller_service_cb(
     get_logger(), "unloading service finished for controller '%s' ", request->name.c_str());
 }
 
+void ControllerManager::list_hardware_components_srv_cb(
+  const std::shared_ptr<controller_manager_msgs::srv::ListHardwareComponents::Request>,
+  std::shared_ptr<controller_manager_msgs::srv::ListHardwareComponents::Response> response)
+{
+  RCLCPP_DEBUG(get_logger(), "list hardware components service called");
+  std::lock_guard<std::mutex> guard(services_lock_);
+  RCLCPP_DEBUG(get_logger(), "list hardware components service locked");
+
+  auto hw_components_info = resource_manager_->get_components_status();
+
+  response->component.reserve(hw_components_info.size());
+
+  for (const auto & [component_name, component_info] : hw_components_info)
+  {
+    auto component = controller_manager_msgs::msg::HardwareComponentState();
+    component.name = component_name;
+    component.type = component_info.type;
+    component.class_type = component_info.class_type;
+    component.state.id = component_info.state.id();
+    component.state.label = component_info.state.label();
+
+    component.command_interfaces.reserve(component_info.command_interfaces.size());
+    for (const auto & interface : component_info.command_interfaces)
+    {
+      controller_manager_msgs::msg::HardwareInterface hwi;
+      hwi.name = interface;
+      hwi.is_available = resource_manager_->command_interface_is_available(interface);
+      hwi.is_claimed = resource_manager_->command_interface_is_claimed(interface);
+      component.command_interfaces.push_back(hwi);
+    }
+
+    component.state_interfaces.reserve(component_info.state_interfaces.size());
+    for (const auto & interface : component_info.state_interfaces)
+    {
+      controller_manager_msgs::msg::HardwareInterface hwi;
+      hwi.name = interface;
+      hwi.is_available = resource_manager_->state_interface_is_available(interface);
+      hwi.is_claimed = false;
+      component.state_interfaces.push_back(hwi);
+    }
+
+    response->component.push_back(component);
+  }
+
+  RCLCPP_DEBUG(get_logger(), "list hardware components service finished");
+}
+
+void ControllerManager::list_hardware_interfaces_srv_cb(
+  const std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Request>,
+  std::shared_ptr<controller_manager_msgs::srv::ListHardwareInterfaces::Response> response)
+{
+  RCLCPP_DEBUG(get_logger(), "list hardware interfaces service called");
+  std::lock_guard<std::mutex> guard(services_lock_);
+  RCLCPP_DEBUG(get_logger(), "list hardware interfaces service locked");
+
+  auto state_interface_names = resource_manager_->state_interface_keys();
+  for (const auto & state_interface_name : state_interface_names)
+  {
+    controller_manager_msgs::msg::HardwareInterface hwi;
+    hwi.name = state_interface_name;
+    hwi.is_available = resource_manager_->state_interface_is_available(state_interface_name);
+    hwi.is_claimed = false;
+    response->state_interfaces.push_back(hwi);
+  }
+  auto command_interface_names = resource_manager_->command_interface_keys();
+  for (const auto & command_interface_name : command_interface_names)
+  {
+    controller_manager_msgs::msg::HardwareInterface hwi;
+    hwi.name = command_interface_name;
+    hwi.is_available = resource_manager_->command_interface_is_available(command_interface_name);
+    hwi.is_claimed = resource_manager_->command_interface_is_claimed(command_interface_name);
+    response->command_interfaces.push_back(hwi);
+  }
+
+  RCLCPP_DEBUG(get_logger(), "list hardware interfaces service finished");
+}
+
+void ControllerManager::set_hardware_component_state_srv_cb(
+  const std::shared_ptr<controller_manager_msgs::srv::SetHardwareComponentState::Request> request,
+  std::shared_ptr<controller_manager_msgs::srv::SetHardwareComponentState::Response> response)
+{
+  RCLCPP_DEBUG(get_logger(), "set hardware component state service called");
+  std::lock_guard<std::mutex> guard(services_lock_);
+  RCLCPP_DEBUG(get_logger(), "set hardware component state service locked");
+
+  RCLCPP_DEBUG(get_logger(), "set hardware component state '%s'", request->name.c_str());
+
+  auto hw_components_info = resource_manager_->get_components_status();
+  if (hw_components_info.find(request->name) != hw_components_info.end())
+  {
+    rclcpp_lifecycle::State target_state(
+      request->target_state.id,
+      // the ternary operator is needed because label in State constructor cannot be an empty string
+      request->target_state.label.empty() ? "-" : request->target_state.label);
+    response->ok =
+      (resource_manager_->set_component_state(request->name, target_state) ==
+       hardware_interface::return_type::OK);
+    hw_components_info = resource_manager_->get_components_status();
+    response->state.id = hw_components_info[request->name].state.id();
+    response->state.label = hw_components_info[request->name].state.label();
+  }
+  else
+  {
+    RCLCPP_ERROR(
+      get_logger(), "hardware component with name '%s' does not exist", request->name.c_str());
+    response->ok = false;
+  }
+
+  RCLCPP_DEBUG(get_logger(), "set hardware component state service finished");
+}
+
 std::vector<std::string> ControllerManager::get_controller_names()
 {
   std::vector<std::string> names;
@@ -1193,7 +1643,10 @@ std::vector<std::string> ControllerManager::get_controller_names()
   return names;
 }
 
-void ControllerManager::read() { resource_manager_->read(); }
+void ControllerManager::read(const rclcpp::Time & time, const rclcpp::Duration & period)
+{
+  resource_manager_->read(time, period);
+}
 
 controller_interface::return_type ControllerManager::update(
   const rclcpp::Time & time, const rclcpp::Duration & period)
@@ -1211,7 +1664,7 @@ controller_interface::return_type ControllerManager::update(
     // https://github.com/ros-controls/ros2_control/issues/153
     if (is_controller_active(*loaded_controller.c))
     {
-      auto controller_update_rate = loaded_controller.c->get_update_rate();
+      const auto controller_update_rate = loaded_controller.c->get_update_rate();
 
       bool controller_go =
         controller_update_rate == 0 || ((update_loop_counter_ % controller_update_rate) == 0);
@@ -1235,7 +1688,7 @@ controller_interface::return_type ControllerManager::update(
     }
   }
 
-  // there are controllers to start/stop
+  // there are controllers to (de)activate
   if (switch_params_.do_switch)
   {
     manage_switch();
@@ -1244,7 +1697,10 @@ controller_interface::return_type ControllerManager::update(
   return ret;
 }
 
-void ControllerManager::write() { resource_manager_->write(); }
+void ControllerManager::write(const rclcpp::Time & time, const rclcpp::Duration & period)
+{
+  resource_manager_->write(time, period);
+}
 
 std::vector<ControllerSpec> &
 ControllerManager::RTControllerListWrapper::update_and_get_used_by_rt_list()
@@ -1311,6 +1767,265 @@ void ControllerManager::RTControllerListWrapper::wait_until_rt_not_using(
   }
 }
 
+std::pair<std::string, std::string> ControllerManager::split_command_interface(
+  const std::string & command_interface)
+{
+  auto index = command_interface.find('/');
+  auto prefix = command_interface.substr(0, index);
+  auto interface_type = command_interface.substr(index + 1, command_interface.size() - 1);
+  return {prefix, interface_type};
+}
+
 unsigned int ControllerManager::get_update_rate() const { return update_rate_; }
+
+void ControllerManager::propagate_deactivation_of_chained_mode(
+  const std::vector<ControllerSpec> & controllers)
+{
+  for (const auto & controller : controllers)
+  {
+    // get pointers to places in deactivate and activate lists ((de)activate lists have changed)
+    auto deactivate_list_it =
+      std::find(deactivate_request_.begin(), deactivate_request_.end(), controller.info.name);
+
+    if (deactivate_list_it != deactivate_request_.end())
+    {
+      // if controller is not active then skip adding following-controllers to "from" chained mode
+      // request
+      if (!is_controller_active(controller.c))
+      {
+        RCLCPP_DEBUG(
+          get_logger(),
+          "Controller with name '%s' can not be deactivated since is not active. "
+          "The controller will be removed from the list later."
+          "Skipping adding following controllers to 'from' chained mode request.",
+          controller.info.name.c_str());
+        break;
+      }
+
+      for (const auto & cmd_itf_name : controller.c->command_interface_configuration().names)
+      {
+        // controller that 'cmd_tf_name' belongs to
+        ControllersListIterator following_ctrl_it;
+        if (command_interface_is_reference_interface_of_controller(
+              cmd_itf_name, controllers, following_ctrl_it))
+        {
+          // currently iterated "controller" is preceding controller --> add following controller
+          // with matching interface name to "from" chained mode list (if not already in it)
+          if (
+            std::find(
+              from_chained_mode_request_.begin(), from_chained_mode_request_.end(),
+              following_ctrl_it->info.name) == from_chained_mode_request_.end())
+          {
+            from_chained_mode_request_.push_back(following_ctrl_it->info.name);
+            RCLCPP_DEBUG(
+              get_logger(), "Adding controller '%s' in 'from chained mode' request.",
+              following_ctrl_it->info.name.c_str());
+          }
+        }
+      }
+    }
+  }
+}
+
+controller_interface::return_type ControllerManager::check_following_controllers_for_activate(
+  const std::vector<ControllerSpec> & controllers, int strictness,
+  const ControllersListIterator controller_it)
+{
+  // we assume that the controller exists is checked in advance
+  RCLCPP_DEBUG(
+    get_logger(), "Checking following controllers of preceding controller with name '%s'.",
+    controller_it->info.name.c_str());
+
+  for (const auto & cmd_itf_name : controller_it->c->command_interface_configuration().names)
+  {
+    ControllersListIterator following_ctrl_it;
+    // Check if interface if reference interface and following controller exist.
+    if (!command_interface_is_reference_interface_of_controller(
+          cmd_itf_name, controllers, following_ctrl_it))
+    {
+      continue;
+    }
+    // TODO(destogl): performance of this code could be optimized by adding additional lists with
+    // controllers that cache if the check has failed and has succeeded. Then the following would be
+    // done only once per controller, otherwise in complex scenarios the same controller is checked
+    // multiple times
+
+    // check that all following controllers exits, are either: activated, will be activated, or
+    // will not be deactivated
+    RCLCPP_DEBUG(
+      get_logger(), "Checking following controller with name '%s'.",
+      following_ctrl_it->info.name.c_str());
+
+    // check if following controller is chainable
+    if (!following_ctrl_it->c->is_chainable())
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "No reference interface '%s' exist, since the following controller with name '%s' "
+        "is not chainable.",
+        cmd_itf_name.c_str(), following_ctrl_it->info.name.c_str());
+      return controller_interface::return_type::ERROR;
+    }
+
+    if (is_controller_active(following_ctrl_it->c))
+    {
+      // will following controller be deactivated?
+      if (
+        std::find(
+          deactivate_request_.begin(), deactivate_request_.end(), following_ctrl_it->info.name) !=
+        deactivate_request_.end())
+      {
+        RCLCPP_WARN(
+          get_logger(), "The following controller with name '%s' will be deactivated.",
+          following_ctrl_it->info.name.c_str());
+        return controller_interface::return_type::ERROR;
+      }
+    }
+    // check if following controller will not be activated
+    else if (
+      std::find(activate_request_.begin(), activate_request_.end(), following_ctrl_it->info.name) ==
+      activate_request_.end())
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "The following controller with name '%s' is not active and will not be activated.",
+        following_ctrl_it->info.name.c_str());
+      return controller_interface::return_type::ERROR;
+    }
+
+    // Trigger recursion to check all the following controllers only if they are OK, add this
+    // controller update chained mode requests
+    if (
+      check_following_controllers_for_activate(controllers, strictness, following_ctrl_it) ==
+      controller_interface::return_type::ERROR)
+    {
+      return controller_interface::return_type::ERROR;
+    }
+
+    // TODO(destogl): this should be discussed how to it the best - just a placeholder for now
+    // else if (strictness ==
+    //  controller_manager_msgs::srv::SwitchController::Request::MANIPULATE_CONTROLLERS_CHAIN)
+    // {
+    // // insert to the begin of activate request list to be activated before preceding controller
+    //   activate_request_.insert(activate_request_.begin(), following_ctrl_name);
+    // }
+    if (!following_ctrl_it->c->is_in_chained_mode())
+    {
+      auto found_it = std::find(
+        to_chained_mode_request_.begin(), to_chained_mode_request_.end(),
+        following_ctrl_it->info.name);
+      if (found_it == to_chained_mode_request_.end())
+      {
+        to_chained_mode_request_.push_back(following_ctrl_it->info.name);
+        RCLCPP_DEBUG(
+          get_logger(), "Adding controller '%s' in 'to chained mode' request.",
+          following_ctrl_it->info.name.c_str());
+      }
+    }
+    else
+    {
+      // Check if following controller is in 'from' chained mode list and remove it, if so
+      auto found_it = std::find(
+        from_chained_mode_request_.begin(), from_chained_mode_request_.end(),
+        following_ctrl_it->info.name);
+      if (found_it != from_chained_mode_request_.end())
+      {
+        from_chained_mode_request_.erase(found_it);
+        RCLCPP_DEBUG(
+          get_logger(),
+          "Removing controller '%s' in 'from chained mode' request because it "
+          "should stay in chained mode.",
+          following_ctrl_it->info.name.c_str());
+      }
+    }
+  }
+  return controller_interface::return_type::OK;
+};
+
+controller_interface::return_type ControllerManager::check_preceeding_controllers_for_deactivate(
+  const std::vector<ControllerSpec> & controllers, int /*strictness*/,
+  const ControllersListIterator controller_it)
+{
+  // if not chainable no need for any checks
+  if (!controller_it->c->is_chainable())
+  {
+    return controller_interface::return_type::OK;
+  }
+
+  if (!controller_it->c->is_in_chained_mode())
+  {
+    RCLCPP_DEBUG(
+      get_logger(),
+      "Controller with name '%s' is chainable but not in chained mode. "
+      "No need to do any checks of preceding controllers when stopping it.",
+      controller_it->info.name.c_str());
+    return controller_interface::return_type::OK;
+  }
+
+  RCLCPP_DEBUG(
+    get_logger(), "Checking preceding controller of following controller with name '%s'.",
+    controller_it->info.name.c_str());
+
+  for (const auto & ref_itf_name :
+       resource_manager_->get_controller_reference_interface_names(controller_it->info.name))
+  {
+    std::vector<ControllersListIterator> preceding_controllers_using_ref_itf;
+
+    // TODO(destogl): This data could be cached after configuring controller into a map for faster
+    // access here
+    for (auto preceding_ctrl_it = controllers.begin(); preceding_ctrl_it != controllers.end();
+         ++preceding_ctrl_it)
+    {
+      const auto preceding_ctrl_cmd_itfs =
+        preceding_ctrl_it->c->command_interface_configuration().names;
+
+      // if controller is not preceding go the next one
+      if (
+        std::find(preceding_ctrl_cmd_itfs.begin(), preceding_ctrl_cmd_itfs.end(), ref_itf_name) ==
+        preceding_ctrl_cmd_itfs.end())
+      {
+        continue;
+      }
+
+      // check if preceding controller will be activated
+      if (
+        is_controller_inactive(preceding_ctrl_it->c) &&
+        std::find(
+          activate_request_.begin(), activate_request_.end(), preceding_ctrl_it->info.name) !=
+          activate_request_.end())
+      {
+        RCLCPP_WARN(
+          get_logger(),
+          "Could not deactivate controller with name '%s' because "
+          "preceding controller with name '%s' will be activated. ",
+          controller_it->info.name.c_str(), preceding_ctrl_it->info.name.c_str());
+        return controller_interface::return_type::ERROR;
+      }
+      // check if preceding controller will not be deactivated
+      else if (
+        is_controller_active(preceding_ctrl_it->c) &&
+        std::find(
+          deactivate_request_.begin(), deactivate_request_.end(), preceding_ctrl_it->info.name) ==
+          deactivate_request_.end())
+      {
+        RCLCPP_WARN(
+          get_logger(),
+          "Could not deactivate controller with name '%s' because "
+          "preceding controller with name '%s' is active and will not be deactivated.",
+          controller_it->info.name.c_str(), preceding_ctrl_it->info.name.c_str());
+        return controller_interface::return_type::ERROR;
+      }
+      // TODO(destogl): this should be discussed how to it the best - just a placeholder for now
+      // else if (
+      //  strictness ==
+      //  controller_manager_msgs::srv::SwitchController::Request::MANIPULATE_CONTROLLERS_CHAIN)
+      // {
+      // // insert to the begin of activate request list to be activated before preceding controller
+      //   activate_request_.insert(activate_request_.begin(), preceding_ctrl_name);
+      // }
+    }
+  }
+  return controller_interface::return_type::OK;
+};
 
 }  // namespace controller_manager

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "./test_controller_failed_init.hpp"
+#include "test_controller_failed_init.hpp"
 
 #include <memory>
 #include <string>
@@ -32,7 +32,8 @@ TestControllerFailedInit::on_init()
 }
 
 controller_interface::return_type TestControllerFailedInit::init(
-  const std::string & /* controller_name */)
+  const std::string & /* controller_name */, const std::string & /*namespace_*/,
+  const rclcpp::NodeOptions & /*node_options*/)
 {
   return controller_interface::return_type::ERROR;
 }

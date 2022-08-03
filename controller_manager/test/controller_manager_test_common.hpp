@@ -32,12 +32,31 @@
 #include "rclcpp/utilities.hpp"
 
 #include "ros2_control_test_assets/descriptions.hpp"
-#include "test_controller/test_controller.hpp"
 #include "test_controller_failed_init/test_controller_failed_init.hpp"
 
-constexpr auto STRICT = controller_manager_msgs::srv::SwitchController::Request::STRICT;
-constexpr auto BEST_EFFORT = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
+namespace
+{
+const auto TIME = rclcpp::Time(0);
+const auto PERIOD = rclcpp::Duration::from_seconds(0.01);
+const auto STRICT = controller_manager_msgs::srv::SwitchController::Request::STRICT;
+const auto BEST_EFFORT = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
+const auto TEST_CM_NAME = "test_controller_manager";
+}  // namespace
+// Strictness structure for parameterized tests - shared between different tests
+struct Strictness
+{
+  int strictness = STRICT;
+  controller_interface::return_type expected_return;
+  unsigned int expected_counter;
+};
+Strictness strict{STRICT, controller_interface::return_type::ERROR, 0u};
+Strictness best_effort{BEST_EFFORT, controller_interface::return_type::OK, 1u};
 
+// Forward definition to avid compile error - defined at the end of the file
+template <typename CtrlMgr>
+class ControllerManagerRunner;
+
+template <typename CtrlMgr>
 class ControllerManagerFixture : public ::testing::Test
 {
 public:
@@ -48,10 +67,10 @@ public:
   void SetUp()
   {
     executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-    cm_ = std::make_shared<controller_manager::ControllerManager>(
+    cm_ = std::make_shared<CtrlMgr>(
       std::make_unique<hardware_interface::ResourceManager>(
-        ros2_control_test_assets::minimal_robot_urdf),
-      executor_, "test_controller_manager");
+        ros2_control_test_assets::minimal_robot_urdf, true, true),
+      executor_, TEST_CM_NAME);
     run_updater_ = false;
   }
 
@@ -60,13 +79,15 @@ public:
   void startCmUpdater()
   {
     run_updater_ = true;
-    updater_ = std::thread([&](void) -> void {
-      while (run_updater_)
+    updater_ = std::thread(
+      [&](void) -> void
       {
-        cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      }
-    });
+        while (run_updater_)
+        {
+          cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+      });
   }
 
   void stopCmUpdater()
@@ -78,24 +99,105 @@ public:
     }
   }
 
+  void switch_test_controllers(
+    const std::vector<std::string> & start_controllers,
+    const std::vector<std::string> & stop_controllers, const int strictness,
+    const std::future_status expected_future_status = std::future_status::timeout,
+    const controller_interface::return_type expected_return = controller_interface::return_type::OK)
+  {
+    // First activation not possible because controller not configured
+    auto switch_future = std::async(
+      std::launch::async, &controller_manager::ControllerManager::switch_controller, cm_,
+      start_controllers, stop_controllers, strictness, true, rclcpp::Duration(0, 0));
+
+    ASSERT_EQ(expected_future_status, switch_future.wait_for(std::chrono::milliseconds(100)))
+      << "switch_controller should be blocking until next update cycle";
+    ControllerManagerRunner<CtrlMgr> cm_runner(this);
+    EXPECT_EQ(expected_return, switch_future.get());
+  }
+
   std::shared_ptr<rclcpp::Executor> executor_;
-  std::shared_ptr<controller_manager::ControllerManager> cm_;
+  std::shared_ptr<CtrlMgr> cm_;
 
   std::thread updater_;
   bool run_updater_;
 };
 
+class TestControllerManagerSrvs
+: public ControllerManagerFixture<controller_manager::ControllerManager>
+{
+public:
+  TestControllerManagerSrvs() {}
+
+  void SetUp() override
+  {
+    ControllerManagerFixture::SetUp();
+    SetUpSrvsCMExecutor();
+  }
+
+  void SetUpSrvsCMExecutor()
+  {
+    update_timer_ = cm_->create_wall_timer(
+      std::chrono::milliseconds(10),
+      [&]()
+      {
+        cm_->read(TIME, PERIOD);
+        cm_->update(TIME, PERIOD);
+        cm_->write(TIME, PERIOD);
+      });
+
+    executor_->add_node(cm_);
+
+    executor_spin_future_ = std::async(std::launch::async, [this]() -> void { executor_->spin(); });
+    // This sleep is needed to prevent a too fast test from ending before the
+    // executor has begun to spin, which causes it to hang
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  }
+
+  // FIXME: This can be deleted!
+  void TearDown() override { executor_->cancel(); }
+
+  template <typename T>
+  std::shared_ptr<typename T::Response> call_service_and_wait(
+    rclcpp::Client<T> & client, std::shared_ptr<typename T::Request> request,
+    rclcpp::Executor & service_executor, bool update_controller_while_spinning = false)
+  {
+    EXPECT_TRUE(client.wait_for_service(std::chrono::milliseconds(500)));
+    auto result = client.async_send_request(request);
+    // Wait for the result.
+    if (update_controller_while_spinning)
+    {
+      while (service_executor.spin_until_future_complete(result, std::chrono::milliseconds(50)) !=
+             rclcpp::FutureReturnCode::SUCCESS)
+      {
+        cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
+      }
+    }
+    else
+    {
+      EXPECT_EQ(
+        service_executor.spin_until_future_complete(result), rclcpp::FutureReturnCode::SUCCESS);
+    }
+    return result.get();
+  }
+
+protected:
+  rclcpp::TimerBase::SharedPtr update_timer_;
+  std::future<void> executor_spin_future_;
+};
+
+template <typename CtrlMgr>
 class ControllerManagerRunner
 {
 public:
-  explicit ControllerManagerRunner(ControllerManagerFixture * cmf) : cmf_(cmf)
+  explicit ControllerManagerRunner(ControllerManagerFixture<CtrlMgr> * cmf) : cmf_(cmf)
   {
     cmf_->startCmUpdater();
   }
 
   ~ControllerManagerRunner() { cmf_->stopCmUpdater(); }
 
-  ControllerManagerFixture * cmf_;
+  ControllerManagerFixture<CtrlMgr> * cmf_;
 };
 
 class ControllerMock : public controller_interface::ControllerInterface

@@ -2,26 +2,58 @@
 Changelog for package ros2_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.6.0 (2022-08-03)
+2.13.0 (2022-08-03)
+-------------------
+
+2.12.1 (2022-07-14)
+-------------------
+
+2.12.0 (2022-07-09)
+-------------------
+* Move Joint Limits structures for use in controllers (`#462 <https://github.com/ros-controls/ros2_control/issues/462>`_)
+* Contributors: Denis Štogl, Andy Zelenak, Bence Magyar
+
+2.11.0 (2022-07-03)
+-------------------
+* Update maintainers of packages (`#753 <https://github.com/ros-controls/ros2_control/issues/753>`_)
+* Contributors: Bence Magyar
+
+2.10.0 (2022-06-18)
+-------------------
+
+2.9.0 (2022-05-19)
 ------------------
 
-1.5.1 (2022-05-31)
+2.8.0 (2022-05-13)
 ------------------
 
-1.5.0 (2022-04-29)
+2.7.0 (2022-04-29)
 ------------------
 
-1.4.0 (2022-02-18)
+2.6.0 (2022-04-20)
 ------------------
-* Use correct ros-controls/realtime_tools branch (`#619 <https://github.com/ros-controls/ros2_control/issues/619>`_) (`#621 <https://github.com/ros-controls/ros2_control/issues/621>`_)
-* No need to get angles from source anymore, causes issues now (backport `#616 <https://github.com/ros-controls/ros2_control/issues/616>`_) (`#617 <https://github.com/ros-controls/ros2_control/issues/617>`_)
-* Point ros-controls/ros2_control to galactic (`#602 <https://github.com/ros-controls/ros2_control/issues/602>`_)
-* fix typo in .repos control_msgs version (`#601 <https://github.com/ros-controls/ros2_control/issues/601>`_)
+
+2.5.0 (2022-03-25)
+------------------
+
+2.4.0 (2022-02-23)
+------------------
+
+2.3.0 (2022-02-18)
+------------------
+
+2.2.0 (2022-01-24)
+------------------
+* Use correct ros-controls/realtime_tools branch (`#619 <https://github.com/ros-controls/ros2_control/issues/619>`_)
+* No need to get angles from source anymore, causes issues now (`#616 <https://github.com/ros-controls/ros2_control/issues/616>`_)
 * Contributors: Bence Magyar, Melvin Wang
 
-1.3.0 (2021-12-21)
+2.1.0 (2022-01-11)
 ------------------
-* Point control_msgs to galactic branch.
+
+2.0.0 (2021-12-29)
+------------------
+* Point control_msgs to galactic branch (`#587 <https://github.com/ros-controls/ros2_control/issues/587>`_)
 * Contributors: Denis Štogl
 
 1.2.0 (2021-11-05)

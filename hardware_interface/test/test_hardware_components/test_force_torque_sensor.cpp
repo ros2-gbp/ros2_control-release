@@ -43,9 +43,9 @@ class TestForceTorqueSensor : public SensorInterface
     {
       if (
         std::find_if(
-          state_interfaces.begin(), state_interfaces.end(), [&ft_key](const auto & interface_info) {
-            return interface_info.name == ft_key;
-          }) == state_interfaces.end())
+          state_interfaces.begin(), state_interfaces.end(),
+          [&ft_key](const auto & interface_info)
+          { return interface_info.name == ft_key; }) == state_interfaces.end())
       {
         return CallbackReturn::ERROR;
       }
@@ -76,7 +76,7 @@ class TestForceTorqueSensor : public SensorInterface
     return state_interfaces;
   }
 
-  return_type read() override
+  return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     values_.fx = fmod((values_.fx + 1.0), 10);
     values_.fy = fmod((values_.fy + 1.0), 10);
