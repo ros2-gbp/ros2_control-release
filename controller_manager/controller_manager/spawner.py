@@ -212,7 +212,7 @@ def main(args=None):
                 node.get_logger().info(bcolors.OKGREEN + 'Configured and activated ' +
                                        bcolors.OKCYAN + controller_name + bcolors.ENDC)
             elif args.stopped:
-                node.get_logger.warn('"--stopped" flag is deprecated use "--inactive" instead')
+                node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
 
         if not args.unload_on_kill:
             return 0
@@ -239,7 +239,7 @@ def main(args=None):
                 node.get_logger().info('Deactivated controller')
 
             elif args.stopped:
-                node.get_logger.warn('"--stopped" flag is deprecated use "--inactive" instead')
+                node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
 
             ret = unload_controller(
                 node, controller_manager_name, controller_name)
