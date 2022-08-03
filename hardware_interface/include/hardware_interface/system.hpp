@@ -24,8 +24,6 @@
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/visibility_control.h"
-#include "rclcpp/duration.hpp"
-#include "rclcpp/time.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
 namespace hardware_interface
@@ -86,10 +84,10 @@ public:
   const rclcpp_lifecycle::State & get_state() const;
 
   HARDWARE_INTERFACE_PUBLIC
-  return_type read(const rclcpp::Time & time, const rclcpp::Duration & period);
+  return_type read();
 
   HARDWARE_INTERFACE_PUBLIC
-  return_type write(const rclcpp::Time & time, const rclcpp::Duration & period);
+  return_type write();
 
 private:
   std::unique_ptr<SystemInterface> impl_;

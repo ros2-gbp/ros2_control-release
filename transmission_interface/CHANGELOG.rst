@@ -2,60 +2,19 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.12.1 (2022-07-14)
--------------------
-
-2.12.0 (2022-07-09)
--------------------
-
-2.11.0 (2022-07-03)
--------------------
-* [Interfaces] Improved ```get_name()``` method of hardware interfaces #api-breaking (`#737 <https://github.com/ros-controls/ros2_control/issues/737>`_)
-* Update maintainers of packages (`#753 <https://github.com/ros-controls/ros2_control/issues/753>`_)
-* Remove ament autolint (`#749 <https://github.com/ros-controls/ros2_control/issues/749>`_)
-* Fixup ament cpplint on 22.04 (`#747 <https://github.com/ros-controls/ros2_control/issues/747>`_)
-* Contributors: Bence Magyar, Denis Štogl, Lucas Schulze
-
-2.10.0 (2022-06-18)
--------------------
-* CMakeLists cleanup (`#733 <https://github.com/ros-controls/ros2_control/issues/733>`_)
-* Update to clang format 12 (`#731 <https://github.com/ros-controls/ros2_control/issues/731>`_)
-* Contributors: Andy Zelenak, Bence Magyar
-
-2.9.0 (2022-05-19)
+1.6.0 (2022-08-03)
 ------------------
 
-2.8.0 (2022-05-13)
+1.5.1 (2022-05-31)
 ------------------
 
-2.7.0 (2022-04-29)
+1.5.0 (2022-04-29)
 ------------------
 
-2.6.0 (2022-04-20)
-------------------
-* Port four bar linkage and differential transmission loaders from ROS1 (`#656 <https://github.com/ros-controls/ros2_control/issues/656>`_)
-* Contributors: Márk Szitanics
-
-2.5.0 (2022-03-25)
+1.4.0 (2022-02-18)
 ------------------
 
-2.4.0 (2022-02-23)
-------------------
-* Fix transmission loader tests (`#642 <https://github.com/ros-controls/ros2_control/issues/642>`_)
-* Contributors: Bence Magyar, Denis Štogl
-
-2.3.0 (2022-02-18)
-------------------
-* Port transmission loader plugins from ROS1 (`#633 <https://github.com/ros-controls/ros2_control/issues/633>`_)
-* Contributors: Márk Szitanics, Bence Magyar
-
-2.2.0 (2022-01-24)
-------------------
-
-2.1.0 (2022-01-11)
-------------------
-
-2.0.0 (2021-12-29)
+1.3.0 (2021-12-21)
 ------------------
 * simple transmission configure multiple definition fix (`#571 <https://github.com/ros-controls/ros2_control/issues/571>`_)
 * Contributors: niiquaye

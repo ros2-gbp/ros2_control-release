@@ -64,35 +64,17 @@ class TestActuator : public ActuatorInterface
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
       info_.joints[0].name, info_.joints[0].command_interfaces[0].name, &velocity_command_));
 
-    if (info_.joints[0].command_interfaces.size() > 1)
-    {
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.joints[0].name, info_.joints[0].command_interfaces[1].name, &max_velocity_command_));
-    }
-
     return command_interfaces;
   }
 
-  return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
-  {
-    // The next line is for the testing purposes. We need value to be changed to be sure that
-    // the feedback from hardware to controllers in the chain is working as it should.
-    // This makes value checks clearer and confirms there is no "state = command" line or some
-    // other mixture of interfaces somewhere in the test stack.
-    velocity_state_ = velocity_command_ / 2;
-    return return_type::OK;
-  }
+  return_type read() override { return return_type::OK; }
 
-  return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
-  {
-    return return_type::OK;
-  }
+  return_type write() override { return return_type::OK; }
 
 private:
   double position_state_ = 0.0;
   double velocity_state_ = 0.0;
   double velocity_command_ = 0.0;
-  double max_velocity_command_ = 0.0;
 };
 
 #include "pluginlib/class_list_macros.hpp"  // NOLINT

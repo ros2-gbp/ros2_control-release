@@ -9,31 +9,24 @@ find_package(ament_cmake REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 
-add_library(
-  ${PROJECT_NAME}
-  SHARED
-  src/controller_interface_base.cpp
-  src/controller_interface.cpp
-  src/chainable_controller_interface.cpp
-)
+add_library(controller_interface SHARED src/controller_interface.cpp)
 target_include_directories(
-  ${PROJECT_NAME}
+  controller_interface
   PRIVATE
-  include
-)
+  include)
 ament_target_dependencies(
-  ${PROJECT_NAME}
+  controller_interface
   hardware_interface
   rclcpp_lifecycle
 )
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
-target_compile_definitions(${PROJECT_NAME} PRIVATE "CONTROLLER_INTERFACE_BUILDING_DLL")
+target_compile_definitions(controller_interface PRIVATE "CONTROLLER_INTERFACE_BUILDING_DLL")
 
 install(DIRECTORY include/
   DESTINATION include
 )
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS controller_interface
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -41,22 +34,20 @@ install(TARGETS ${PROJECT_NAME}
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
+  find_package(ament_lint_auto REQUIRED)
 
   find_package(hardware_interface REQUIRED)
   find_package(sensor_msgs REQUIRED)
 
-  ament_add_gmock(test_controller_interface test/test_controller_interface.cpp)
-  target_link_libraries(test_controller_interface ${PROJECT_NAME})
-  target_include_directories(test_controller_interface PRIVATE include)
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE
+    ament_cmake_uncrustify
+    ament_cmake_cpplint
+  )
+  ament_lint_auto_find_test_dependencies()
 
   ament_add_gmock(test_controller_with_options test/test_controller_with_options.cpp)
-  target_link_libraries(test_controller_with_options ${PROJECT_NAME})
+  target_link_libraries(test_controller_with_options controller_interface)
   target_include_directories(test_controller_with_options PRIVATE include)
-
-  ament_add_gmock(test_chainable_controller_interface test/test_chainable_controller_interface.cpp)
-  target_link_libraries(test_chainable_controller_interface ${PROJECT_NAME})
-  target_include_directories(test_chainable_controller_interface PRIVATE include)
-  ament_target_dependencies(test_chainable_controller_interface hardware_interface)
 
   ament_add_gmock(
     test_semantic_component_interface
@@ -99,6 +90,6 @@ ament_export_include_directories(
   include
 )
 ament_export_libraries(
-  ${PROJECT_NAME}
+  controller_interface
 )
 ament_package()

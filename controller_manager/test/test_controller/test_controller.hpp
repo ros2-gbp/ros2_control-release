@@ -17,16 +17,12 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
-#include "controller_interface/controller_interface.hpp"
-#include "controller_manager/visibility_control.h"
-#include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
+#include "controller_interface/visibility_control.h"
+#include "controller_manager/controller_manager.hpp"
 
 namespace test_controller
 {
-using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
-
 // indicating the node name under which the controller node
 // is being loaded.
 constexpr char TEST_CONTROLLER_NAME[] = "test_controller_name";
@@ -50,13 +46,15 @@ public:
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
   CONTROLLER_MANAGER_PUBLIC
-  CallbackReturn on_init() override;
+  rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_init() override;
 
   CONTROLLER_MANAGER_PUBLIC
-  CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) override;
+  rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(
+    const rclcpp_lifecycle::State & previous_state) override;
 
   CONTROLLER_MANAGER_PUBLIC
-  CallbackReturn on_cleanup(const rclcpp_lifecycle::State & previous_state) override;
+  rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_cleanup(
+    const rclcpp_lifecycle::State & previous_state) override;
 
   CONTROLLER_MANAGER_PUBLIC
   void set_command_interface_configuration(
@@ -72,8 +70,6 @@ public:
   size_t * cleanup_calls = nullptr;
   controller_interface::InterfaceConfiguration cmd_iface_cfg_;
   controller_interface::InterfaceConfiguration state_iface_cfg_;
-
-  std::vector<double> external_commands_for_testing_;
 };
 
 }  // namespace test_controller

@@ -4,7 +4,7 @@
   <description>Interface for enforcing joint limits.</description>
 
   <maintainer email="bence.magyar.robotics@gmail.com">Bence Magyar</maintainer>
-  <maintainer email="denis@stoglrobotics.de">Denis Štogl</maintainer>
+  <maintainer email="jordan.palacios@pal-robotics.com">Jordan Palacios</maintainer>
 
   <license>Apache License 2.0</license>
 
@@ -24,6 +24,8 @@
   <build_export_depend>hardware_interface</build_export_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
   <test_depend>hardware_interface</test_depend>
   <test_depend>launch</test_depend>
   <test_depend>launch_ros</test_depend>

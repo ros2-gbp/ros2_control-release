@@ -2,127 +2,24 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.12.1 (2022-07-14)
--------------------
-* Fix fake components deprecation and add test for it (`#771 <https://github.com/ros-controls/ros2_control/issues/771>`_)
-* Contributors: Bence Magyar
-
-2.12.0 (2022-07-09)
--------------------
-* Hardware interface specific update rate and best practices about it (`#716 <https://github.com/ros-controls/ros2_control/issues/716>`_)
-* Deprecate fake components, long live mock components (`#762 <https://github.com/ros-controls/ros2_control/issues/762>`_)
-* Contributors: Bence Magyar, Lovro Ivanov
-
-2.11.0 (2022-07-03)
--------------------
-* [Interfaces] Improved ```get_name()``` method of hardware interfaces #api-breaking (`#737 <https://github.com/ros-controls/ros2_control/issues/737>`_)
-* Update maintainers of packages (`#753 <https://github.com/ros-controls/ros2_control/issues/753>`_)
-* Remove ament autolint (`#749 <https://github.com/ros-controls/ros2_control/issues/749>`_)
-* Full functionality of chainable controllers in controller manager (`#667 <https://github.com/ros-controls/ros2_control/issues/667>`_)
-  * auto-switching of chained mode in controllers
-  * interface-matching approach for managing chaining controllers
-* Contributors: Bence Magyar, Denis Štogl, Lucas Schulze
-
-2.10.0 (2022-06-18)
--------------------
-* Make RHEL CI happy! (`#730 <https://github.com/ros-controls/ros2_control/issues/730>`_)
-* CMakeLists cleanup (`#733 <https://github.com/ros-controls/ros2_control/issues/733>`_)
-* Refactored error handling when hardware name is duplicated (`#724 <https://github.com/ros-controls/ros2_control/issues/724>`_)
-* Update to clang format 12 (`#731 <https://github.com/ros-controls/ros2_control/issues/731>`_)
-* Contributors: Andy Zelenak, Bence Magyar, Kvk Praneeth, Márk Szitanics
-
-2.9.0 (2022-05-19)
+1.6.0 (2022-08-03)
 ------------------
-* Resource Manager extension to support management of reference interfaces from chained controllers. (`#664 <https://github.com/ros-controls/ros2_control/issues/664>`_)
-  * Extend resource manager to manage reference interfaces from controllers.
-  * Adjust interface between CM and RM for managing controllers' reference interfaces.
-* Contributors: Denis Štogl
 
-2.8.0 (2022-05-13)
+1.5.1 (2022-05-31)
 ------------------
-* Pass time and period to read() and write() (`#715 <https://github.com/ros-controls/ros2_control/issues/715>`_)
-* Contributors: Bence Magyar
 
-2.7.0 (2022-04-29)
+1.5.0 (2022-04-29)
 ------------------
-* Make URDF available to HW components on initialize (`#709 <https://github.com/ros-controls/ros2_control/issues/709>`_)
-* Contributors: Bence Magyar
+* Require lifecycle-msgs in hardware_interface package (`#675 <https://github.com/ros-controls/ros2_control/issues/675>`_)
+* Contributors: Martin Wudenka
 
-2.6.0 (2022-04-20)
+1.4.0 (2022-02-18)
 ------------------
-* Error if a hardware name is duplicated (`#672 <https://github.com/ros-controls/ros2_control/issues/672>`_)
-* Port four bar linkage and differential transmission loaders from ROS1 (`#656 <https://github.com/ros-controls/ros2_control/issues/656>`_)
-* Contributors: Andy Zelenak, Márk Szitanics
+* Extend FakeHardware to support <gpio>-tag (`#574 <https://github.com/ros-controls/ros2_control/issues/574>`_) (`#634 <https://github.com/ros-controls/ros2_control/issues/634>`_)
+* Contributors: Subhas Das
 
-2.5.0 (2022-03-25)
+1.3.0 (2021-12-21)
 ------------------
-* Require lifecycle-msgs in hardware_interface package (`#675 <https://github.com/ros-controls/ros2_control/issues/675>`_) (`#678 <https://github.com/ros-controls/ros2_control/issues/678>`_)
-* Using should be inside namespace and not global scope. (`#673 <https://github.com/ros-controls/ros2_control/issues/673>`_)
-* Modernize C++: Use for-each loops in Resource Manager. (`#659 <https://github.com/ros-controls/ros2_control/issues/659>`_)
-* Enable controller manager services to control hardware lifecycle #abi-breaking (`#637 <https://github.com/ros-controls/ros2_control/issues/637>`_)
-  * Implement CM services for hardware lifecycle management.
-  * Added default behavior to activate all controller and added description of CM parameters.
-* Contributors: Denis Štogl
-
-2.4.0 (2022-02-23)
-------------------
-* Fix transmission loader tests (`#642 <https://github.com/ros-controls/ros2_control/issues/642>`_)
-* Contributors: Bence Magyar, Denis Štogl
-
-2.3.0 (2022-02-18)
-------------------
-* Add a warning if an initial_value is not found for any interface (`#623 <https://github.com/ros-controls/ros2_control/issues/623>`_)
-* Contributors: AndyZe
-
-2.2.0 (2022-01-24)
-------------------
-* Resource Manager API changes for hardware lifecycle #api-breaking #abi-breaking (`#589 <https://github.com/ros-controls/ros2_control/issues/589>`_)
-  * Towards selective starting and stoping of hardware components. Cleaning and renaming.
-  * Move Lifecycle of hardware component to the bottom for better overview.
-  * Use the same nomenclature as for controllers. 'start' -> 'activate'; 'stop' -> 'deactivate'
-  * Add selective starting and stopping of hardware resources.
-  Add HardwareComponentInfo structure in resource manager.
-  Use constants for HW parameters in tests of resource_manager.
-  Add list hardware components in CM to get details about them and check their status.
-  Use clear name for 'guard' and move release cmd itfs for better readability.
-  RM: Add lock for accesing maps with stored interfaces.
-  Separate hardware components-related services after controllers-related services.
-  Add service for activate/deactive hardware components.
-  Add activation and deactivation through ResourceStorage. This helps to manage available command interfaces.
-  * Use lifecycle_msgs/State in ListHardwareCompoents for state representation.
-  * Simplify repeatable code in methods.
-  * Add HW shutdown structure into ResouceManager.
-  * Fill out service callback in CM and add parameter for auto-configure.
-  * Move claimed_command_itf_map to ResourceStorage from ResourceManager.
-  * Do not automatically configure hardware in RM.
-  * Lifecycle and claiming in Resource Manager is working.
-  * Extend controller manager to support HW lifecycle.
-  * Add also available and claimed status into list components service output.
-  * Add SetHardwareComponentState service.
-  * Make all output in services debug-output.
-  * Remove specific services for hardware lifecycle management and leave only 'set_hardware_component_state' service.
-  * Make init_resource_manager less stateful.
-  * Keep old api to start/activate all components per default.
-  * Remove 'moving'/'non-moving' interface-handling.
-  * Remove obsolete 'import_components' methods without hardware info and fix post_initialization test.
-  Co-authored-by: Bence Magyar <bence.magyar.robotics@gmail.com>
-* Doc 📓: Add detailed explanation about writing new hardware interface.  (`#615 <https://github.com/ros-controls/ros2_control/issues/615>`_)
-* Contributors: Denis Štogl
-
-2.1.0 (2022-01-11)
-------------------
-* Removing 'auto' from function definition to support pre c++ 20 (`#608 <https://github.com/ros-controls/ros2_control/issues/608>`_)
-* Support of "initial_value" for the 'FakeSystem' (`#598 <https://github.com/ros-controls/ros2_control/issues/598>`_)
-* Contributors: bailaC, Denis Štogl
-
-2.0.0 (2021-12-29)
-------------------
-* Adding support for 'initial_value' parameter. (`#593 <https://github.com/ros-controls/ros2_control/issues/593>`_)
-* fix copy paste error in documentation (`#594 <https://github.com/ros-controls/ros2_control/issues/594>`_)
-* Use lambda functions in ros2_control generic_system for repetitive tasks (`#579 <https://github.com/ros-controls/ros2_control/issues/579>`_)
-  Co-authored-by: Denis Štogl <destogl@users.noreply.github.com>
-* Extend FakeHardware to support <gpio>-tag (`#574 <https://github.com/ros-controls/ros2_control/issues/574>`_)
-* Contributors: Michael, bailaC, Denis Štogl
 
 1.2.0 (2021-11-05)
 ------------------

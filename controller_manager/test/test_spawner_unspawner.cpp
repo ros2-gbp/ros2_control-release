@@ -23,26 +23,22 @@
 #include "controller_manager/controller_manager.hpp"
 #include "controller_manager_test_common.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
-#include "test_controller/test_controller.hpp"
 
 using ::testing::_;
 using ::testing::Return;
 
 using namespace std::chrono_literals;
-class TestLoadController : public ControllerManagerFixture<controller_manager::ControllerManager>
+class TestLoadController : public ControllerManagerFixture
 {
   void SetUp() override
   {
     ControllerManagerFixture::SetUp();
 
-    update_timer_ = cm_->create_wall_timer(
-      std::chrono::milliseconds(10),
-      [&]()
-      {
-        cm_->read(TIME, PERIOD);
-        cm_->update(TIME, PERIOD);
-        cm_->write(TIME, PERIOD);
-      });
+    update_timer_ = cm_->create_wall_timer(std::chrono::milliseconds(10), [&]() {
+      cm_->read();
+      cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
+      cm_->write();
+    });
 
     update_executor_ =
       std::make_shared<rclcpp::executors::MultiThreadedExecutor>(rclcpp::ExecutorOptions(), 2);
@@ -106,12 +102,11 @@ TEST_F(TestLoadController, spawner_test_type_in_param)
 
   // Try to spawn again, it should fail because already active
   EXPECT_NE(call_spawner("ctrl_1 -c test_controller_manager"), 0) << "Cannot configure from active";
-  ctrl_1.c->get_node()->deactivate();
-  // We should be able to reconfigure and activate a configured controller
+  ctrl_1.c->deactivate();
+  // We should be able to reconfigure and start a configured controller
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
-  ctrl_1.c->get_node()->deactivate();
-  ctrl_1.c->get_node()->cleanup();
-  // We should be able to reconfigure and activate am unconfigured loaded controller
+  ctrl_1.c->cleanup();
+  // We should be able to reconfigure and start am unconfigured loaded controller
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
   ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
 

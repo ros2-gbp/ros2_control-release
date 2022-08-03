@@ -39,12 +39,14 @@ class ListHardwareInterfacesVerb(VerbExtension):
             print('command interfaces')
             for command_interface in command_interfaces:
                 print(
-                    f'\t{command_interface.name} '
-                    f'{"[available]" if command_interface.is_available else "[unavailable]"} '
-                    f'{"[claimed]" if command_interface.is_claimed else "[unclaimed]"}'
+                    '\t%s [%s]'
+                    % (
+                        command_interface.name,
+                        'claimed' if command_interface.is_claimed else 'unclaimed',
+                    )
                 )
             print('state interfaces')
             for state_interface in state_interfaces:
-                print(f'\t{state_interface.name}')
+                print('\t', state_interface.name)
 
             return 0
