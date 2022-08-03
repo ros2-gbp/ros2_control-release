@@ -1,3 +1,34 @@
+## ros2_control (galactic) - 1.6.0-1
+
+The packages in the `ros2_control` repository were released into the `galactic` distro by running `/usr/local/bin/bloom-release --track galactic --rosdistro galactic ros2_control` on `Wed, 03 Aug 2022 06:22:58 -0000`
+
+These packages were released:
+- `controller_interface`
+- `controller_manager`
+- `controller_manager_msgs`
+- `hardware_interface`
+- `ros2_control`
+- `ros2_control_test_assets`
+- `ros2controlcli`
+- `transmission_interface`
+
+Version of package(s) in repository `ros2_control`:
+
+- upstream repository: https://github.com/ros-controls/ros2_control.git
+- release repository: https://github.com/ros2-gbp/ros2_control-release.git
+- rosdistro version: `1.5.1-1`
+- old version: `1.5.1-1`
+- new version: `1.6.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.10.7`
+- catkin_pkg version: `0.5.2`
+- rosdep version: `0.19.0`
+- rosdistro version: `0.8.3`
+- vcstools version: `0.1.42`
+
+
 ## ros2_control (humble) - 2.12.1-1
 
 The packages in the `ros2_control` repository were released into the `humble` distro by running `/usr/local/bin/bloom-release --track humble --rosdistro humble ros2_control` on `Thu, 14 Jul 2022 07:37:14 -0000`
