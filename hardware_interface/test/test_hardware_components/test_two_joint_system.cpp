@@ -16,29 +16,32 @@
 #include <memory>
 #include <vector>
 
+#include "hardware_interface/base_interface.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
+using hardware_interface::BaseInterface;
 using hardware_interface::CommandInterface;
 using hardware_interface::return_type;
 using hardware_interface::StateInterface;
+using hardware_interface::status;
 using hardware_interface::SystemInterface;
 
 namespace test_hardware_components
 {
-class TestTwoJointSystem : public SystemInterface
+class TestTwoJointSystem : public BaseInterface<SystemInterface>
 {
-  CallbackReturn on_init(const hardware_interface::HardwareInfo & system_info) override
+  return_type configure(const hardware_interface::HardwareInfo & system_info) override
   {
-    if (SystemInterface::on_init(system_info) != CallbackReturn::SUCCESS)
+    if (configure_default(system_info) != return_type::OK)
     {
-      return CallbackReturn::ERROR;
+      return return_type::ERROR;
     }
 
     // can only control two joint
     if (info_.joints.size() != 2)
     {
-      return CallbackReturn::ERROR;
+      return return_type::ERROR;
     }
     for (const auto & joint : info_.joints)
     {
@@ -46,26 +49,26 @@ class TestTwoJointSystem : public SystemInterface
       const auto & command_interfaces = joint.command_interfaces;
       if (command_interfaces.size() != 1)
       {
-        return CallbackReturn::ERROR;
+        return return_type::ERROR;
       }
       if (command_interfaces[0].name != hardware_interface::HW_IF_POSITION)
       {
-        return CallbackReturn::ERROR;
+        return return_type::ERROR;
       }
       // can only give feedback state for position and velocity
       const auto & state_interfaces = joint.state_interfaces;
       if (state_interfaces.size() != 1)
       {
-        return CallbackReturn::ERROR;
+        return return_type::ERROR;
       }
       if (state_interfaces[0].name != hardware_interface::HW_IF_POSITION)
       {
-        return CallbackReturn::ERROR;
+        return return_type::ERROR;
       }
     }
 
     fprintf(stderr, "TestTwoJointSystem configured successfully.\n");
-    return CallbackReturn::SUCCESS;
+    return return_type::OK;
   }
 
   std::vector<StateInterface> export_state_interfaces() override
@@ -92,15 +95,13 @@ class TestTwoJointSystem : public SystemInterface
     return command_interfaces;
   }
 
-  return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
-  {
-    return return_type::OK;
-  }
+  return_type start() override { return return_type::OK; }
 
-  return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
-  {
-    return return_type::OK;
-  }
+  return_type stop() override { return return_type::OK; }
+
+  return_type read() override { return return_type::OK; }
+
+  return_type write() override { return return_type::OK; }
 
 private:
   std::array<double, 2> position_command_ = {0.0, 0.0};

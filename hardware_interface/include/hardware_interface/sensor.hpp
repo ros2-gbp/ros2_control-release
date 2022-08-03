@@ -1,4 +1,4 @@
-// Copyright 2020 - 2021 ros2_control Development Team
+// Copyright 2020 ros2_control Development Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,10 +23,8 @@
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "hardware_interface/types/hardware_interface_status_values.hpp"
 #include "hardware_interface/visibility_control.h"
-#include "rclcpp/duration.hpp"
-#include "rclcpp/time.hpp"
-#include "rclcpp_lifecycle/state.hpp"
 
 namespace hardware_interface
 {
@@ -45,37 +43,25 @@ public:
   ~Sensor() = default;
 
   HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & initialize(const HardwareInfo & sensor_info);
-
-  HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & configure();
-
-  HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & cleanup();
-
-  HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & shutdown();
-
-  HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & activate();
-
-  HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & deactivate();
-
-  HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & error();
+  return_type configure(const HardwareInfo & sensor_info);
 
   HARDWARE_INTERFACE_PUBLIC
   std::vector<StateInterface> export_state_interfaces();
 
   HARDWARE_INTERFACE_PUBLIC
+  return_type start();
+
+  HARDWARE_INTERFACE_PUBLIC
+  return_type stop();
+
+  HARDWARE_INTERFACE_PUBLIC
   std::string get_name() const;
 
   HARDWARE_INTERFACE_PUBLIC
-  const rclcpp_lifecycle::State & get_state() const;
+  status get_status() const;
 
   HARDWARE_INTERFACE_PUBLIC
-  return_type read(const rclcpp::Time & time, const rclcpp::Duration & period);
+  return_type read();
 
 private:
   std::unique_ptr<SensorInterface> impl_;

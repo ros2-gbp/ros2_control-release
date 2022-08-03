@@ -15,12 +15,9 @@
 #ifndef TEST_CONTROLLER_WITH_OPTIONS_HPP_
 #define TEST_CONTROLLER_WITH_OPTIONS_HPP_
 
+#include <controller_interface/controller_interface.hpp>
 #include <map>
-#include <memory>
 #include <string>
-
-#include "controller_interface/controller_interface.hpp"
-#include "hardware_interface/types/lifecycle_state_names.hpp"
 
 namespace controller_with_options
 {
@@ -34,31 +31,18 @@ class ControllerWithOptions : public controller_interface::ControllerInterface
 {
 public:
   ControllerWithOptions() = default;
-  LifecycleNodeInterface::CallbackReturn on_init() override
+  controller_interface::return_type init(const std::string & controller_name) override
   {
-    return LifecycleNodeInterface::CallbackReturn::SUCCESS;
-  }
-
-  controller_interface::return_type init(
-    const std::string & controller_name, const std::string & namespace_ = "",
-    const rclcpp::NodeOptions & node_options =
-      rclcpp::NodeOptions()
-        .allow_undeclared_parameters(true)
-        .automatically_declare_parameters_from_overrides(true)) override
-  {
-    ControllerInterface::init(controller_name, namespace_, node_options);
-
-    switch (on_init())
+    rclcpp::NodeOptions options;
+    options.allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(true);
+    auto result = ControllerInterface::init(controller_name, options);
+    if (result == controller_interface::return_type::ERROR)
     {
-      case LifecycleNodeInterface::CallbackReturn::SUCCESS:
-        break;
-      case LifecycleNodeInterface::CallbackReturn::ERROR:
-      case LifecycleNodeInterface::CallbackReturn::FAILURE:
-        return controller_interface::return_type::ERROR;
+      return result;
     }
-    if (get_node()->get_parameters("parameter_list", params))
+    if (node_->get_parameters("parameter_list", params))
     {
-      RCLCPP_INFO_STREAM(get_node()->get_logger(), "I found " << params.size() << " parameters.");
+      RCLCPP_INFO_STREAM(node_->get_logger(), "I found " << params.size() << " parameters.");
       return controller_interface::return_type::OK;
     }
     else
@@ -79,8 +63,7 @@ public:
       controller_interface::interface_configuration_type::NONE};
   }
 
-  controller_interface::return_type update(
-    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
+  controller_interface::return_type update() override
   {
     return controller_interface::return_type::OK;
   }

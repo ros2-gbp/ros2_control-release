@@ -1,45 +1,32 @@
 cmake_minimum_required(VERSION 3.5)
 project(transmission_interface)
 
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(THIS_PACKAGE_INCLUDE_DEPENDS
-    hardware_interface
-    pluginlib
-    rclcpp
-)
-
+# find dependencies
 find_package(ament_cmake REQUIRED)
-foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
-  find_package(${Dependency} REQUIRED)
-endforeach()
+find_package(hardware_interface REQUIRED)
 
 install(
   DIRECTORY include/
   DESTINATION include
 )
 
-add_library(${PROJECT_NAME} SHARED
-  src/simple_transmission_loader.cpp
-  src/four_bar_linkage_transmission_loader.cpp
-  src/differential_transmission_loader.cpp
-)
-target_include_directories(${PROJECT_NAME} PUBLIC include)
-ament_target_dependencies(${PROJECT_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
-
-pluginlib_export_plugin_description_file(${PROJECT_NAME} ros2_control_plugins.xml)
-
-install(TARGETS ${PROJECT_NAME}
-  EXPORT export_${PROJECT_NAME}
-  RUNTIME DESTINATION bin
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-)
-
 if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
+  find_package(ament_lint_auto REQUIRED)
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE
+    ament_cmake_uncrustify
+    ament_cmake_cpplint
+  )
+  ament_lint_auto_find_test_dependencies()
 
   ament_add_gmock(
     test_simple_transmission
@@ -61,27 +48,6 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_four_bar_linkage_transmission PUBLIC include hardware_interface)
   ament_target_dependencies(test_four_bar_linkage_transmission hardware_interface)
-
-  ament_add_gmock(
-    test_simple_transmission_loader
-    test/simple_transmission_loader_test.cpp
-  )
-  target_include_directories(test_simple_transmission_loader PUBLIC include hardware_interface)
-  ament_target_dependencies(test_simple_transmission_loader hardware_interface)
-
-  ament_add_gmock(
-    test_four_bar_linkage_transmission_loader
-    test/four_bar_linkage_transmission_loader_test.cpp
-  )
-  target_include_directories(test_four_bar_linkage_transmission_loader PUBLIC include hardware_interface)
-  ament_target_dependencies(test_four_bar_linkage_transmission_loader hardware_interface)
-
-  ament_add_gmock(
-    test_differential_transmission_loader
-    test/differential_transmission_loader_test.cpp
-  )
-  target_include_directories(test_differential_transmission_loader PUBLIC include hardware_interface)
-  ament_target_dependencies(test_differential_transmission_loader hardware_interface)
 endif()
 
 ament_export_include_directories(
@@ -90,9 +56,4 @@ ament_export_include_directories(
 ament_export_dependencies(
   hardware_interface
 )
-
-ament_export_libraries(
-  ${PROJECT_NAME}
-)
-
 ament_package()

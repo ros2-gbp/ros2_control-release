@@ -24,8 +24,6 @@ namespace controller_interface
 /// Reorder interfaces with references according to joint names or full interface names.
 /**
   * Method to reorder and check if all expected interfaces are provided for the joint.
-  * Fill `ordered_interfaces` with references from `unordered_interfaces` in the same order as in
-  * `ordered_names`.
   *
   * \param[in] unordered_interfaces vector with loaned unordered state or command interfaces.
   * \param[in] ordered_names vector with ordered names to order \p unordered_interfaces.
@@ -48,19 +46,14 @@ bool get_ordered_interfaces(
     {
       if (!interface_type.empty())
       {
-        // check case where:
-        // (<joint> == <joint> AND <interface> == <interface>) OR <joint>/<interface> == 'full name'
-        if (
-          ((name == interface.get_prefix_name()) &&
-           (interface_type == interface.get_interface_name())) ||
-          ((name + "/" + interface_type) == interface.get_name()))
+        if ((name == interface.get_name()) && (interface_type == interface.get_interface_name()))
         {
           ordered_interfaces.push_back(std::ref(interface));
         }
       }
       else
       {
-        if (name == interface.get_name())
+        if (name == interface.get_full_name())
         {
           ordered_interfaces.push_back(std::ref(interface));
         }

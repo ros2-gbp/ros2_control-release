@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from controller_manager import list_hardware_interfaces
-from controller_manager.spawner import bcolors
 
 from ros2cli.node.direct import add_arguments
 from ros2cli.node.strategy import NodeStrategy
@@ -39,19 +38,15 @@ class ListHardwareInterfacesVerb(VerbExtension):
             )
             print('command interfaces')
             for command_interface in command_interfaces:
-                if command_interface.is_available:
-                    if command_interface.is_claimed:
-                        print(f'\t{bcolors.OKBLUE}{command_interface.name} '
-                              f'[available] [claimed]{bcolors.ENDC}')
-                    else:
-                        print(f'\t{bcolors.OKCYAN}{command_interface.name} '
-                              f'[available] [unclaimed]{bcolors.ENDC}')
-                else:
-                    print(f'\t{bcolors.WARNING}{command_interface.name} '
-                          f'[unavailable] [unclaimed]{bcolors.ENDC}')
-
+                print(
+                    '\t%s [%s]'
+                    % (
+                        command_interface.name,
+                        'claimed' if command_interface.is_claimed else 'unclaimed',
+                    )
+                )
             print('state interfaces')
             for state_interface in state_interfaces:
-                print(f'\t{state_interface.name}')
+                print('\t', state_interface.name)
 
             return 0

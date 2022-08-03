@@ -36,7 +36,7 @@ namespace controller_manager
 struct ControllerSpec
 {
   hardware_interface::ControllerInfo info;
-  controller_interface::ControllerInterfaceBaseSharedPtr c;
+  controller_interface::ControllerInterfaceSharedPtr c;
 };
 
 }  // namespace controller_manager

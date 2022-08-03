@@ -2,103 +2,22 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.13.0 (2022-08-03)
+0.11.0 (2022-08-03)
 -------------------
 
-2.12.1 (2022-07-14)
+0.10.1 (2022-05-31)
 -------------------
 
-2.12.0 (2022-07-09)
+0.10.0 (2022-02-23)
 -------------------
 
-2.11.0 (2022-07-03)
--------------------
-* Update maintainers of packages (`#753 <https://github.com/ros-controls/ros2_control/issues/753>`_)
-* Remove ament autolint (`#749 <https://github.com/ros-controls/ros2_control/issues/749>`_)
-* Contributors: Bence Magyar
-
-2.10.0 (2022-06-18)
--------------------
-* Make RHEL CI happy! (`#730 <https://github.com/ros-controls/ros2_control/issues/730>`_)
-* CMakeLists cleanup (`#733 <https://github.com/ros-controls/ros2_control/issues/733>`_)
-* Contributors: Andy Zelenak, Márk Szitanics
-
-2.9.0 (2022-05-19)
+0.9.0 (2021-12-20)
 ------------------
 
-2.8.0 (2022-05-13)
+0.8.1 (2021-10-25)
 ------------------
-
-2.7.0 (2022-04-29)
-------------------
-
-2.6.0 (2022-04-20)
-------------------
-
-2.5.0 (2022-03-25)
-------------------
-
-2.4.0 (2022-02-23)
-------------------
-
-2.3.0 (2022-02-18)
-------------------
-
-2.2.0 (2022-01-24)
-------------------
-* Resource Manager API changes for hardware lifecycle #api-breaking #abi-breaking (`#589 <https://github.com/ros-controls/ros2_control/issues/589>`_)
-  * Towards selective starting and stoping of hardware components. Cleaning and renaming.
-  * Move Lifecycle of hardware component to the bottom for better overview.
-  * Use the same nomenclature as for controllers. 'start' -> 'activate'; 'stop' -> 'deactivate'
-  * Add selective starting and stopping of hardware resources.
-  Add HardwareComponentInfo structure in resource manager.
-  Use constants for HW parameters in tests of resource_manager.
-  Add list hardware components in CM to get details about them and check their status.
-  Use clear name for 'guard' and move release cmd itfs for better readability.
-  RM: Add lock for accesing maps with stored interfaces.
-  Separate hardware components-related services after controllers-related services.
-  Add service for activate/deactive hardware components.
-  Add activation and deactivation through ResourceStorage. This helps to manage available command interfaces.
-  * Use lifecycle_msgs/State in ListHardwareCompoents for state representation.
-  * Simplify repeatable code in methods.
-  * Add HW shutdown structure into ResouceManager.
-  * Fill out service callback in CM and add parameter for auto-configure.
-  * Move claimed_command_itf_map to ResourceStorage from ResourceManager.
-  * Do not automatically configure hardware in RM.
-  * Lifecycle and claiming in Resource Manager is working.
-  * Extend controller manager to support HW lifecycle.
-  * Add also available and claimed status into list components service output.
-  * Add SetHardwareComponentState service.
-  * Make all output in services debug-output.
-  * Remove specific services for hardware lifecycle management and leave only 'set_hardware_component_state' service.
-  * Make init_resource_manager less stateful.
-  * Keep old api to start/activate all components per default.
-  * Remove 'moving'/'non-moving' interface-handling.
-  * Remove obsolete 'import_components' methods without hardware info and fix post_initialization test.
-  Co-authored-by: Bence Magyar <bence.magyar.robotics@gmail.com>
-* Contributors: Denis Štogl
-
-2.1.0 (2022-01-11)
-------------------
-
-2.0.0 (2021-12-29)
-------------------
-* Adding support for 'initial_value' parameter. (`#593 <https://github.com/ros-controls/ros2_control/issues/593>`_)
-* Contributors: bailaC
-
-1.2.0 (2021-11-05)
-------------------
-
-1.1.0 (2021-10-25)
-------------------
-* Moving diffbot_urdf to ros2_control_test_assets. (`#558 <https://github.com/ros-controls/ros2_control/issues/558>`_)
-* Contributors: bailaC
-
-1.0.0 (2021-09-29)
-------------------
-* Remove unnecessary includes (`#518 <https://github.com/ros-controls/ros2_control/issues/518>`_)
-* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
-* Contributors: Bence Magyar, Denis Štogl
+* Remove unnecessary includes (`#518 <https://github.com/ros-controls/ros2_control/issues/518>`_) (`#522 <https://github.com/ros-controls/ros2_control/issues/522>`_)
+* Contributors: mergify[bot]
 
 0.8.0 (2021-08-28)
 ------------------
