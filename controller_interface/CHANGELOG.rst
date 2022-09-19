@@ -2,13 +2,8 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.0.0 (2022-09-19)
-------------------
-
 2.15.0 (2022-09-19)
 -------------------
-* Remove autodeclare of parameters for controllers. (`#757 <https://github.com/ros-controls/ros2_control/issues/757>`_)
-* Contributors: Denis Štogl
 
 2.14.0 (2022-09-04)
 -------------------
