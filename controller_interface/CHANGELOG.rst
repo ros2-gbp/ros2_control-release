@@ -2,22 +2,113 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.11.0 (2022-08-03)
+2.15.0 (2022-09-19)
+-------------------
+* Remove autodeclare of parameters for controllers. (`#757 <https://github.com/ros-controls/ros2_control/issues/757>`_)
+* Contributors: Denis Štogl
+
+2.14.0 (2022-09-04)
+-------------------
+* Add doxygen comments (`#777 <https://github.com/ros-controls/ros2_control/issues/777>`_)
+* Contributors: Bence Magyar, Denis Štogl
+
+2.13.0 (2022-08-03)
 -------------------
 
-0.10.1 (2022-05-31)
--------------------
-* Make interface_list_contains_interface_type inline (`#721 <https://github.com/ros-controls/ros2_control/issues/721>`_) (`#722 <https://github.com/ros-controls/ros2_control/issues/722>`_)
-* Contributors: Bence Magyar
-
-0.10.0 (2022-02-23)
+2.12.1 (2022-07-14)
 -------------------
 
-0.9.0 (2021-12-20)
+2.12.0 (2022-07-09)
+-------------------
+
+2.11.0 (2022-07-03)
+-------------------
+* [Interfaces] Improved ```get_name()``` method of hardware interfaces (soft) #api-breaking (`#737 <https://github.com/ros-controls/ros2_control/issues/737>`_)
+* Update maintainers of packages (`#753 <https://github.com/ros-controls/ros2_control/issues/753>`_)
+* Full functionality of chainable controllers in controller manager (`#667 <https://github.com/ros-controls/ros2_control/issues/667>`_)
+  * auto-switching of chained mode in controllers
+  * interface-matching approach for managing chaining controllers
+* Contributors: Bence Magyar, Denis Štogl, Lucas Schulze
+
+2.10.0 (2022-06-18)
+-------------------
+* CMakeLists cleanup (`#733 <https://github.com/ros-controls/ros2_control/issues/733>`_)
+* Update to clang format 12 (`#731 <https://github.com/ros-controls/ros2_control/issues/731>`_)
+* Make interface_list_contains_interface_type inline (`#721 <https://github.com/ros-controls/ros2_control/issues/721>`_)
+* Contributors: Andy Zelenak, Bence Magyar
+
+2.9.0 (2022-05-19)
+------------------
+* Adding base class for chained controllers: `ChainedControllersInterface` (`#663 <https://github.com/ros-controls/ros2_control/issues/663>`_)
+  * Extending ControllerInterface with methods for chainable controllers.
+  * Switching to chained_mode is only forbidden if controller is active.
+  * Default implementation for 'on_set_chained_mode' method.
+  * Use two internal methods instead of 'update' directly on chained controllers.
+* Add ControllerInterfaceBase class with methods for chainable controller (`#717 <https://github.com/ros-controls/ros2_control/issues/717>`_)
+* Contributors: Denis Štogl
+
+2.8.0 (2022-05-13)
 ------------------
 
-0.8.1 (2021-10-25)
+2.7.0 (2022-04-29)
 ------------------
+* Make node private in ControllerInterface (`#699 <https://github.com/ros-controls/ros2_control/issues/699>`_)
+* Contributors: Jack Center
+
+2.6.0 (2022-04-20)
+------------------
+* Add CallbackReturn into controller_interface namespace for simpler usage in controllers. (`#701 <https://github.com/ros-controls/ros2_control/issues/701>`_)
+* Enable namespaces for controllers. (`#693 <https://github.com/ros-controls/ros2_control/issues/693>`_)
+* Add tests for ControllerInterface class and clarify use of 'update_rate' parameter. (`#662 <https://github.com/ros-controls/ros2_control/issues/662>`_)
+  #behaviorchange
+* Contributors: Denis Štogl
+
+2.5.0 (2022-03-25)
+------------------
+* Use lifecycle nodes in controllers again (`#538 <https://github.com/ros-controls/ros2_control/issues/538>`_)
+  * Add lifecycle nodes
+  * Add custom 'configure' to controller interface to get 'update_rate' parameter.
+  * Disable external interfaces of LifecycleNode.
+* Cleaning Controller Interface from obsolete code. (`#655 <https://github.com/ros-controls/ros2_control/issues/655>`_)
+* Contributors: Denis Štogl, Vatan Aksoy Tezer, Bence Magyar
+
+2.4.0 (2022-02-23)
+------------------
+
+2.3.0 (2022-02-18)
+------------------
+
+2.2.0 (2022-01-24)
+------------------
+
+2.1.0 (2022-01-11)
+------------------
+
+2.0.0 (2021-12-29)
+------------------
+* fix get_update_rate visibility in windows (`#586 <https://github.com/ros-controls/ros2_control/issues/586>`_)
+* Use lifecycle name constants from hardware interface in controller interface (`#575 <https://github.com/ros-controls/ros2_control/issues/575>`_)
+  * Use lifecycle name constants from hardware interface in controller interface
+  * Remove controller_state_names.hpp since it is not needed.
+* Contributors: Melvin Wang, Xi-Huang
+
+1.2.0 (2021-11-05)
+------------------
+
+1.1.0 (2021-10-25)
+------------------
+* Quick fix 🏎: make doc on helpers clearer (`#553 <https://github.com/ros-controls/ros2_control/issues/553>`_)
+* Contributors: Denis Štogl
+
+1.0.0 (2021-09-29)
+------------------
+* Per controller update rate (`#513 <https://github.com/ros-controls/ros2_control/issues/513>`_)
+  * add update_rate member field to controller manager
+* added dt to controller interface and controller manager `#438 <https://github.com/ros-controls/ros2_control/issues/438>`_ (`#520 <https://github.com/ros-controls/ros2_control/issues/520>`_)
+* Methods controlling the lifecycle of controllers all have on\_ prefix
+* Do not manually set C++ version to 14 (`#516 <https://github.com/ros-controls/ros2_control/issues/516>`_)
+* rename get_current_state() to get_state() (`#512 <https://github.com/ros-controls/ros2_control/issues/512>`_)
+* Contributors: Bence Magyar, Denis Štogl, Dmitri Ignakov, Márk Szitanics, bailaC
 
 0.8.0 (2021-08-28)
 ------------------

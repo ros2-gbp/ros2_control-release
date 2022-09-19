@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "./test_controller_failed_init.hpp"
+#include "test_controller_failed_init.hpp"
 
 #include <memory>
 #include <string>
@@ -25,13 +25,21 @@ TestControllerFailedInit::TestControllerFailedInit() : controller_interface::Con
 {
 }
 
+rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+TestControllerFailedInit::on_init()
+{
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+}
+
 controller_interface::return_type TestControllerFailedInit::init(
-  const std::string & /* controller_name */)
+  const std::string & /* controller_name */, const std::string & /*namespace_*/,
+  const rclcpp::NodeOptions & /*node_options*/)
 {
   return controller_interface::return_type::ERROR;
 }
 
-controller_interface::return_type TestControllerFailedInit::update()
+controller_interface::return_type TestControllerFailedInit::update(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   return controller_interface::return_type::OK;
 }

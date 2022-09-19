@@ -19,22 +19,22 @@ from controller_manager_msgs.srv import ConfigureController, \
 import rclpy
 
 
-def service_caller(node, service_name, service_type, request):
+def service_caller(node, service_name, service_type, request, service_timeout=10.0):
     cli = node.create_client(service_type, service_name)
 
     if not cli.service_is_ready():
-        node.get_logger().debug('waiting for service {} to become available...'
-                                .format(service_name))
-        if not cli.wait_for_service(10.0):
+        node.get_logger().debug(
+            f'waiting {service_timeout} seconds for service {service_name} to become available...')
+        if not cli.wait_for_service(service_timeout):
             raise RuntimeError(f'Could not contact service {service_name}')
 
-    node.get_logger().debug('requester: making request: %r\n' % request)
+    node.get_logger().debug(f'requester: making request: {request}\n')
     future = cli.call_async(request)
     rclpy.spin_until_future_complete(node, future)
     if future.result() is not None:
         return future.result()
     else:
-        raise RuntimeError('Exception while calling service: %r' % future.exception())
+        raise RuntimeError(f'Exception while calling service: {future.exception()}')
 
 
 def configure_controller(node, controller_manager_name, controller_name):
@@ -78,16 +78,16 @@ def reload_controller_libraries(node, controller_manager_name, force_kill):
                           ReloadControllerLibraries, request)
 
 
-def switch_controllers(node, controller_manager_name, stop_controllers,
-                       start_controllers, strict, start_asap, timeout):
+def switch_controllers(node, controller_manager_name, deactivate_controllers,
+                       activate_controllers, strict, activate_asap, timeout):
     request = SwitchController.Request()
-    request.start_controllers = start_controllers
-    request.stop_controllers = stop_controllers
+    request.activate_controllers = activate_controllers
+    request.deactivate_controllers = deactivate_controllers
     if strict:
         request.strictness = SwitchController.Request.STRICT
     else:
         request.strictness = SwitchController.Request.BEST_EFFORT
-    request.start_asap = start_asap
+    request.activate_asap = activate_asap
     request.timeout = rclpy.duration.Duration(seconds=timeout).to_msg()
     return service_caller(node, f'{controller_manager_name}/switch_controller',
                           SwitchController, request)
