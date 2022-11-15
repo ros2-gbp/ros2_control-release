@@ -2,12 +2,21 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.16.0 (2022-10-17)
--------------------
+3.3.0 (2022-11-15)
+------------------
+
+3.2.0 (2022-10-15)
+------------------
+
+3.1.0 (2022-10-05)
+------------------
+
+3.0.0 (2022-09-19)
+------------------
 
 2.15.0 (2022-09-19)
 -------------------
-* pygraphviz functions updated (`#812 <https://github.com/ros-controls/ros2_control/issues/812>`_) (`#814 <https://github.com/ros-controls/ros2_control/issues/814>`_)
+* migrate from graphviz python to pygraphviz (`#812 <https://github.com/ros-controls/ros2_control/issues/812>`_)
 * Contributors: Sachin Kumar
 
 2.14.0 (2022-09-04)
