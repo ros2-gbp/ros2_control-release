@@ -62,9 +62,8 @@ int main(int argc, char ** argv)
 
       // for calculating sleep time
       auto const period = std::chrono::nanoseconds(1'000'000'000 / cm->get_update_rate());
-      auto const cm_now = std::chrono::nanoseconds(cm->now().nanoseconds());
-      std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
-        next_iteration_time{cm_now};
+      std::chrono::system_clock::time_point next_iteration_time =
+        std::chrono::system_clock::time_point(std::chrono::nanoseconds(cm->now().nanoseconds()));
 
       // for calculating the measured period of the loop
       rclcpp::Time previous_time = cm->now();
