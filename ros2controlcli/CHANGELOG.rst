@@ -2,20 +2,29 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.18.0 (2022-12-03)
--------------------
-* Fix hardware interface CLI description (`#864 <https://github.com/ros-controls/ros2_control/issues/864>`_) (`#869 <https://github.com/ros-controls/ros2_control/issues/869>`_)
+3.5.0 (2022-12-06)
+------------------
+* Fix hardware interface CLI description (`#864 <https://github.com/ros-controls/ros2_control/issues/864>`_)
 * Contributors: Christoph Fröhlich
 
-2.17.0 (2022-11-27)
--------------------
+3.4.0 (2022-11-27)
+------------------
 
-2.16.0 (2022-10-17)
--------------------
+3.3.0 (2022-11-15)
+------------------
+
+3.2.0 (2022-10-15)
+------------------
+
+3.1.0 (2022-10-05)
+------------------
+
+3.0.0 (2022-09-19)
+------------------
 
 2.15.0 (2022-09-19)
 -------------------
-* pygraphviz functions updated (`#812 <https://github.com/ros-controls/ros2_control/issues/812>`_) (`#814 <https://github.com/ros-controls/ros2_control/issues/814>`_)
+* migrate from graphviz python to pygraphviz (`#812 <https://github.com/ros-controls/ros2_control/issues/812>`_)
 * Contributors: Sachin Kumar
 
 2.14.0 (2022-09-04)
