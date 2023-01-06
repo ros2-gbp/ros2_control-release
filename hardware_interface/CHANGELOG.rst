@@ -2,21 +2,38 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2.19.0 (2023-01-06)
--------------------
-* ResourceManager doesn't always log an error on shutdown anymore (`#867 <https://github.com/ros-controls/ros2_control/issues/867>`_) (`#871 <https://github.com/ros-controls/ros2_control/issues/871>`_)
-* Contributors: Christopher Wecht
+3.5.1 (2023-01-06)
+------------------
 
-2.18.0 (2022-12-03)
--------------------
+3.5.0 (2022-12-06)
+------------------
+* ResourceManager doesn't always log an error on shutdown anymore (`#867 <https://github.com/ros-controls/ros2_control/issues/867>`_)
+* Rename class type to plugin name #api-breaking #abi-breaking (`#780 <https://github.com/ros-controls/ros2_control/issues/780>`_)
+* Contributors: Bence Magyar, Christopher Wecht
 
-2.17.0 (2022-11-27)
--------------------
+3.4.0 (2022-11-27)
+------------------
 
-2.16.0 (2022-10-17)
--------------------
-* fix broken links (issue `#831 <https://github.com/ros-controls/ros2_control/issues/831>`_) (`#833 <https://github.com/ros-controls/ros2_control/issues/833>`_) (`#845 <https://github.com/ros-controls/ros2_control/issues/845>`_)
-* Contributors: Manuel Muth
+3.3.0 (2022-11-15)
+------------------
+* [MockHardware] Enalbe initialization non-joint components(`#822 <https://github.com/ros-controls/ros2_control/issues/822>`_)
+* Contributors: Felix Exner
+
+3.2.0 (2022-10-15)
+------------------
+* [MockComponents] Rename 'fake_sensor_commands' to 'mock_sensor_commands' (`#782 <https://github.com/ros-controls/ros2_control/issues/782>`_)
+* fix broken links (issue `#831 <https://github.com/ros-controls/ros2_control/issues/831>`_) (`#833 <https://github.com/ros-controls/ros2_control/issues/833>`_)
+* Contributors: Kvk Praneeth, Manuel Muth, Bence Magyar, Denis Štogl
+
+3.1.0 (2022-10-05)
+------------------
+* Cleanup Resource Manager a bit to increase clarity. (`#816 <https://github.com/ros-controls/ros2_control/issues/816>`_)
+* Handle hardware errors in Resource Manager (`#805 <https://github.com/ros-controls/ros2_control/issues/805>`_)
+  * Add code for deactivating controller when hardware gets an error on read and write.
+* Contributors: Denis Štogl
+
+3.0.0 (2022-09-19)
+------------------
 
 2.15.0 (2022-09-19)
 -------------------
