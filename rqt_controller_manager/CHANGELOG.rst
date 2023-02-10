@@ -2,6 +2,11 @@
 Changelog for package rqt_controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.8.0 (2023-02-10)
+------------------
+* 🖤 Add Black formatter for Python files. (`#936 <https://github.com/ros-controls/ros2_control/issues/936>`_)
+* Contributors: Dr. Denis
+
 3.7.0 (2023-01-24)
 ------------------
 
