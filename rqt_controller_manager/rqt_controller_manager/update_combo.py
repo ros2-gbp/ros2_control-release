@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 def update_combo(combo, new_vals):
     """
     Update the contents of a combo box with a set of new values.
@@ -34,7 +33,7 @@ def update_combo(combo, new_vals):
         selected_id = -1
         try:
             selected_id = new_vals.index(selected_val)
-        except ValueError:
+        except (ValueError):
             combo.setCurrentIndex(-1)
 
         # Re-populate items

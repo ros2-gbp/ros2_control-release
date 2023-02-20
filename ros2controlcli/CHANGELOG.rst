@@ -2,46 +2,38 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.8.0 (2023-02-10)
-------------------
-* 🖤 Add Black formatter for Python files. (`#936 <https://github.com/ros-controls/ros2_control/issues/936>`_)
-* Add list_hardware_components CLI  <https://github.com/ros-controls/ros2_control/issues/796>`_ - Adds list_hardware_components to CLI (`#891 <https://github.com/ros-controls/ros2_control/issues/891>`_)
-* Contributors: Andy McEvoy, Dr. Denis
+2.23.0 (2023-02-20)
+-------------------
+* Adds list_hardware_components to CLI `#796 <https://github.com/ros-controls/ros2_control/issues/796>`_ - Adds list_hardware_components to CLI (`#891 <https://github.com/ros-controls/ros2_control/issues/891>`_) (`#937 <https://github.com/ros-controls/ros2_control/issues/937>`_)
+* Do not use CLI calls but direct API for setting parameters. (backport `#910 <https://github.com/ros-controls/ros2_control/issues/910>`_) (`#913 <https://github.com/ros-controls/ros2_control/issues/913>`_)
+* Contributors: Andy McEvoy, Denis Stogl
 
-3.7.0 (2023-01-24)
-------------------
-* Do not use CLI calls but direct API for setting parameters. (`#910 <https://github.com/ros-controls/ros2_control/issues/910>`_)
-* Contributors: Dr. Denis
+2.22.0 (2023-01-31)
+-------------------
 
-3.6.0 (2023-01-12)
-------------------
+2.21.0 (2023-01-24)
+-------------------
 
-3.5.1 (2023-01-06)
-------------------
+2.20.0 (2023-01-12)
+-------------------
 
-3.5.0 (2022-12-06)
-------------------
-* Fix hardware interface CLI description (`#864 <https://github.com/ros-controls/ros2_control/issues/864>`_)
+2.19.0 (2023-01-06)
+-------------------
+
+2.18.0 (2022-12-03)
+-------------------
+* Fix hardware interface CLI description (`#864 <https://github.com/ros-controls/ros2_control/issues/864>`_) (`#869 <https://github.com/ros-controls/ros2_control/issues/869>`_)
 * Contributors: Christoph Fröhlich
 
-3.4.0 (2022-11-27)
-------------------
+2.17.0 (2022-11-27)
+-------------------
 
-3.3.0 (2022-11-15)
-------------------
-
-3.2.0 (2022-10-15)
-------------------
-
-3.1.0 (2022-10-05)
-------------------
-
-3.0.0 (2022-09-19)
-------------------
+2.16.0 (2022-10-17)
+-------------------
 
 2.15.0 (2022-09-19)
 -------------------
-* migrate from graphviz python to pygraphviz (`#812 <https://github.com/ros-controls/ros2_control/issues/812>`_)
+* pygraphviz functions updated (`#812 <https://github.com/ros-controls/ros2_control/issues/812>`_) (`#814 <https://github.com/ros-controls/ros2_control/issues/814>`_)
 * Contributors: Sachin Kumar
 
 2.14.0 (2022-09-04)
