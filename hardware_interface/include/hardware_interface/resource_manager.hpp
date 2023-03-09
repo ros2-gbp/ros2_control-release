@@ -36,12 +36,6 @@ class SensorInterface;
 class SystemInterface;
 class ResourceStorage;
 
-struct HardwareReadWriteStatus
-{
-  bool ok;
-  std::vector<std::string> failed_hardware_names;
-};
-
 class HARDWARE_INTERFACE_PUBLIC ResourceManager
 {
 public:
@@ -108,6 +102,12 @@ public:
    */
   std::vector<std::string> available_state_interfaces() const;
 
+  /// Checks whether a state interface is registered under the given key.
+  /**
+   * \return true if interface exist, false otherwise.
+   */
+  bool state_interface_exists(const std::string & key) const;
+
   /// Checks whether a state interface is available under the given key.
   /**
    * \return true if interface is available, false otherwise.
@@ -166,26 +166,6 @@ public:
    */
   void remove_controller_reference_interfaces(const std::string & controller_name);
 
-  /// Cache mapping between hardware and controllers using it
-  /**
-   * Find mapping between controller and hardware based on interfaces controller with
-   * \p controller_name is using and cache those for later usage.
-   *
-   * \param[in] controller_name name of the controller which interfaces are provided.
-   * \param[in] interfaces list of interfaces controller with \p controller_name is using.
-   */
-  void cache_controller_to_hardware(
-    const std::string & controller_name, const std::vector<std::string> & interfaces);
-
-  /// Return cached controllers for a specific hardware.
-  /**
-   * Return list of cached controller names that use the hardware with name \p hardware_name.
-   *
-   * \param[in] hardware_name the name of the hardware for which cached controllers should be returned.
-   * \returns list of cached controller names that depend on hardware with name \p hardware_name.
-   */
-  std::vector<std::string> get_cached_controllers_to_hardware(const std::string & hardware_name);
-
   /// Checks whether a command interface is already claimed.
   /**
    * Any command interface can only be claimed by a single instance.
@@ -221,6 +201,13 @@ public:
    * \return vector of strings, containing all available command interface names.
    */
   std::vector<std::string> available_command_interfaces() const;
+
+  /// Checks whether a command interface is registered under the given key.
+  /**
+   * \param[in] key string identifying the interface to check.
+   * \return true if interface exist, false otherwise.
+   */
+  bool command_interface_exists(const std::string & key) const;
 
   /// Checks whether a command interface is available under the given name.
   /**
@@ -358,7 +345,7 @@ public:
    * Part of the real-time critical update loop.
    * It is realtime-safe if used hadware interfaces are implemented adequately.
    */
-  HardwareReadWriteStatus read(const rclcpp::Time & time, const rclcpp::Duration & period);
+  void read(const rclcpp::Time & time, const rclcpp::Duration & period);
 
   /// Write all loaded hardware components.
   /**
@@ -367,7 +354,7 @@ public:
    * Part of the real-time critical update loop.
    * It is realtime-safe if used hadware interfaces are implemented adequately.
    */
-  HardwareReadWriteStatus write(const rclcpp::Time & time, const rclcpp::Duration & period);
+  void write(const rclcpp::Time & time, const rclcpp::Duration & period);
 
   /// Activates all available hardware components in the system.
   /**
@@ -376,19 +363,6 @@ public:
    * are activated per default.
    */
   void activate_all_components();
-
-  /// Checks whether a command interface is registered under the given key.
-  /**
-   * \param[in] key string identifying the interface to check.
-   * \return true if interface exist, false otherwise.
-   */
-  bool command_interface_exists(const std::string & key) const;
-
-  /// Checks whether a state interface is registered under the given key.
-  /**
-   * \return true if interface exist, false otherwise.
-   */
-  bool state_interface_exists(const std::string & key) const;
 
 private:
   void validate_storage(const std::vector<hardware_interface::HardwareInfo> & hardware_info) const;
@@ -399,12 +373,7 @@ private:
 
   mutable std::recursive_mutex resource_interfaces_lock_;
   mutable std::recursive_mutex claimed_command_interfaces_lock_;
-  mutable std::recursive_mutex resources_lock_;
-
   std::unique_ptr<ResourceStorage> resource_storage_;
-
-  // Structure to store read and write status so it is not initialized in the real-time loop
-  HardwareReadWriteStatus read_write_status;
 };
 
 }  // namespace hardware_interface

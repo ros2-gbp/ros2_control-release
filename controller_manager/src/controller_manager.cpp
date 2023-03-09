@@ -36,10 +36,16 @@ static constexpr const char * kChainableControllerInterfaceClassName =
   "controller_interface::ChainableControllerInterface";
 
 // Changed services history QoS to keep all so we don't lose any client service calls
-rclcpp::QoS qos_services =
-  rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1))
-    .reliable()
-    .durability_volatile();
+static const rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
+  RMW_QOS_POLICY_HISTORY_KEEP_ALL,
+  1,  // message queue depth
+  RMW_QOS_POLICY_RELIABILITY_RELIABLE,
+  RMW_QOS_POLICY_DURABILITY_VOLATILE,
+  RMW_QOS_DEADLINE_DEFAULT,
+  RMW_QOS_LIFESPAN_DEFAULT,
+  RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+  RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+  false};
 
 inline bool is_controller_inactive(const controller_interface::ControllerInterfaceBase & controller)
 {
@@ -136,13 +142,13 @@ ControllerManager::ControllerManager(
   const std::string & namespace_, const rclcpp::NodeOptions & options)
 : rclcpp::Node(manager_node_name, namespace_, options),
   resource_manager_(std::make_unique<hardware_interface::ResourceManager>()),
-  diagnostics_updater_(this),
   executor_(executor),
   loader_(std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
     kControllerInterfaceNamespace, kControllerInterfaceClassName)),
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
-      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  diagnostics_updater_(this)
 {
   if (!get_parameter("update_rate", update_rate_))
   {
@@ -170,13 +176,13 @@ ControllerManager::ControllerManager(
   const std::string & namespace_, const rclcpp::NodeOptions & options)
 : rclcpp::Node(manager_node_name, namespace_, options),
   resource_manager_(std::move(resource_manager)),
-  diagnostics_updater_(this),
   executor_(executor),
   loader_(std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
     kControllerInterfaceNamespace, kControllerInterfaceClassName)),
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
-      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  diagnostics_updater_(this)
 {
   if (!get_parameter("update_rate", update_rate_))
   {
@@ -232,47 +238,47 @@ void ControllerManager::init_services()
   using namespace std::placeholders;
   list_controllers_service_ = create_service<controller_manager_msgs::srv::ListControllers>(
     "~/list_controllers", std::bind(&ControllerManager::list_controllers_srv_cb, this, _1, _2),
-    qos_services, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_controller_types_service_ =
     create_service<controller_manager_msgs::srv::ListControllerTypes>(
       "~/list_controller_types",
-      std::bind(&ControllerManager::list_controller_types_srv_cb, this, _1, _2), qos_services,
-      best_effort_callback_group_);
+      std::bind(&ControllerManager::list_controller_types_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   load_controller_service_ = create_service<controller_manager_msgs::srv::LoadController>(
     "~/load_controller", std::bind(&ControllerManager::load_controller_service_cb, this, _1, _2),
-    qos_services, best_effort_callback_group_);
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   configure_controller_service_ = create_service<controller_manager_msgs::srv::ConfigureController>(
     "~/configure_controller",
-    std::bind(&ControllerManager::configure_controller_service_cb, this, _1, _2), qos_services,
-    best_effort_callback_group_);
+    std::bind(&ControllerManager::configure_controller_service_cb, this, _1, _2),
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   reload_controller_libraries_service_ =
     create_service<controller_manager_msgs::srv::ReloadControllerLibraries>(
       "~/reload_controller_libraries",
       std::bind(&ControllerManager::reload_controller_libraries_service_cb, this, _1, _2),
-      qos_services, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   switch_controller_service_ = create_service<controller_manager_msgs::srv::SwitchController>(
     "~/switch_controller",
-    std::bind(&ControllerManager::switch_controller_service_cb, this, _1, _2), qos_services,
-    best_effort_callback_group_);
+    std::bind(&ControllerManager::switch_controller_service_cb, this, _1, _2),
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   unload_controller_service_ = create_service<controller_manager_msgs::srv::UnloadController>(
     "~/unload_controller",
-    std::bind(&ControllerManager::unload_controller_service_cb, this, _1, _2), qos_services,
-    best_effort_callback_group_);
+    std::bind(&ControllerManager::unload_controller_service_cb, this, _1, _2),
+    rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_hardware_components_service_ =
     create_service<controller_manager_msgs::srv::ListHardwareComponents>(
       "~/list_hardware_components",
-      std::bind(&ControllerManager::list_hardware_components_srv_cb, this, _1, _2), qos_services,
-      best_effort_callback_group_);
+      std::bind(&ControllerManager::list_hardware_components_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   list_hardware_interfaces_service_ =
     create_service<controller_manager_msgs::srv::ListHardwareInterfaces>(
       "~/list_hardware_interfaces",
-      std::bind(&ControllerManager::list_hardware_interfaces_srv_cb, this, _1, _2), qos_services,
-      best_effort_callback_group_);
+      std::bind(&ControllerManager::list_hardware_interfaces_srv_cb, this, _1, _2),
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
   set_hardware_component_state_service_ =
     create_service<controller_manager_msgs::srv::SetHardwareComponentState>(
       "~/set_hardware_component_state",
       std::bind(&ControllerManager::set_hardware_component_state_srv_cb, this, _1, _2),
-      qos_services, best_effort_callback_group_);
+      rmw_qos_profile_services_hist_keep_all, best_effort_callback_group_);
 }
 
 controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
@@ -847,45 +853,6 @@ controller_interface::return_type ControllerManager::switch_controller(
     {
       extract_interfaces_for_controller(controller, deactivate_command_interface_request_);
     }
-
-    // cache mapping between hardware and controllers for stopping when read/write error happens
-    // TODO(destogl): This caching approach is suboptimal because the cache can fast become
-    // outdated. Keeping it up to date is not easy because of stopping controllers from multiple
-    // threads maybe we should not at all cache this but always search for the related controllers
-    // to a hardware when error in hardware happens
-    if (in_activate_list)
-    {
-      std::vector<std::string> interface_names = {};
-
-      auto command_interface_config = controller.c->command_interface_configuration();
-      if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
-      {
-        interface_names = resource_manager_->available_command_interfaces();
-      }
-      if (
-        command_interface_config.type ==
-        controller_interface::interface_configuration_type::INDIVIDUAL)
-      {
-        interface_names = command_interface_config.names;
-      }
-
-      std::vector<std::string> interfaces = {};
-      auto state_interface_config = controller.c->state_interface_configuration();
-      if (state_interface_config.type == controller_interface::interface_configuration_type::ALL)
-      {
-        interfaces = resource_manager_->available_state_interfaces();
-      }
-      if (
-        state_interface_config.type ==
-        controller_interface::interface_configuration_type::INDIVIDUAL)
-      {
-        interfaces = state_interface_config.names;
-      }
-
-      interface_names.insert(interface_names.end(), interfaces.begin(), interfaces.end());
-
-      resource_manager_->cache_controller_to_hardware(controller.info.name, interface_names);
-    }
   }
 
   if (activate_request_.empty() && deactivate_request_.empty())
@@ -908,7 +875,6 @@ controller_interface::return_type ControllerManager::switch_controller(
       return controller_interface::return_type::ERROR;
     }
   }
-
   // start the atomic controller switching
   switch_params_.strictness = strictness;
   switch_params_.activate_asap = activate_asap;
@@ -1033,10 +999,7 @@ void ControllerManager::manage_switch()
     RCLCPP_ERROR(get_logger(), "Error while performing mode switch.");
   }
 
-  std::vector<ControllerSpec> & rt_controller_list =
-    rt_controllers_wrapper_.update_and_get_used_by_rt_list();
-
-  deactivate_controllers(rt_controller_list, deactivate_request_);
+  deactivate_controllers();
 
   switch_chained_mode(to_chained_mode_request_, true);
   switch_chained_mode(from_chained_mode_request_, false);
@@ -1044,23 +1007,23 @@ void ControllerManager::manage_switch()
   // activate controllers once the switch is fully complete
   if (!switch_params_.activate_asap)
   {
-    activate_controllers(rt_controller_list, activate_request_);
+    activate_controllers();
   }
   else
   {
     // activate controllers as soon as their required joints are done switching
-    activate_controllers_asap(rt_controller_list, activate_request_);
+    activate_controllers_asap();
   }
 
   // TODO(destogl): move here "do_switch = false"
 }
 
-void ControllerManager::deactivate_controllers(
-  const std::vector<ControllerSpec> & rt_controller_list,
-  const std::vector<std::string> controllers_to_deactivate)
+void ControllerManager::deactivate_controllers()
 {
-  // deactivate controllers
-  for (const auto & request : controllers_to_deactivate)
+  std::vector<ControllerSpec> & rt_controller_list =
+    rt_controllers_wrapper_.update_and_get_used_by_rt_list();
+  // stop controllers
+  for (const auto & request : deactivate_request_)
   {
     auto found_it = std::find_if(
       rt_controller_list.begin(), rt_controller_list.end(),
@@ -1069,7 +1032,7 @@ void ControllerManager::deactivate_controllers(
     {
       RCLCPP_ERROR(
         get_logger(),
-        "Got request to deactivate controller '%s' but it is not in the realtime controller list",
+        "Got request to stop controller '%s' but it is not in the realtime controller list",
         request.c_str());
       continue;
     }
@@ -1145,11 +1108,11 @@ void ControllerManager::switch_chained_mode(
   }
 }
 
-void ControllerManager::activate_controllers(
-  const std::vector<ControllerSpec> & rt_controller_list,
-  const std::vector<std::string> controllers_to_activate)
+void ControllerManager::activate_controllers()
 {
-  for (const auto & request : controllers_to_activate)
+  std::vector<ControllerSpec> & rt_controller_list =
+    rt_controllers_wrapper_.update_and_get_used_by_rt_list();
+  for (const auto & request : activate_request_)
   {
     auto found_it = std::find_if(
       rt_controller_list.begin(), rt_controller_list.end(),
@@ -1256,12 +1219,10 @@ void ControllerManager::activate_controllers(
   switch_params_.do_switch = false;
 }
 
-void ControllerManager::activate_controllers_asap(
-  const std::vector<ControllerSpec> & rt_controller_list,
-  const std::vector<std::string> controllers_to_activate)
+void ControllerManager::activate_controllers_asap()
 {
   //  https://github.com/ros-controls/ros2_control/issues/263
-  activate_controllers(rt_controller_list, controllers_to_activate);
+  activate_controllers();
 }
 
 void ControllerManager::list_controllers_srv_cb(
@@ -1521,10 +1482,46 @@ void ControllerManager::switch_controller_service_cb(
   std::lock_guard<std::mutex> guard(services_lock_);
   RCLCPP_DEBUG(get_logger(), "switching service locked");
 
-  response->ok =
-    switch_controller(
-      request->activate_controllers, request->deactivate_controllers, request->strictness,
-      request->activate_asap, request->timeout) == controller_interface::return_type::OK;
+  //   response->ok = switch_controller(
+  //     request->activate_controllers, request->deactivate_controllers, request->strictness,
+  //     request->activate_asap, request->timeout) == controller_interface::return_type::OK;
+  // TODO(destogl): remove this after deprecated fields are removed from service and use the
+  // commented three lines above
+  // BEGIN: remove when deprecated removed
+  auto activate_controllers = request->activate_controllers;
+  auto deactivate_controllers = request->deactivate_controllers;
+
+  if (!request->start_controllers.empty())
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'start_controllers' field is deprecated, use 'activate_controllers' field instead!");
+    activate_controllers.insert(
+      activate_controllers.end(), request->start_controllers.begin(),
+      request->start_controllers.end());
+  }
+  if (!request->stop_controllers.empty())
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'stop_controllers' field is deprecated, use 'deactivate_controllers' field instead!");
+    deactivate_controllers.insert(
+      deactivate_controllers.end(), request->stop_controllers.begin(),
+      request->stop_controllers.end());
+  }
+
+  auto activate_asap = request->activate_asap;
+  if (request->start_asap)
+  {
+    RCLCPP_WARN(
+      get_logger(), "'start_asap' field is deprecated, use 'activate_asap' field instead!");
+    activate_asap = request->start_asap;
+  }
+
+  response->ok = switch_controller(
+                   activate_controllers, deactivate_controllers, request->strictness, activate_asap,
+                   request->timeout) == controller_interface::return_type::OK;
+  // END: remove when deprecated removed
 
   RCLCPP_DEBUG(get_logger(), "switching service finished");
 }
@@ -1562,14 +1559,7 @@ void ControllerManager::list_hardware_components_srv_cb(
     auto component = controller_manager_msgs::msg::HardwareComponentState();
     component.name = component_name;
     component.type = component_info.type;
-    component.class_type =
-      component_info.plugin_name;  // TODO(bence): deprecated currently. Remove soon
-    RCLCPP_WARN(
-      get_logger(),
-      "The 'class_type' field in 'controller_manager_msgs/msg/HardwareComponentState.msg' is "
-      "deprecated and will be removed soon. Please switch over client code to use 'plugin_name' "
-      "instead.");
-    component.plugin_name = component_info.plugin_name;
+    component.class_type = component_info.class_type;
     component.state.id = component_info.state.id();
     component.state.label = component_info.state.label();
 
@@ -1580,20 +1570,6 @@ void ControllerManager::list_hardware_components_srv_cb(
       hwi.name = interface;
       hwi.is_available = resource_manager_->command_interface_is_available(interface);
       hwi.is_claimed = resource_manager_->command_interface_is_claimed(interface);
-      // TODO(destogl): Add here mapping to controller that has claimed or
-      // can be claiming this interface
-      // Those should be two variables
-      // if (hwi.is_claimed)
-      // {
-      //   for (const auto & controller : controllers_that_use_interface(interface))
-      //   {
-      //     if (is_controller_active(controller))
-      //     {
-      //       hwi.is_claimed_by = controller;
-      //     }
-      //   }
-      // }
-      // hwi.is_used_by = controllers_that_use_interface(interface);
       component.command_interfaces.push_back(hwi);
     }
 
@@ -1692,23 +1668,7 @@ std::vector<std::string> ControllerManager::get_controller_names()
 
 void ControllerManager::read(const rclcpp::Time & time, const rclcpp::Duration & period)
 {
-  auto [ok, failed_hardware_names] = resource_manager_->read(time, period);
-
-  if (!ok)
-  {
-    std::vector<std::string> stop_request = {};
-    // Determine controllers to stop
-    for (const auto & hardware_name : failed_hardware_names)
-    {
-      auto controllers = resource_manager_->get_cached_controllers_to_hardware(hardware_name);
-      stop_request.insert(stop_request.end(), controllers.begin(), controllers.end());
-    }
-
-    std::vector<ControllerSpec> & rt_controller_list =
-      rt_controllers_wrapper_.update_and_get_used_by_rt_list();
-    deactivate_controllers(rt_controller_list, stop_request);
-    // TODO(destogl): do auto-start of broadcasters
-  }
+  resource_manager_->read(time, period);
 }
 
 controller_interface::return_type ControllerManager::update(
@@ -1762,23 +1722,7 @@ controller_interface::return_type ControllerManager::update(
 
 void ControllerManager::write(const rclcpp::Time & time, const rclcpp::Duration & period)
 {
-  auto [ok, failed_hardware_names] = resource_manager_->write(time, period);
-
-  if (!ok)
-  {
-    std::vector<std::string> stop_request = {};
-    // Determine controllers to stop
-    for (const auto & hardware_name : failed_hardware_names)
-    {
-      auto controllers = resource_manager_->get_cached_controllers_to_hardware(hardware_name);
-      stop_request.insert(stop_request.end(), controllers.begin(), controllers.end());
-    }
-
-    std::vector<ControllerSpec> & rt_controller_list =
-      rt_controllers_wrapper_.update_and_get_used_by_rt_list();
-    deactivate_controllers(rt_controller_list, stop_request);
-    // TODO(destogl): do auto-start of broadcasters
-  }
+  resource_manager_->write(time, period);
 }
 
 std::vector<ControllerSpec> &
