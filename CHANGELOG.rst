@@ -2,6 +2,11 @@
 Changelog for package controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.10.0 (2023-03-16)
+-------------------
+* add spawner for hardware (`#941 <https://github.com/ros-controls/ros2_control/issues/941>`_)
+* Contributors: Manuel Muth
+
 3.9.1 (2023-03-09)
 ------------------
 
