@@ -2,56 +2,47 @@
 Changelog for package rqt_controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.12.0 (2023-04-02)
+2.25.0 (2023-04-02)
 -------------------
 
-3.11.0 (2023-03-22)
+2.24.1 (2023-03-09)
 -------------------
 
-3.10.0 (2023-03-16)
+2.24.0 (2023-02-28)
+-------------------
+* fix: rqt_controller_manager ros2param < 0.20.0 compatibility (`#945 <https://github.com/ros-controls/ros2_control/issues/945>`_)
+* Contributors: Marco Magri
+
+2.23.0 (2023-02-20)
 -------------------
 
-3.9.1 (2023-03-09)
-------------------
+2.22.0 (2023-01-31)
+-------------------
 
-3.9.0 (2023-02-28)
-------------------
+2.21.0 (2023-01-24)
+-------------------
 
-3.8.0 (2023-02-10)
-------------------
-* 🖤 Add Black formatter for Python files. (`#936 <https://github.com/ros-controls/ros2_control/issues/936>`_)
-* Contributors: Dr. Denis
+2.20.0 (2023-01-12)
+-------------------
+* 🔧 Fixes and updated on pre-commit hooks and their action (backport `#890 <https://github.com/ros-controls/ros2_control/issues/890>`_) (`#895 <https://github.com/ros-controls/ros2_control/issues/895>`_)
+* Contributors: Denis Štogl 
 
-3.7.0 (2023-01-24)
-------------------
+2.19.0 (2023-01-06)
+-------------------
 
-3.6.0 (2023-01-12)
-------------------
-* 🔧 Fixes and updated on pre-commit hooks and their action (`#890 <https://github.com/ros-controls/ros2_control/issues/890>`_)
-* Contributors: Denis Štogl
+2.18.0 (2022-12-03)
+-------------------
 
-3.5.1 (2023-01-06)
-------------------
+2.17.0 (2022-11-27)
+-------------------
+* rqt controller manager ros 2 port (`#813 <https://github.com/ros-controls/ros2_control/issues/813>`_) (`#855 <https://github.com/ros-controls/ros2_control/issues/855>`_)
+* Contributors: Kenji Brameld, Bence Magyar
 
-3.5.0 (2022-12-06)
-------------------
+2.16.0 (2022-10-17)
+-------------------
 
-3.4.0 (2022-11-27)
-------------------
-* rqt controller manager ros 2 port (`#813 <https://github.com/ros-controls/ros2_control/issues/813>`_)
-* Contributors: Kenji Brameld
-
-3.3.0 (2022-11-15)
-------------------
-
-3.2.0 (2022-10-15)
-------------------
-
-3.1.0 (2022-10-05)
-------------------
-
-3.0.0 (2022-09-19)
-------------------
+2.15.0 (2022-09-19)
+-------------------
 
 2.14.0 (2022-09-04)
 -------------------

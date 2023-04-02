@@ -2,73 +2,51 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.12.0 (2023-04-02)
+2.25.0 (2023-04-02)
+-------------------
+* Check for missing hardware interfaces that use the gpio tag. (`#953 <https://github.com/ros-controls/ros2_control/issues/953>`_)
+* Split transmission interfaces (backport `#938 <https://github.com/ros-controls/ros2_control/issues/938>`_) (`#968 <https://github.com/ros-controls/ros2_control/issues/968>`_)
+* Contributors: Ryan Sandzimier, Noel Jiménez García, Bence Magyar
+
+2.24.1 (2023-03-09)
+-------------------
+* Revert "Make double parsing locale independent (`#921 <https://github.com/ros-controls/ros2_control/issues/921>`_)" (`#966 <https://github.com/ros-controls/ros2_control/issues/966>`_)
+* Contributors: Bence Magyar
+
+2.24.0 (2023-02-28)
 -------------------
 
-3.11.0 (2023-03-22)
+2.23.0 (2023-02-20)
 -------------------
-* Check for missing hardware interfaces that use the gpio tag. (`#975 <https://github.com/ros-controls/ros2_control/issues/975>`_)
-* Contributors: Ryan Sandzimier
 
-3.10.0 (2023-03-16)
+2.22.0 (2023-01-31)
 -------------------
-* Split transmission interfaces (`#938 <https://github.com/ros-controls/ros2_control/issues/938>`_)
-* Contributors: Noel Jiménez García
-
-3.9.1 (2023-03-09)
-------------------
-
-3.9.0 (2023-02-28)
-------------------
-
-3.8.0 (2023-02-10)
-------------------
-* Fix CMake install so overriding works (`#926 <https://github.com/ros-controls/ros2_control/issues/926>`_)
-* Async params (`#927 <https://github.com/ros-controls/ros2_control/issues/927>`_)
-* Contributors: Márk Szitanics, Tyler Weaver
-
-3.7.0 (2023-01-24)
-------------------
-* Make double parsing locale independent (`#921 <https://github.com/ros-controls/ros2_control/issues/921>`_)
+* Make double parsing locale independent (`#921 <https://github.com/ros-controls/ros2_control/issues/921>`_) (`#924 <https://github.com/ros-controls/ros2_control/issues/924>`_)
 * Contributors: Henning Kayser
 
-3.6.0 (2023-01-12)
-------------------
-* 🔧 Fixes and updated on pre-commit hooks and their action (`#890 <https://github.com/ros-controls/ros2_control/issues/890>`_)
+2.21.0 (2023-01-24)
+-------------------
+
+2.20.0 (2023-01-12)
+-------------------
+* 🔧 Fixes and updated on pre-commit hooks and their action (backport `#890 <https://github.com/ros-controls/ros2_control/issues/890>`_) (`#895 <https://github.com/ros-controls/ros2_control/issues/895>`_)
 * Contributors: Denis Štogl
 
-3.5.1 (2023-01-06)
-------------------
+2.19.0 (2023-01-06)
+-------------------
+* ResourceManager doesn't always log an error on shutdown anymore (`#867 <https://github.com/ros-controls/ros2_control/issues/867>`_) (`#871 <https://github.com/ros-controls/ros2_control/issues/871>`_)
+* Contributors: Christopher Wecht
 
-3.5.0 (2022-12-06)
-------------------
-* ResourceManager doesn't always log an error on shutdown anymore (`#867 <https://github.com/ros-controls/ros2_control/issues/867>`_)
-* Rename class type to plugin name #api-breaking #abi-breaking (`#780 <https://github.com/ros-controls/ros2_control/issues/780>`_)
-* Contributors: Bence Magyar, Christopher Wecht
+2.18.0 (2022-12-03)
+-------------------
 
-3.4.0 (2022-11-27)
-------------------
+2.17.0 (2022-11-27)
+-------------------
 
-3.3.0 (2022-11-15)
-------------------
-* [MockHardware] Enalbe initialization non-joint components(`#822 <https://github.com/ros-controls/ros2_control/issues/822>`_)
-* Contributors: Felix Exner
-
-3.2.0 (2022-10-15)
-------------------
-* [MockComponents] Rename 'fake_sensor_commands' to 'mock_sensor_commands' (`#782 <https://github.com/ros-controls/ros2_control/issues/782>`_)
-* fix broken links (issue `#831 <https://github.com/ros-controls/ros2_control/issues/831>`_) (`#833 <https://github.com/ros-controls/ros2_control/issues/833>`_)
-* Contributors: Kvk Praneeth, Manuel Muth, Bence Magyar, Denis Štogl
-
-3.1.0 (2022-10-05)
-------------------
-* Cleanup Resource Manager a bit to increase clarity. (`#816 <https://github.com/ros-controls/ros2_control/issues/816>`_)
-* Handle hardware errors in Resource Manager (`#805 <https://github.com/ros-controls/ros2_control/issues/805>`_)
-  * Add code for deactivating controller when hardware gets an error on read and write.
-* Contributors: Denis Štogl
-
-3.0.0 (2022-09-19)
-------------------
+2.16.0 (2022-10-17)
+-------------------
+* fix broken links (issue `#831 <https://github.com/ros-controls/ros2_control/issues/831>`_) (`#833 <https://github.com/ros-controls/ros2_control/issues/833>`_) (`#845 <https://github.com/ros-controls/ros2_control/issues/845>`_)
+* Contributors: Manuel Muth
 
 2.15.0 (2022-09-19)
 -------------------
