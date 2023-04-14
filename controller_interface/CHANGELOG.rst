@@ -2,72 +2,50 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.12.1 (2023-04-14)
+2.25.1 (2023-04-14)
 -------------------
-* Add missing build_export_depends to controller_interface (`#989 <https://github.com/ros-controls/ros2_control/issues/989>`_)
+* Add missing build_export_depends to controller_interface (backport `#989 <https://github.com/ros-controls/ros2_control/issues/989>`_) (`#990 <https://github.com/ros-controls/ros2_control/issues/990>`_)
 * Contributors: Scott K Logan
 
-3.12.0 (2023-04-02)
--------------------
-* [Controller Interface] Add time and period paramters to update_reference_from_subscribers() (`#846 <https://github.com/ros-controls/ros2_control/issues/846>`_) #API-break
-* Contributors: Robotgir, Denis Štogl
-
-3.11.0 (2023-03-22)
--------------------
-* [ControllerManager] Add Class for Async Controllers and Lifecycle Management (`#932 <https://github.com/ros-controls/ros2_control/issues/932>`_)
-* Contributors: Márk Szitanics
-
-3.10.0 (2023-03-16)
+2.25.0 (2023-04-02)
 -------------------
 
-3.9.1 (2023-03-09)
-------------------
+2.24.1 (2023-03-09)
+-------------------
 
-3.9.0 (2023-02-28)
-------------------
+2.24.0 (2023-02-28)
+-------------------
 
-3.8.0 (2023-02-10)
-------------------
-* Fix CMake install so overriding works (`#926 <https://github.com/ros-controls/ros2_control/issues/926>`_)
-* Async params (`#927 <https://github.com/ros-controls/ros2_control/issues/927>`_)
-* Contributors: Márk Szitanics, Tyler Weaver
+2.23.0 (2023-02-20)
+-------------------
 
-3.7.0 (2023-01-24)
-------------------
+2.22.0 (2023-01-31)
+-------------------
 
-3.6.0 (2023-01-12)
-------------------
-* Update imu_sensor.hpp (`#893 <https://github.com/ros-controls/ros2_control/issues/893>`_)
-  Covariances values should come from the IMU_Broadcaster, like the frame_id or the time
+2.21.0 (2023-01-24)
+-------------------
+
+2.20.0 (2023-01-12)
+-------------------
+* Update imu_sensor.hpp (`#893 <https://github.com/ros-controls/ros2_control/issues/893>`_) (`#896 <https://github.com/ros-controls/ros2_control/issues/896>`_)
 * Contributors: flochre
 
-3.5.1 (2023-01-06)
-------------------
+2.19.0 (2023-01-06)
+-------------------
 
-3.5.0 (2022-12-06)
-------------------
+2.18.0 (2022-12-03)
+-------------------
 
-3.4.0 (2022-11-27)
-------------------
+2.17.0 (2022-11-27)
+-------------------
 
-3.3.0 (2022-11-15)
-------------------
-
-3.2.0 (2022-10-15)
-------------------
-
-3.1.0 (2022-10-05)
-------------------
-* Add docs in export interface configurations for controllers. (`#804 <https://github.com/ros-controls/ros2_control/issues/804>`_)
+2.16.0 (2022-10-17)
+-------------------
+* Add docs in export interface configurations for controllers. (`#804 <https://github.com/ros-controls/ros2_control/issues/804>`_) (`#842 <https://github.com/ros-controls/ros2_control/issues/842>`_)
 * Contributors: Denis Štogl
-
-3.0.0 (2022-09-19)
-------------------
 
 2.15.0 (2022-09-19)
 -------------------
-* Remove autodeclare of parameters for controllers. (`#757 <https://github.com/ros-controls/ros2_control/issues/757>`_)
-* Contributors: Denis Štogl
 
 2.14.0 (2022-09-04)
 -------------------
