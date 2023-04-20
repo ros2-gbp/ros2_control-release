@@ -17,7 +17,6 @@
 #include "mock_components/generic_system.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -30,18 +29,6 @@
 
 namespace mock_components
 {
-double parse_double(const std::string & text)
-{
-  double result_value;
-  const auto parse_result = std::from_chars(text.data(), text.data() + text.size(), result_value);
-  if (parse_result.ec == std::errc())
-  {
-    return result_value;
-  }
-
-  return 0.0;
-}
-
 CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & info)
 {
   if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS)
@@ -70,29 +57,16 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
     }
   };
 
-  // check if to create mock command interface for sensor
-  auto it = info_.hardware_parameters.find("mock_sensor_commands");
+  // check if to create fake command interface for sensor
+  auto it = info_.hardware_parameters.find("fake_sensor_commands");
   if (it != info_.hardware_parameters.end())
   {
     // TODO(anyone): change this to parse_bool() (see ros2_control#339)
-    use_mock_sensor_command_interfaces_ = it->second == "true" || it->second == "True";
+    use_fake_sensor_command_interfaces_ = it->second == "true" || it->second == "True";
   }
   else
   {
-    // check if fake_sensor_commands was set instead and issue warning.
-    it = info_.hardware_parameters.find("fake_sensor_commands");
-    if (it != info_.hardware_parameters.end())
-    {
-      use_mock_sensor_command_interfaces_ = it->second == "true" || it->second == "True";
-      RCUTILS_LOG_WARN_NAMED(
-        "fake_generic_system",
-        "Parameter 'fake_sensor_commands' has been deprecated from usage. Use"
-        "'mock_sensor_commands' instead.");
-    }
-    else
-    {
-      use_mock_sensor_command_interfaces_ = false;
-    }
+    use_fake_sensor_command_interfaces_ = false;
   }
 
   // check if to create fake command interface for gpio
@@ -114,7 +88,7 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
   it = info_.hardware_parameters.find("position_state_following_offset");
   if (it != info_.hardware_parameters.end())
   {
-    position_state_following_offset_ = parse_double(it->second);
+    position_state_following_offset_ = std::stod(it->second);
     it = info_.hardware_parameters.find("custom_interface_with_following_offset");
     if (it != info_.hardware_parameters.end())
     {
@@ -160,7 +134,7 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
       auto param_it = joint.parameters.find("multiplier");
       if (param_it != joint.parameters.end())
       {
-        mimic_joint.multiplier = parse_double(joint.parameters.at("multiplier"));
+        mimic_joint.multiplier = std::stod(joint.parameters.at("multiplier"));
       }
       mimic_joints_.push_back(mimic_joint);
     }
@@ -311,7 +285,7 @@ std::vector<hardware_interface::CommandInterface> GenericSystem::export_command_
   }
 
   // Fake sensor command interfaces
-  if (use_mock_sensor_command_interfaces_)
+  if (use_fake_sensor_command_interfaces_)
   {
     if (!populate_interfaces(
           info_.sensors, sensor_interfaces_, sensor_fake_commands_, command_interfaces, true))
@@ -402,7 +376,7 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
     }
   }
 
-  if (use_mock_sensor_command_interfaces_)
+  if (use_fake_sensor_command_interfaces_)
   {
     mirror_command_to_state(sensor_states_, sensor_fake_commands_);
   }
@@ -468,7 +442,7 @@ void GenericSystem::initialize_storage_vectors(
         // Check the initial_value param is used
         if (!interface.initial_value.empty())
         {
-          states[index][i] = parse_double(interface.initial_value);
+          states[index][i] = std::stod(interface.initial_value);
         }
         else
         {
@@ -476,7 +450,7 @@ void GenericSystem::initialize_storage_vectors(
           auto it2 = component.parameters.find("initial_" + interface.name);
           if (it2 != component.parameters.end())
           {
-            states[index][i] = parse_double(it2->second);
+            states[index][i] = std::stod(it2->second);
             print_hint = true;
           }
           else
