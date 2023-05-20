@@ -2,6 +2,9 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.26.0 (2023-05-20)
+-------------------
+
 2.25.3 (2023-04-29)
 -------------------
 * Fix verbose output of list_hardware_components (`#1006 <https://github.com/ros-controls/ros2_control/issues/1006>`_)
