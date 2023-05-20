@@ -1,5 +1,3 @@
-:github_url: https://github.com/ros-controls/ros2_control/blob/|github_branch|/doc/index.rst
-
 .. _ros2_control_framework:
 
 #################

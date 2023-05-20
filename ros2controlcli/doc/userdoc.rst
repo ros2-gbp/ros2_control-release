@@ -1,5 +1,3 @@
-:github_url: https://github.com/ros-controls/ros2_control/blob/|github_branch|/ros2controlcli/doc/userdoc.rst
-
 .. _ros2controlcli_userdoc:
 
 Command Line Interface
@@ -159,7 +157,7 @@ load_controller
       -h, --help            show this help message and exit
       --spin-time SPIN_TIME
                             Spin time in seconds to wait for discovery (only applies when not using an already running daemon)
-      --set_state {inactive,active}
+      --set_state {configured,inactive,active}
                             Set the state of the loaded controller
       -c CONTROLLER_MANAGER, --controller-manager CONTROLLER_MANAGER
                             Name of the controller manager ROS node

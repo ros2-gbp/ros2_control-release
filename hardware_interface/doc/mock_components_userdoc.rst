@@ -1,5 +1,3 @@
-:github_url: https://github.com/ros-controls/ros2_control/blob/|github_branch|/hardware_interface/doc/mock_components_userdoc.rst
-
 .. _mock_components_userdoc:
 
 Mock Components
@@ -27,7 +25,7 @@ Features:
 Parameters
 ,,,,,,,,,,
 
-mock_sensor_commands (optional; boolean; default: false)
+fake_sensor_commands (optional; boolean; default: false)
   Creates fake command interfaces for faking sensor measurements with an external command.
   Those interfaces are usually used by a :ref:`forward controller <forward_command_controller_userdoc>` to provide access from ROS-world.
 
