@@ -1,3 +1,5 @@
+:github_url: https://github.com/ros-controls/ros2_control/blob/{REPOS_FILE_BRANCH}/hardware_interface/doc/mock_components_userdoc.rst
+
 .. _mock_components_userdoc:
 
 Mock Components
@@ -28,6 +30,11 @@ Parameters
 fake_sensor_commands (optional; boolean; default: false)
   Creates fake command interfaces for faking sensor measurements with an external command.
   Those interfaces are usually used by a :ref:`forward controller <forward_command_controller_userdoc>` to provide access from ROS-world.
+
+disable_commands (optional; boolean; default: false)
+  Disables mirroring commands to states.
+  This option is helpful to simulate an erroneous connection to the hardware when nothing breaks, but suddenly there is no feedback from a hardware interface.
+  Or it can help you to test your setup when the hardware is running without feedback, i.e., in open loop configuration.
 
 position_state_following_offset (optional; double; default: 0.0)
   Following offset added to the commanded values when mirrored to states.
