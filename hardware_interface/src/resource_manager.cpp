@@ -17,13 +17,16 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "hardware_interface/actuator.hpp"
 #include "hardware_interface/actuator_interface.hpp"
+#include "hardware_interface/async_components.hpp"
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/sensor.hpp"
@@ -73,10 +76,16 @@ class ResourceStorage
   static constexpr const char * system_interface_name = "hardware_interface::SystemInterface";
 
 public:
-  ResourceStorage()
+  // TODO(VX792): Change this when HW ifs get their own update rate,
+  // because the ResourceStorage really shouldn't know about the cm's parameters
+  ResourceStorage(
+    unsigned int update_rate = 100,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr)
   : actuator_loader_(pkg_name, actuator_interface_name),
     sensor_loader_(pkg_name, sensor_interface_name),
-    system_loader_(pkg_name, system_interface_name)
+    system_loader_(pkg_name, system_interface_name),
+    cm_update_rate_(update_rate),
+    clock_interface_(clock_interface)
   {
   }
 
@@ -87,20 +96,21 @@ public:
   {
     RCUTILS_LOG_INFO_NAMED(
       "resource_manager", "Loading hardware '%s' ", hardware_info.name.c_str());
-    // hardware_class_type has to match class name in plugin xml description
-    // TODO(karsten1987) extract package from hardware_class_type
-    // e.g.: <package_vendor>/<system_type>
+    // hardware_plugin_name has to match class name in plugin xml description
     auto interface = std::unique_ptr<HardwareInterfaceT>(
-      loader.createUnmanagedInstance(hardware_info.hardware_class_type));
+      loader.createUnmanagedInstance(hardware_info.hardware_plugin_name));
     HardwareT hardware(std::move(interface));
     container.emplace_back(std::move(hardware));
     // initialize static data about hardware component to reduce later calls
     HardwareComponentInfo component_info;
     component_info.name = hardware_info.name;
     component_info.type = hardware_info.type;
-    component_info.class_type = hardware_info.hardware_class_type;
+    component_info.plugin_name = hardware_info.hardware_plugin_name;
+    component_info.is_async = hardware_info.is_async;
 
     hardware_info_map_.insert(std::make_pair(component_info.name, component_info));
+    hardware_used_by_controllers_.insert(
+      std::make_pair(component_info.name, std::vector<std::string>()));
   }
 
   template <class HardwareT>
@@ -191,8 +201,67 @@ public:
             hardware.get_name().c_str(), interface.c_str());
         }
       }
+
+      if (hardware_info_map_[hardware.get_name()].is_async)
+      {
+        async_component_threads_.emplace(
+          std::piecewise_construct, std::forward_as_tuple(hardware.get_name()),
+          std::forward_as_tuple(&hardware, cm_update_rate_, clock_interface_));
+      }
     }
     return result;
+  }
+
+  void remove_all_hardware_interfaces_from_available_list(const std::string & hardware_name)
+  {
+    // remove all command interfaces from available list
+    for (const auto & interface : hardware_info_map_[hardware_name].command_interfaces)
+    {
+      auto found_it = std::find(
+        available_command_interfaces_.begin(), available_command_interfaces_.end(), interface);
+
+      if (found_it != available_command_interfaces_.end())
+      {
+        available_command_interfaces_.erase(found_it);
+        RCUTILS_LOG_DEBUG_NAMED(
+          "resource_manager", "(hardware '%s'): '%s' command interface removed from available list",
+          hardware_name.c_str(), interface.c_str());
+      }
+      else
+      {
+        // TODO(destogl): do here error management if interfaces are only partially added into
+        // "available" list - this should never be the case!
+        RCUTILS_LOG_WARN_NAMED(
+          "resource_manager",
+          "(hardware '%s'): '%s' command interface not in available list. "
+          "This should not happen (hint: multiple cleanup calls).",
+          hardware_name.c_str(), interface.c_str());
+      }
+    }
+    // remove all state interfaces from available list
+    for (const auto & interface : hardware_info_map_[hardware_name].state_interfaces)
+    {
+      auto found_it = std::find(
+        available_state_interfaces_.begin(), available_state_interfaces_.end(), interface);
+
+      if (found_it != available_state_interfaces_.end())
+      {
+        available_state_interfaces_.erase(found_it);
+        RCUTILS_LOG_DEBUG_NAMED(
+          "resource_manager", "(hardware '%s'): '%s' state interface removed from available list",
+          hardware_name.c_str(), interface.c_str());
+      }
+      else
+      {
+        // TODO(destogl): do here error management if interfaces are only partially added into
+        // "available" list - this should never be the case!
+        RCUTILS_LOG_WARN_NAMED(
+          "resource_manager",
+          "(hardware '%s'): '%s' state interface not in available list. "
+          "This should not happen (hint: multiple cleanup calls).",
+          hardware_name.c_str(), interface.c_str());
+      }
+    }
   }
 
   template <class HardwareT>
@@ -204,55 +273,7 @@ public:
 
     if (result)
     {
-      // remove all command interfaces from available list
-      for (const auto & interface : hardware_info_map_[hardware.get_name()].command_interfaces)
-      {
-        auto found_it = std::find(
-          available_command_interfaces_.begin(), available_command_interfaces_.end(), interface);
-
-        if (found_it != available_command_interfaces_.end())
-        {
-          available_command_interfaces_.erase(found_it);
-          RCUTILS_LOG_DEBUG_NAMED(
-            "resource_manager",
-            "(hardware '%s'): '%s' command interface removed from available list",
-            hardware.get_name().c_str(), interface.c_str());
-        }
-        else
-        {
-          // TODO(destogl): do here error management if interfaces are only partially added into
-          // "available" list - this should never be the case!
-          RCUTILS_LOG_WARN_NAMED(
-            "resource_manager",
-            "(hardware '%s'): '%s' command interface not in available list."
-            " This can happen due to multiple calls to 'cleanup'",
-            hardware.get_name().c_str(), interface.c_str());
-        }
-      }
-      // remove all state interfaces from available list
-      for (const auto & interface : hardware_info_map_[hardware.get_name()].state_interfaces)
-      {
-        auto found_it = std::find(
-          available_state_interfaces_.begin(), available_state_interfaces_.end(), interface);
-
-        if (found_it != available_state_interfaces_.end())
-        {
-          available_state_interfaces_.erase(found_it);
-          RCUTILS_LOG_DEBUG_NAMED(
-            "resource_manager", "(hardware '%s'): '%s' state interface removed from available list",
-            hardware.get_name().c_str(), interface.c_str());
-        }
-        else
-        {
-          // TODO(destogl): do here error management if interfaces are only partially added into
-          // "available" list - this should never be the case!
-          RCUTILS_LOG_WARN_NAMED(
-            "resource_manager",
-            "(hardware '%s'): '%s' state interface not in available list. "
-            "This can happen due to multiple calls to 'cleanup'",
-            hardware.get_name().c_str(), interface.c_str());
-        }
-      }
+      remove_all_hardware_interfaces_from_available_list(hardware.get_name());
     }
     return result;
   }
@@ -266,6 +287,7 @@ public:
 
     if (result)
     {
+      async_component_threads_.erase(hardware.get_name());
       // TODO(destogl): change this - deimport all things if there is there are interfaces there
       // deimport_non_movement_command_interfaces(hardware);
       // deimport_state_interfaces(hardware);
@@ -283,6 +305,10 @@ public:
 
     if (result)
     {
+      if (async_component_threads_.find(hardware.get_name()) != async_component_threads_.end())
+      {
+        async_component_threads_.at(hardware.get_name()).activate();
+      }
       // TODO(destogl): make all command interfaces available (currently are all available)
     }
 
@@ -484,54 +510,126 @@ public:
   // TODO(destogl): Propagate "false" up, if happens in initialize_hardware
   void load_and_initialize_actuator(const HardwareInfo & hardware_info)
   {
-    check_for_duplicates(hardware_info);
-    load_hardware<Actuator, ActuatorInterface>(hardware_info, actuator_loader_, actuators_);
-    initialize_hardware(hardware_info, actuators_.back());
-    import_state_interfaces(actuators_.back());
-    import_command_interfaces(actuators_.back());
+    auto load_and_init_actuators = [&](auto & container)
+    {
+      check_for_duplicates(hardware_info);
+      load_hardware<Actuator, ActuatorInterface>(hardware_info, actuator_loader_, container);
+      initialize_hardware(hardware_info, container.back());
+      import_state_interfaces(container.back());
+      import_command_interfaces(container.back());
+    };
+
+    if (hardware_info.is_async)
+    {
+      load_and_init_actuators(async_actuators_);
+    }
+    else
+    {
+      load_and_init_actuators(actuators_);
+    }
   }
 
   void load_and_initialize_sensor(const HardwareInfo & hardware_info)
   {
-    check_for_duplicates(hardware_info);
-    load_hardware<Sensor, SensorInterface>(hardware_info, sensor_loader_, sensors_);
-    initialize_hardware(hardware_info, sensors_.back());
-    import_state_interfaces(sensors_.back());
+    auto load_and_init_sensors = [&](auto & container)
+    {
+      check_for_duplicates(hardware_info);
+      load_hardware<Sensor, SensorInterface>(hardware_info, sensor_loader_, container);
+      initialize_hardware(hardware_info, container.back());
+      import_state_interfaces(container.back());
+    };
+
+    if (hardware_info.is_async)
+    {
+      load_and_init_sensors(async_sensors_);
+    }
+    else
+    {
+      load_and_init_sensors(sensors_);
+    }
   }
 
   void load_and_initialize_system(const HardwareInfo & hardware_info)
   {
-    check_for_duplicates(hardware_info);
-    load_hardware<System, SystemInterface>(hardware_info, system_loader_, systems_);
-    initialize_hardware(hardware_info, systems_.back());
-    import_state_interfaces(systems_.back());
-    import_command_interfaces(systems_.back());
+    auto load_and_init_systems = [&](auto & container)
+    {
+      check_for_duplicates(hardware_info);
+      load_hardware<System, SystemInterface>(hardware_info, system_loader_, container);
+      initialize_hardware(hardware_info, container.back());
+      import_state_interfaces(container.back());
+      import_command_interfaces(container.back());
+    };
+
+    if (hardware_info.is_async)
+    {
+      load_and_init_systems(async_systems_);
+    }
+    else
+    {
+      load_and_init_systems(systems_);
+    }
   }
 
   void initialize_actuator(
     std::unique_ptr<ActuatorInterface> actuator, const HardwareInfo & hardware_info)
   {
-    this->actuators_.emplace_back(Actuator(std::move(actuator)));
-    initialize_hardware(hardware_info, actuators_.back());
-    import_state_interfaces(actuators_.back());
-    import_command_interfaces(actuators_.back());
+    auto init_actuators = [&](auto & container)
+    {
+      container.emplace_back(Actuator(std::move(actuator)));
+      initialize_hardware(hardware_info, container.back());
+      import_state_interfaces(container.back());
+      import_command_interfaces(container.back());
+    };
+
+    if (hardware_info.is_async)
+    {
+      init_actuators(async_actuators_);
+    }
+    else
+    {
+      init_actuators(actuators_);
+    }
   }
 
   void initialize_sensor(
     std::unique_ptr<SensorInterface> sensor, const HardwareInfo & hardware_info)
   {
-    this->sensors_.emplace_back(Sensor(std::move(sensor)));
-    initialize_hardware(hardware_info, sensors_.back());
-    import_state_interfaces(sensors_.back());
+    auto init_sensors = [&](auto & container)
+    {
+      container.emplace_back(Sensor(std::move(sensor)));
+      initialize_hardware(hardware_info, container.back());
+      import_state_interfaces(container.back());
+    };
+
+    if (hardware_info.is_async)
+    {
+      init_sensors(async_sensors_);
+    }
+    else
+    {
+      init_sensors(sensors_);
+    }
   }
 
   void initialize_system(
     std::unique_ptr<SystemInterface> system, const HardwareInfo & hardware_info)
   {
-    this->systems_.emplace_back(System(std::move(system)));
-    initialize_hardware(hardware_info, systems_.back());
-    import_state_interfaces(systems_.back());
-    import_command_interfaces(systems_.back());
+    auto init_systems = [&](auto & container)
+    {
+      container.emplace_back(System(std::move(system)));
+      initialize_hardware(hardware_info, container.back());
+      import_state_interfaces(container.back());
+      import_command_interfaces(container.back());
+    };
+
+    if (hardware_info.is_async)
+    {
+      init_systems(async_systems_);
+    }
+    else
+    {
+      init_systems(systems_);
+    }
   }
 
   // hardware plugins
@@ -543,8 +641,16 @@ public:
   std::vector<Sensor> sensors_;
   std::vector<System> systems_;
 
+  std::vector<Actuator> async_actuators_;
+  std::vector<Sensor> async_sensors_;
+  std::vector<System> async_systems_;
+
   std::unordered_map<std::string, HardwareComponentInfo> hardware_info_map_;
 
+  /// Mapping between hardware and controllers that are using it (accessing data from it)
+  std::unordered_map<std::string, std::vector<std::string>> hardware_used_by_controllers_;
+
+  /// Mapping between controllers and list of reference interfaces they are using
   std::unordered_map<std::string, std::vector<std::string>> controllers_reference_interfaces_map_;
 
   /// Storage of all available state interfaces
@@ -558,15 +664,28 @@ public:
 
   /// List of all claimed command interfaces
   std::unordered_map<std::string, bool> claimed_command_interface_map_;
+
+  /// List of async components by type
+  std::unordered_map<std::string, AsyncComponentThread> async_component_threads_;
+
+  // Update rate of the controller manager, and the clock interface of its node
+  // Used by async components.
+  unsigned int cm_update_rate_;
+  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface_;
 };
 
-ResourceManager::ResourceManager() : resource_storage_(std::make_unique<ResourceStorage>()) {}
+ResourceManager::ResourceManager(
+  unsigned int update_rate, rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+: resource_storage_(std::make_unique<ResourceStorage>(update_rate, clock_interface))
+{
+}
 
 ResourceManager::~ResourceManager() = default;
 
 ResourceManager::ResourceManager(
-  const std::string & urdf, bool validate_interfaces, bool activate_all)
-: resource_storage_(std::make_unique<ResourceStorage>())
+  const std::string & urdf, bool validate_interfaces, bool activate_all, unsigned int update_rate,
+  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+: resource_storage_(std::make_unique<ResourceStorage>(update_rate, clock_interface))
 {
   load_urdf(urdf, validate_interfaces);
 
@@ -581,8 +700,10 @@ ResourceManager::ResourceManager(
   }
 }
 
+// CM API: Called in "callback/slow"-thread
 void ResourceManager::load_urdf(const std::string & urdf, bool validate_interfaces)
 {
+  is_urdf_loaded__ = true;
   const std::string system_type = "system";
   const std::string sensor_type = "sensor";
   const std::string actuator_type = "actuator";
@@ -614,8 +735,16 @@ void ResourceManager::load_urdf(const std::string & urdf, bool validate_interfac
   {
     validate_storage(hardware_info);
   }
+
+  std::lock_guard<std::recursive_mutex> guard(resources_lock_);
+  read_write_status.failed_hardware_names.reserve(
+    resource_storage_->actuators_.size() + resource_storage_->sensors_.size() +
+    resource_storage_->systems_.size());
 }
 
+bool ResourceManager::is_urdf_already_loaded() const { return is_urdf_loaded__; }
+
+// CM API: Called in "update"-thread
 LoanedStateInterface ResourceManager::claim_state_interface(const std::string & key)
 {
   if (!state_interface_is_available(key))
@@ -627,6 +756,7 @@ LoanedStateInterface ResourceManager::claim_state_interface(const std::string & 
   return LoanedStateInterface(resource_storage_->state_interface_map_.at(key));
 }
 
+// CM API: Called in "callback/slow"-thread
 std::vector<std::string> ResourceManager::state_interface_keys() const
 {
   std::vector<std::string> keys;
@@ -638,19 +768,14 @@ std::vector<std::string> ResourceManager::state_interface_keys() const
   return keys;
 }
 
+// CM API: Called in "update"-thread
 std::vector<std::string> ResourceManager::available_state_interfaces() const
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   return resource_storage_->available_state_interfaces_;
 }
 
-bool ResourceManager::state_interface_exists(const std::string & key) const
-{
-  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  return resource_storage_->state_interface_map_.find(key) !=
-         resource_storage_->state_interface_map_.end();
-}
-
+// CM API: Called in "update"-thread (indirectly through `claim_state_interface`)
 bool ResourceManager::state_interface_is_available(const std::string & name) const
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
@@ -660,6 +785,7 @@ bool ResourceManager::state_interface_is_available(const std::string & name) con
            name) != resource_storage_->available_state_interfaces_.end();
 }
 
+// CM API: Called in "callback/slow"-thread
 void ResourceManager::import_controller_reference_interfaces(
   const std::string & controller_name, std::vector<CommandInterface> & interfaces)
 {
@@ -669,12 +795,14 @@ void ResourceManager::import_controller_reference_interfaces(
   resource_storage_->controllers_reference_interfaces_map_[controller_name] = interface_names;
 }
 
+// CM API: Called in "callback/slow"-thread
 std::vector<std::string> ResourceManager::get_controller_reference_interface_names(
   const std::string & controller_name)
 {
   return resource_storage_->controllers_reference_interfaces_map_.at(controller_name);
 }
 
+// CM API: Called in "update"-thread
 void ResourceManager::make_controller_reference_interfaces_available(
   const std::string & controller_name)
 {
@@ -686,6 +814,7 @@ void ResourceManager::make_controller_reference_interfaces_available(
     interface_names.end());
 }
 
+// CM API: Called in "update"-thread
 void ResourceManager::make_controller_reference_interfaces_unavailable(
   const std::string & controller_name)
 {
@@ -708,6 +837,7 @@ void ResourceManager::make_controller_reference_interfaces_unavailable(
   }
 }
 
+// CM API: Called in "callback/slow"-thread
 void ResourceManager::remove_controller_reference_interfaces(const std::string & controller_name)
 {
   auto interface_names =
@@ -717,6 +847,53 @@ void ResourceManager::remove_controller_reference_interfaces(const std::string &
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   std::lock_guard<std::recursive_mutex> guard_claimed(claimed_command_interfaces_lock_);
   resource_storage_->remove_command_interfaces(interface_names);
+}
+
+// CM API: Called in "callback/slow"-thread
+void ResourceManager::cache_controller_to_hardware(
+  const std::string & controller_name, const std::vector<std::string> & interfaces)
+{
+  for (const auto & interface : interfaces)
+  {
+    bool found = false;
+    for (const auto & [hw_name, hw_info] : resource_storage_->hardware_info_map_)
+    {
+      auto cmd_itf_it =
+        std::find(hw_info.command_interfaces.begin(), hw_info.command_interfaces.end(), interface);
+      if (cmd_itf_it != hw_info.command_interfaces.end())
+      {
+        found = true;
+      }
+      auto state_itf_it =
+        std::find(hw_info.state_interfaces.begin(), hw_info.state_interfaces.end(), interface);
+      if (state_itf_it != hw_info.state_interfaces.end())
+      {
+        found = true;
+      }
+
+      if (found)
+      {
+        // check if controller exist already in the list and if not add it
+        auto controllers = resource_storage_->hardware_used_by_controllers_[hw_name];
+        auto ctrl_it = std::find(controllers.begin(), controllers.end(), controller_name);
+        if (ctrl_it == controllers.end())
+        {
+          // add because it does not exist
+          controllers.reserve(controllers.size() + 1);
+          controllers.push_back(controller_name);
+        }
+        resource_storage_->hardware_used_by_controllers_[hw_name] = controllers;
+        break;
+      }
+    }
+  }
+}
+
+// CM API: Called in "update"-thread
+std::vector<std::string> ResourceManager::get_cached_controllers_to_hardware(
+  const std::string & hardware_name)
+{
+  return resource_storage_->hardware_used_by_controllers_[hardware_name];
 }
 
 // CM API: Called in "update"-thread
@@ -760,6 +937,7 @@ void ResourceManager::release_command_interface(const std::string & key)
   resource_storage_->claimed_command_interface_map_[key] = false;
 }
 
+// CM API: Called in "callback/slow"-thread
 std::vector<std::string> ResourceManager::command_interface_keys() const
 {
   std::vector<std::string> keys;
@@ -771,20 +949,14 @@ std::vector<std::string> ResourceManager::command_interface_keys() const
   return keys;
 }
 
+// CM API: Called in "update"-thread
 std::vector<std::string> ResourceManager::available_command_interfaces() const
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   return resource_storage_->available_command_interfaces_;
 }
 
-bool ResourceManager::command_interface_exists(const std::string & key) const
-{
-  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  return resource_storage_->command_interface_map_.find(key) !=
-         resource_storage_->command_interface_map_.end();
-}
-
-// CM API
+// CM API: Called in "callback/slow"-thread
 bool ResourceManager::command_interface_is_available(const std::string & name) const
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
@@ -794,58 +966,58 @@ bool ResourceManager::command_interface_is_available(const std::string & name) c
            name) != resource_storage_->available_command_interfaces_.end();
 }
 
-size_t ResourceManager::actuator_components_size() const
-{
-  return resource_storage_->actuators_.size();
-}
-
-size_t ResourceManager::sensor_components_size() const
-{
-  return resource_storage_->sensors_.size();
-}
-
 void ResourceManager::import_component(
   std::unique_ptr<ActuatorInterface> actuator, const HardwareInfo & hardware_info)
 {
+  std::lock_guard<std::recursive_mutex> guard(resources_lock_);
   resource_storage_->initialize_actuator(std::move(actuator), hardware_info);
+  read_write_status.failed_hardware_names.reserve(
+    resource_storage_->actuators_.size() + resource_storage_->sensors_.size() +
+    resource_storage_->systems_.size());
 }
 
 void ResourceManager::import_component(
   std::unique_ptr<SensorInterface> sensor, const HardwareInfo & hardware_info)
 {
+  std::lock_guard<std::recursive_mutex> guard(resources_lock_);
   resource_storage_->initialize_sensor(std::move(sensor), hardware_info);
+  read_write_status.failed_hardware_names.reserve(
+    resource_storage_->actuators_.size() + resource_storage_->sensors_.size() +
+    resource_storage_->systems_.size());
 }
 
 void ResourceManager::import_component(
   std::unique_ptr<SystemInterface> system, const HardwareInfo & hardware_info)
 {
+  std::lock_guard<std::recursive_mutex> guard(resources_lock_);
   resource_storage_->initialize_system(std::move(system), hardware_info);
+  read_write_status.failed_hardware_names.reserve(
+    resource_storage_->actuators_.size() + resource_storage_->sensors_.size() +
+    resource_storage_->systems_.size());
 }
 
-size_t ResourceManager::system_components_size() const
-{
-  return resource_storage_->systems_.size();
-}
-// End of "used only in tests"
-
+// CM API: Called in "callback/slow"-thread
 std::unordered_map<std::string, HardwareComponentInfo> ResourceManager::get_components_status()
 {
-  for (auto & component : resource_storage_->actuators_)
+  auto loop_and_get_state = [&](auto & container)
   {
-    resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
-  }
-  for (auto & component : resource_storage_->sensors_)
-  {
-    resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
-  }
-  for (auto & component : resource_storage_->systems_)
-  {
-    resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
-  }
+    for (auto & component : container)
+    {
+      resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
+    }
+  };
+
+  loop_and_get_state(resource_storage_->actuators_);
+  loop_and_get_state(resource_storage_->async_actuators_);
+  loop_and_get_state(resource_storage_->sensors_);
+  loop_and_get_state(resource_storage_->async_sensors_);
+  loop_and_get_state(resource_storage_->systems_);
+  loop_and_get_state(resource_storage_->async_systems_);
 
   return resource_storage_->hardware_info_map_;
 }
 
+// CM API: Called in "callback/slow"-thread
 bool ResourceManager::prepare_command_mode_switch(
   const std::vector<std::string> & start_interfaces,
   const std::vector<std::string> & stop_interfaces)
@@ -891,6 +1063,7 @@ bool ResourceManager::prepare_command_mode_switch(
   return true;
 }
 
+// CM API: Called in "update"-thread
 bool ResourceManager::perform_command_mode_switch(
   const std::vector<std::string> & start_interfaces,
   const std::vector<std::string> & stop_interfaces)
@@ -918,6 +1091,7 @@ bool ResourceManager::perform_command_mode_switch(
   return true;
 }
 
+// CM API: Called in "callback/slow"-thread
 return_type ResourceManager::set_component_state(
   const std::string & component_name, rclcpp_lifecycle::State & target_state)
 {
@@ -997,37 +1171,116 @@ return_type ResourceManager::set_component_state(
       std::bind(&ResourceStorage::set_component_state<System>, resource_storage_.get(), _1, _2),
       resource_storage_->systems_);
   }
+  if (!found)
+  {
+    found = find_set_component_state(
+      std::bind(&ResourceStorage::set_component_state<Actuator>, resource_storage_.get(), _1, _2),
+      resource_storage_->async_actuators_);
+  }
+  if (!found)
+  {
+    found = find_set_component_state(
+      std::bind(&ResourceStorage::set_component_state<System>, resource_storage_.get(), _1, _2),
+      resource_storage_->async_systems_);
+  }
+  if (!found)
+  {
+    found = find_set_component_state(
+      std::bind(&ResourceStorage::set_component_state<Sensor>, resource_storage_.get(), _1, _2),
+      resource_storage_->async_sensors_);
+  }
 
   return result;
 }
 
-void ResourceManager::read(const rclcpp::Time & time, const rclcpp::Duration & period)
+// CM API: Called in "update"-thread
+HardwareReadWriteStatus ResourceManager::read(
+  const rclcpp::Time & time, const rclcpp::Duration & period)
 {
-  for (auto & component : resource_storage_->actuators_)
+  std::lock_guard<std::recursive_mutex> guard(resources_lock_);
+  read_write_status.ok = true;
+  read_write_status.failed_hardware_names.clear();
+
+  auto read_components = [&](auto & components)
   {
-    component.read(time, period);
-  }
-  for (auto & component : resource_storage_->sensors_)
-  {
-    component.read(time, period);
-  }
-  for (auto & component : resource_storage_->systems_)
-  {
-    component.read(time, period);
-  }
+    for (auto & component : components)
+    {
+      if (component.read(time, period) != return_type::OK)
+      {
+        read_write_status.ok = false;
+        read_write_status.failed_hardware_names.push_back(component.get_name());
+        resource_storage_->remove_all_hardware_interfaces_from_available_list(component.get_name());
+      }
+    }
+  };
+
+  read_components(resource_storage_->actuators_);
+  read_components(resource_storage_->sensors_);
+  read_components(resource_storage_->systems_);
+
+  return read_write_status;
 }
 
-void ResourceManager::write(const rclcpp::Time & time, const rclcpp::Duration & period)
+// CM API: Called in "update"-thread
+HardwareReadWriteStatus ResourceManager::write(
+  const rclcpp::Time & time, const rclcpp::Duration & period)
 {
-  for (auto & component : resource_storage_->actuators_)
+  std::lock_guard<std::recursive_mutex> guard(resources_lock_);
+  read_write_status.ok = true;
+  read_write_status.failed_hardware_names.clear();
+
+  auto write_components = [&](auto & components)
   {
-    component.write(time, period);
-  }
-  for (auto & component : resource_storage_->systems_)
-  {
-    component.write(time, period);
-  }
+    for (auto & component : components)
+    {
+      if (component.write(time, period) != return_type::OK)
+      {
+        read_write_status.ok = false;
+        read_write_status.failed_hardware_names.push_back(component.get_name());
+        resource_storage_->remove_all_hardware_interfaces_from_available_list(component.get_name());
+      }
+    }
+  };
+
+  write_components(resource_storage_->actuators_);
+  write_components(resource_storage_->systems_);
+
+  return read_write_status;
 }
+
+// BEGIN: "used only in tests and locally"
+size_t ResourceManager::actuator_components_size() const
+{
+  return resource_storage_->actuators_.size();
+}
+
+size_t ResourceManager::sensor_components_size() const
+{
+  return resource_storage_->sensors_.size();
+}
+
+size_t ResourceManager::system_components_size() const
+{
+  return resource_storage_->systems_.size();
+}
+
+bool ResourceManager::command_interface_exists(const std::string & key) const
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->command_interface_map_.find(key) !=
+         resource_storage_->command_interface_map_.end();
+}
+
+bool ResourceManager::state_interface_exists(const std::string & key) const
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->state_interface_map_.find(key) !=
+         resource_storage_->state_interface_map_.end();
+}
+
+// END: "used only in tests and locally"
+
+// BEGIN: private methods
 
 void ResourceManager::validate_storage(
   const std::vector<hardware_interface::HardwareInfo> & hardware_info) const
@@ -1101,7 +1354,9 @@ void ResourceManager::validate_storage(
   }
 }
 
-// Temporary method to keep old interface and reduce framework changes in PRs
+// END: private methods
+
+// Temporary method to keep old interface and reduce framework changes in the PRs
 void ResourceManager::activate_all_components()
 {
   using lifecycle_msgs::msg::State;

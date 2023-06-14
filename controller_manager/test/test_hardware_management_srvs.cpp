@@ -36,19 +36,19 @@ using hardware_interface::lifecycle_state_names::FINALIZED;
 using hardware_interface::lifecycle_state_names::INACTIVE;
 using hardware_interface::lifecycle_state_names::UNCONFIGURED;
 
-using ros2_control_test_assets::TEST_ACTUATOR_HARDWARE_CLASS_TYPE;
 using ros2_control_test_assets::TEST_ACTUATOR_HARDWARE_COMMAND_INTERFACES;
 using ros2_control_test_assets::TEST_ACTUATOR_HARDWARE_NAME;
+using ros2_control_test_assets::TEST_ACTUATOR_HARDWARE_PLUGIN_NAME;
 using ros2_control_test_assets::TEST_ACTUATOR_HARDWARE_STATE_INTERFACES;
 using ros2_control_test_assets::TEST_ACTUATOR_HARDWARE_TYPE;
-using ros2_control_test_assets::TEST_SENSOR_HARDWARE_CLASS_TYPE;
 using ros2_control_test_assets::TEST_SENSOR_HARDWARE_COMMAND_INTERFACES;
 using ros2_control_test_assets::TEST_SENSOR_HARDWARE_NAME;
+using ros2_control_test_assets::TEST_SENSOR_HARDWARE_PLUGIN_NAME;
 using ros2_control_test_assets::TEST_SENSOR_HARDWARE_STATE_INTERFACES;
 using ros2_control_test_assets::TEST_SENSOR_HARDWARE_TYPE;
-using ros2_control_test_assets::TEST_SYSTEM_HARDWARE_CLASS_TYPE;
 using ros2_control_test_assets::TEST_SYSTEM_HARDWARE_COMMAND_INTERFACES;
 using ros2_control_test_assets::TEST_SYSTEM_HARDWARE_NAME;
+using ros2_control_test_assets::TEST_SYSTEM_HARDWARE_PLUGIN_NAME;
 using ros2_control_test_assets::TEST_SYSTEM_HARDWARE_STATE_INTERFACES;
 using ros2_control_test_assets::TEST_SYSTEM_HARDWARE_TYPE;
 
@@ -88,19 +88,19 @@ public:
 
   void check_component_fileds(
     const controller_manager_msgs::msg::HardwareComponentState & component,
-    const std::string & name, const std::string & type, const std::string & class_type,
+    const std::string & name, const std::string & type, const std::string & plugin_name,
     const uint8_t state_id, const std::string & state_label)
   {
     EXPECT_EQ(component.name, name) << "Component has unexpected name.";
     EXPECT_EQ(component.type, type)
-      << "Component " << name << " from plugin " << class_type << " has wrong type.";
-    EXPECT_EQ(component.class_type, class_type)
-      << "Component " << name << " (" << type << ") has unexpected class_type.";
+      << "Component " << name << " from plugin " << plugin_name << " has wrong type.";
+    EXPECT_EQ(component.plugin_name, plugin_name)
+      << "Component " << name << " (" << type << ") has unexpected plugin_name.";
     EXPECT_EQ(component.state.id, state_id)
-      << "Component " << name << " (" << type << ") from plugin " << class_type
+      << "Component " << name << " (" << type << ") from plugin " << plugin_name
       << " has wrong state_id.";
     EXPECT_EQ(component.state.label, state_label)
-      << "Component " << name << " (" << type << ") from plugin " << class_type
+      << "Component " << name << " (" << type << ") from plugin " << plugin_name
       << " has wrong state_label.";
   }
 
@@ -142,7 +142,7 @@ public:
       {
         check_component_fileds(
           component, TEST_ACTUATOR_HARDWARE_NAME, TEST_ACTUATOR_HARDWARE_TYPE,
-          TEST_ACTUATOR_HARDWARE_CLASS_TYPE, hw_state_ids[0], hw_state_labels[0]);
+          TEST_ACTUATOR_HARDWARE_PLUGIN_NAME, hw_state_ids[0], hw_state_labels[0]);
         check_interfaces(
           component.command_interfaces, TEST_ACTUATOR_HARDWARE_COMMAND_INTERFACES,
           hw_itfs_available_status[0][0], hw_itfs_claimed_status[0][0]);
@@ -154,7 +154,7 @@ public:
       {
         check_component_fileds(
           component, TEST_SENSOR_HARDWARE_NAME, TEST_SENSOR_HARDWARE_TYPE,
-          TEST_SENSOR_HARDWARE_CLASS_TYPE, hw_state_ids[1], hw_state_labels[1]);
+          TEST_SENSOR_HARDWARE_PLUGIN_NAME, hw_state_ids[1], hw_state_labels[1]);
         check_interfaces(
           component.command_interfaces, TEST_SENSOR_HARDWARE_COMMAND_INTERFACES,
           hw_itfs_available_status[1][0], hw_itfs_claimed_status[1][0]);
@@ -166,7 +166,7 @@ public:
       {
         check_component_fileds(
           component, TEST_SYSTEM_HARDWARE_NAME, TEST_SYSTEM_HARDWARE_TYPE,
-          TEST_SYSTEM_HARDWARE_CLASS_TYPE, hw_state_ids[2], hw_state_labels[2]);
+          TEST_SYSTEM_HARDWARE_PLUGIN_NAME, hw_state_ids[2], hw_state_labels[2]);
         check_interfaces(
           component.command_interfaces, TEST_SYSTEM_HARDWARE_COMMAND_INTERFACES,
           hw_itfs_available_status[2][0], hw_itfs_claimed_status[2][0]);

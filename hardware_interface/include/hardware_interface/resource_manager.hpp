@@ -16,31 +16,42 @@
 #define HARDWARE_INTERFACE__RESOURCE_MANAGER_HPP_
 
 #include <memory>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "hardware_interface/actuator.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
+#include "hardware_interface/sensor.hpp"
+#include "hardware_interface/system.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "hardware_interface/types/lifecycle_state_names.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/duration.hpp"
+#include "rclcpp/node.hpp"
 #include "rclcpp/time.hpp"
 
 namespace hardware_interface
 {
-class ActuatorInterface;
-class SensorInterface;
-class SystemInterface;
 class ResourceStorage;
+class ControllerManager;
+
+struct HardwareReadWriteStatus
+{
+  bool ok;
+  std::vector<std::string> failed_hardware_names;
+};
 
 class HARDWARE_INTERFACE_PUBLIC ResourceManager
 {
 public:
   /// Default constructor for the Resource Manager.
-  ResourceManager();
+  ResourceManager(
+    unsigned int update_rate = 100,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
 
   /// Constructor for the Resource Manager.
   /**
@@ -59,7 +70,9 @@ public:
    * "autostart_components" and "autoconfigure_components" instead.
    */
   explicit ResourceManager(
-    const std::string & urdf, bool validate_interfaces = true, bool activate_all = false);
+    const std::string & urdf, bool validate_interfaces = true, bool activate_all = false,
+    unsigned int update_rate = 100,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
 
   ResourceManager(const ResourceManager &) = delete;
 
@@ -76,6 +89,16 @@ public:
    * interfaces ought to be validated. Defaults to true.
    */
   void load_urdf(const std::string & urdf, bool validate_interfaces = true);
+
+  /**
+   * @brief if the resource manager load_urdf(...) function has been called this returns true.
+   * We want to permit to load the urdf later on but we currently don't want to permit multiple
+   * calls to load_urdf (reloading/loading different urdf).
+   *
+   * @return true if resource manager's load_urdf() has been already called.
+   * @return false if resource manager's load_urdf() has not been yet called.
+   */
+  bool is_urdf_already_loaded() const;
 
   /// Claim a state interface given its key.
   /**
@@ -101,12 +124,6 @@ public:
    * \return Vector of strings, containing all available state interface names.
    */
   std::vector<std::string> available_state_interfaces() const;
-
-  /// Checks whether a state interface is registered under the given key.
-  /**
-   * \return true if interface exist, false otherwise.
-   */
-  bool state_interface_exists(const std::string & key) const;
 
   /// Checks whether a state interface is available under the given key.
   /**
@@ -166,6 +183,27 @@ public:
    */
   void remove_controller_reference_interfaces(const std::string & controller_name);
 
+  /// Cache mapping between hardware and controllers using it
+  /**
+   * Find mapping between controller and hardware based on interfaces controller with
+   * \p controller_name is using and cache those for later usage.
+   *
+   * \param[in] controller_name name of the controller which interfaces are provided.
+   * \param[in] interfaces list of interfaces controller with \p controller_name is using.
+   */
+  void cache_controller_to_hardware(
+    const std::string & controller_name, const std::vector<std::string> & interfaces);
+
+  /// Return cached controllers for a specific hardware.
+  /**
+   * Return list of cached controller names that use the hardware with name \p hardware_name.
+   *
+   * \param[in] hardware_name the name of the hardware for which cached controllers should be
+   * returned. \returns list of cached controller names that depend on hardware with name \p
+   * hardware_name.
+   */
+  std::vector<std::string> get_cached_controllers_to_hardware(const std::string & hardware_name);
+
   /// Checks whether a command interface is already claimed.
   /**
    * Any command interface can only be claimed by a single instance.
@@ -201,13 +239,6 @@ public:
    * \return vector of strings, containing all available command interface names.
    */
   std::vector<std::string> available_command_interfaces() const;
-
-  /// Checks whether a command interface is registered under the given key.
-  /**
-   * \param[in] key string identifying the interface to check.
-   * \return true if interface exist, false otherwise.
-   */
-  bool command_interface_exists(const std::string & key) const;
 
   /// Checks whether a command interface is available under the given name.
   /**
@@ -345,7 +376,7 @@ public:
    * Part of the real-time critical update loop.
    * It is realtime-safe if used hadware interfaces are implemented adequately.
    */
-  void read(const rclcpp::Time & time, const rclcpp::Duration & period);
+  HardwareReadWriteStatus read(const rclcpp::Time & time, const rclcpp::Duration & period);
 
   /// Write all loaded hardware components.
   /**
@@ -354,7 +385,7 @@ public:
    * Part of the real-time critical update loop.
    * It is realtime-safe if used hadware interfaces are implemented adequately.
    */
-  void write(const rclcpp::Time & time, const rclcpp::Duration & period);
+  HardwareReadWriteStatus write(const rclcpp::Time & time, const rclcpp::Duration & period);
 
   /// Activates all available hardware components in the system.
   /**
@@ -363,6 +394,19 @@ public:
    * are activated per default.
    */
   void activate_all_components();
+
+  /// Checks whether a command interface is registered under the given key.
+  /**
+   * \param[in] key string identifying the interface to check.
+   * \return true if interface exist, false otherwise.
+   */
+  bool command_interface_exists(const std::string & key) const;
+
+  /// Checks whether a state interface is registered under the given key.
+  /**
+   * \return true if interface exist, false otherwise.
+   */
+  bool state_interface_exists(const std::string & key) const;
 
 private:
   void validate_storage(const std::vector<hardware_interface::HardwareInfo> & hardware_info) const;
@@ -373,7 +417,14 @@ private:
 
   mutable std::recursive_mutex resource_interfaces_lock_;
   mutable std::recursive_mutex claimed_command_interfaces_lock_;
+  mutable std::recursive_mutex resources_lock_;
+
   std::unique_ptr<ResourceStorage> resource_storage_;
+
+  // Structure to store read and write status so it is not initialized in the real-time loop
+  HardwareReadWriteStatus read_write_status;
+
+  bool is_urdf_loaded__ = false;
 };
 
 }  // namespace hardware_interface
