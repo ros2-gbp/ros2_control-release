@@ -2,99 +2,80 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.14.0 (2023-06-14)
+2.28.0 (2023-06-23)
 -------------------
-* Add -Wconversion flag to protect future developments (`#1053 <https://github.com/ros-controls/ros2_control/issues/1053>`_)
-* [CM] Use `robot_description` topic instead of parameter and don't crash on empty URDF 🦿 (`#940 <https://github.com/ros-controls/ros2_control/issues/940>`_)
-* [MockHardware] Enable disabling of command to simulate HW failures. (`#1027 <https://github.com/ros-controls/ros2_control/issues/1027>`_)
-* enable ReflowComments to also use ColumnLimit on comments (`#1037 <https://github.com/ros-controls/ros2_control/issues/1037>`_)
-* Docs: Use branch name substitution for all links (`#1031 <https://github.com/ros-controls/ros2_control/issues/1031>`_)
-* [URDF Parser] Allow empty urdf tag, e.g., parameter (`#1017 <https://github.com/ros-controls/ros2_control/issues/1017>`_)
-* Use consequently 'mock' instead of 'fake'. (`#1026 <https://github.com/ros-controls/ros2_control/issues/1026>`_)
-* Contributors: Christoph Fröhlich, Dr. Denis, Felix Exner (fexner), Manuel Muth, Sai Kishor Kothakota, gwalck
+* Ensure instantiation of hardware classes work for python bindings (`#1058 <https://github.com/ros-controls/ros2_control/issues/1058>`_) (`#1062 <https://github.com/ros-controls/ros2_control/issues/1062>`_)
+* Contributors: Olivier Stasse
 
-3.13.0 (2023-05-18)
+2.27.0 (2023-06-14)
 -------------------
-* Add class for thread management of async hw interfaces (`#981 <https://github.com/ros-controls/ros2_control/issues/981>`_)
-* Fix github links on control.ros.org (`#1019 <https://github.com/ros-controls/ros2_control/issues/1019>`_)
-* Update precommit libraries(`#1020 <https://github.com/ros-controls/ros2_control/issues/1020>`_)
-* Implement parse_bool and refactor a few (`#1014 <https://github.com/ros-controls/ros2_control/issues/1014>`_)
-* docs: Fix link to hardware_components (`#1009 <https://github.com/ros-controls/ros2_control/issues/1009>`_)
-* Contributors: Alejandro Bordallo, Christoph Fröhlich, Felix Exner (fexner), Márk Szitanics, mosfet80
+* [MockHardware] Enable disabling of command to simulate HW failures. (backport `#1027 <https://github.com/ros-controls/ros2_control/issues/1027>`_) (`#1050 <https://github.com/ros-controls/ros2_control/issues/1050>`_)
+* Empty urdf tag humble (backport of `#1017 <https://github.com/ros-controls/ros2_control/issues/1017>`_) (`#1036 <https://github.com/ros-controls/ros2_control/issues/1036>`_)
+* [Humble] enable ReflowComments to also use ColumnLimit on comments (`#1038 <https://github.com/ros-controls/ros2_control/issues/1038>`_)
+* Issue 339: Implement parse_bool and refactor a few (backport `#1014 <https://github.com/ros-controls/ros2_control/issues/1014>`_) (`#1018 <https://github.com/ros-controls/ros2_control/issues/1018>`_)
+* Contributors: Felix Exner (fexner), Sai Kishor Kothakota, Christoph Fröhlich, Bence Magyar, Alejandro Bordallo
 
-3.12.2 (2023-04-29)
+2.26.0 (2023-05-20)
+-------------------
+* docs: Fix link to hardware_components (`#1009 <https://github.com/ros-controls/ros2_control/issues/1009>`_) (`#1011 <https://github.com/ros-controls/ros2_control/issues/1011>`_)
+* Contributors: Christoph Fröhlich
+
+2.25.3 (2023-04-29)
 -------------------
 
-3.12.1 (2023-04-14)
+2.25.2 (2023-04-20)
+-------------------
+* Also initialize non-joint components (backport `#822 <https://github.com/ros-controls/ros2_control/issues/822>`_) (`#991 <https://github.com/ros-controls/ros2_control/issues/991>`_)
+* Contributors: Felix Exner, Denis Štogl
+
+2.25.1 (2023-04-14)
 -------------------
 
-3.12.0 (2023-04-02)
+2.25.0 (2023-04-02)
+-------------------
+* Check for missing hardware interfaces that use the gpio tag. (`#953 <https://github.com/ros-controls/ros2_control/issues/953>`_)
+* Split transmission interfaces (backport `#938 <https://github.com/ros-controls/ros2_control/issues/938>`_) (`#968 <https://github.com/ros-controls/ros2_control/issues/968>`_)
+* Contributors: Ryan Sandzimier, Noel Jiménez García, Bence Magyar
+
+2.24.1 (2023-03-09)
+-------------------
+* Revert "Make double parsing locale independent (`#921 <https://github.com/ros-controls/ros2_control/issues/921>`_)" (`#966 <https://github.com/ros-controls/ros2_control/issues/966>`_)
+* Contributors: Bence Magyar
+
+2.24.0 (2023-02-28)
 -------------------
 
-3.11.0 (2023-03-22)
+2.23.0 (2023-02-20)
 -------------------
-* Check for missing hardware interfaces that use the gpio tag. (`#975 <https://github.com/ros-controls/ros2_control/issues/975>`_)
-* Contributors: Ryan Sandzimier
 
-3.10.0 (2023-03-16)
+2.22.0 (2023-01-31)
 -------------------
-* Split transmission interfaces (`#938 <https://github.com/ros-controls/ros2_control/issues/938>`_)
-* Contributors: Noel Jiménez García
-
-3.9.1 (2023-03-09)
-------------------
-
-3.9.0 (2023-02-28)
-------------------
-
-3.8.0 (2023-02-10)
-------------------
-* Fix CMake install so overriding works (`#926 <https://github.com/ros-controls/ros2_control/issues/926>`_)
-* Async params (`#927 <https://github.com/ros-controls/ros2_control/issues/927>`_)
-* Contributors: Márk Szitanics, Tyler Weaver
-
-3.7.0 (2023-01-24)
-------------------
-* Make double parsing locale independent (`#921 <https://github.com/ros-controls/ros2_control/issues/921>`_)
+* Make double parsing locale independent (`#921 <https://github.com/ros-controls/ros2_control/issues/921>`_) (`#924 <https://github.com/ros-controls/ros2_control/issues/924>`_)
 * Contributors: Henning Kayser
 
-3.6.0 (2023-01-12)
-------------------
-* 🔧 Fixes and updated on pre-commit hooks and their action (`#890 <https://github.com/ros-controls/ros2_control/issues/890>`_)
+2.21.0 (2023-01-24)
+-------------------
+
+2.20.0 (2023-01-12)
+-------------------
+* 🔧 Fixes and updated on pre-commit hooks and their action (backport `#890 <https://github.com/ros-controls/ros2_control/issues/890>`_) (`#895 <https://github.com/ros-controls/ros2_control/issues/895>`_)
 * Contributors: Denis Štogl
 
-3.5.1 (2023-01-06)
-------------------
+2.19.0 (2023-01-06)
+-------------------
+* ResourceManager doesn't always log an error on shutdown anymore (`#867 <https://github.com/ros-controls/ros2_control/issues/867>`_) (`#871 <https://github.com/ros-controls/ros2_control/issues/871>`_)
+* Contributors: Christopher Wecht
 
-3.5.0 (2022-12-06)
-------------------
-* ResourceManager doesn't always log an error on shutdown anymore (`#867 <https://github.com/ros-controls/ros2_control/issues/867>`_)
-* Rename class type to plugin name #api-breaking #abi-breaking (`#780 <https://github.com/ros-controls/ros2_control/issues/780>`_)
-* Contributors: Bence Magyar, Christopher Wecht
+2.18.0 (2022-12-03)
+-------------------
 
-3.4.0 (2022-11-27)
-------------------
+2.17.0 (2022-11-27)
+-------------------
 
-3.3.0 (2022-11-15)
-------------------
-* [MockHardware] Enalbe initialization non-joint components(`#822 <https://github.com/ros-controls/ros2_control/issues/822>`_)
-* Contributors: Felix Exner
-
-3.2.0 (2022-10-15)
-------------------
-* [MockComponents] Rename 'fake_sensor_commands' to 'mock_sensor_commands' (`#782 <https://github.com/ros-controls/ros2_control/issues/782>`_)
-* fix broken links (issue `#831 <https://github.com/ros-controls/ros2_control/issues/831>`_) (`#833 <https://github.com/ros-controls/ros2_control/issues/833>`_)
-* Contributors: Kvk Praneeth, Manuel Muth, Bence Magyar, Denis Štogl
-
-3.1.0 (2022-10-05)
-------------------
-* Cleanup Resource Manager a bit to increase clarity. (`#816 <https://github.com/ros-controls/ros2_control/issues/816>`_)
-* Handle hardware errors in Resource Manager (`#805 <https://github.com/ros-controls/ros2_control/issues/805>`_)
-  * Add code for deactivating controller when hardware gets an error on read and write.
-* Contributors: Denis Štogl
-
-3.0.0 (2022-09-19)
-------------------
+2.16.0 (2022-10-17)
+-------------------
+* fix broken links (issue `#831 <https://github.com/ros-controls/ros2_control/issues/831>`_) (`#833 <https://github.com/ros-controls/ros2_control/issues/833>`_) (`#845 <https://github.com/ros-controls/ros2_control/issues/845>`_)
+* Contributors: Manuel Muth
 
 2.15.0 (2022-09-19)
 -------------------
