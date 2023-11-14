@@ -154,6 +154,9 @@ std::vector<std::string> get_following_controller_names(
 
     return following_controllers;
   }
+  // If the controller is not configured, return empty
+  if (!(is_controller_active(controller_it->c) || is_controller_inactive(controller_it->c)))
+    return following_controllers;
   const auto cmd_itfs = controller_it->c->command_interface_configuration().names;
   for (const auto & itf : cmd_itfs)
   {
@@ -212,6 +215,8 @@ std::vector<std::string> get_preceding_controller_names(
   }
   for (const auto & ctrl : controllers)
   {
+    // If the controller is not configured, then continue
+    if (!(is_controller_active(ctrl.c) || is_controller_inactive(ctrl.c))) continue;
     auto cmd_itfs = ctrl.c->command_interface_configuration().names;
     for (const auto & itf : cmd_itfs)
     {
@@ -270,10 +275,16 @@ ControllerManager::ControllerManager(
   get_parameter("robot_description", robot_description);
   if (robot_description.empty())
   {
-    throw std::runtime_error("Unable to initialize resource manager, no robot description found.");
+    subscribe_to_robot_description_topic();
   }
-
-  init_resource_manager(robot_description);
+  else
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "[Deprecated] Passing the robot description parameter directly to the control_manager node "
+      "is deprecated. Use '~/robot_description' topic from 'robot_state_publisher' instead.");
+    init_resource_manager(robot_description);
+  }
 
   init_services();
 }
@@ -295,7 +306,52 @@ ControllerManager::ControllerManager(
   {
     RCLCPP_WARN(get_logger(), "'update_rate' parameter not set, using default value.");
   }
+
+  if (!resource_manager_->is_urdf_already_loaded())
+  {
+    subscribe_to_robot_description_topic();
+  }
   init_services();
+}
+
+void ControllerManager::subscribe_to_robot_description_topic()
+{
+  // set QoS to transient local to get messages that have already been published
+  // (if robot state publisher starts before controller manager)
+  RCLCPP_INFO(
+    get_logger(), "Subscribing to '~/robot_description' topic for robot description file.");
+  robot_description_subscription_ = create_subscription<std_msgs::msg::String>(
+    "~/robot_description", rclcpp::QoS(1).transient_local(),
+    std::bind(&ControllerManager::robot_description_callback, this, std::placeholders::_1));
+}
+
+void ControllerManager::robot_description_callback(const std_msgs::msg::String & robot_description)
+{
+  RCLCPP_INFO(get_logger(), "Received robot description file.");
+  RCLCPP_DEBUG(
+    get_logger(), "'Content of robot description file: %s", robot_description.data.c_str());
+  // TODO(Manuel): errors should probably be caught since we don't want controller_manager node
+  // to die if a non valid urdf is passed. However, should maybe be fine tuned.
+  try
+  {
+    if (resource_manager_->is_urdf_already_loaded())
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "ResourceManager has already loaded an urdf file. Ignoring attempt to reload a robot "
+        "description file.");
+      return;
+    }
+    init_resource_manager(robot_description.data.c_str());
+  }
+  catch (std::runtime_error & e)
+  {
+    RCLCPP_ERROR_STREAM(
+      get_logger(),
+      "The published robot description file (urdf) seems not to be genuine. The following error "
+      "was caught:"
+        << e.what());
+  }
 }
 
 void ControllerManager::init_resource_manager(const std::string & robot_description)
@@ -2222,6 +2278,14 @@ bool ControllerManager::controller_sorting(
   const ControllerSpec & ctrl_a, const ControllerSpec & ctrl_b,
   const std::vector<controller_manager::ControllerSpec> & controllers)
 {
+  // If the neither of the controllers are configured, then return false
+  if (!((is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c)) &&
+        (is_controller_active(ctrl_b.c) || is_controller_inactive(ctrl_b.c))))
+  {
+    if (is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c)) return true;
+    return false;
+  }
+
   const std::vector<std::string> cmd_itfs = ctrl_a.c->command_interface_configuration().names;
   const std::vector<std::string> state_itfs = ctrl_a.c->state_interface_configuration().names;
   if (cmd_itfs.empty() || !ctrl_a.c->is_chainable())
