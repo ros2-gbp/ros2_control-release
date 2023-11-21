@@ -2,8 +2,10 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.21.1 (2023-11-14)
--------------------
+4.0.0 (2023-11-21)
+------------------
+* [MockHardware] Remove all deprecated options and deprecated plugins from the library. (`#1150 <https://github.com/ros-controls/ros2_control/issues/1150>`_)
+* Contributors: Dr. Denis
 
 3.21.0 (2023-11-06)
 -------------------
