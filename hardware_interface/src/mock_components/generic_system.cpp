@@ -17,7 +17,6 @@
 #include "mock_components/generic_system.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -31,18 +30,6 @@
 
 namespace mock_components
 {
-double parse_double(const std::string & text)
-{
-  double result_value;
-  const auto parse_result = std::from_chars(text.data(), text.data() + text.size(), result_value);
-  if (parse_result.ec == std::errc())
-  {
-    return result_value;
-  }
-
-  return 0.0;
-}
-
 CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & info)
 {
   if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS)
@@ -79,7 +66,20 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
   }
   else
   {
-    use_mock_sensor_command_interfaces_ = false;
+    // check if fake_sensor_commands was set instead and issue warning.
+    it = info_.hardware_parameters.find("fake_sensor_commands");
+    if (it != info_.hardware_parameters.end())
+    {
+      use_mock_sensor_command_interfaces_ = hardware_interface::parse_bool(it->second);
+      RCUTILS_LOG_WARN_NAMED(
+        "mock_generic_system",
+        "Parameter 'fake_sensor_commands' has been deprecated from usage. Use"
+        "'mock_sensor_commands' instead.");
+    }
+    else
+    {
+      use_mock_sensor_command_interfaces_ = false;
+    }
   }
 
   // check if to create mock command interface for gpio
@@ -90,7 +90,20 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
   }
   else
   {
-    use_mock_gpio_command_interfaces_ = false;
+    // check if fake_gpio_commands was set instead and issue warning
+    it = info_.hardware_parameters.find("fake_gpio_commands");
+    if (it != info_.hardware_parameters.end())
+    {
+      use_mock_gpio_command_interfaces_ = hardware_interface::parse_bool(it->second);
+      RCUTILS_LOG_WARN_NAMED(
+        "mock_generic_system",
+        "Parameter 'fake_gpio_commands' has been deprecated from usage. Use"
+        "'mock_gpio_commands' instead.");
+    }
+    else
+    {
+      use_mock_gpio_command_interfaces_ = false;
+    }
   }
 
   // check if there is parameter that disables commands
@@ -123,14 +136,14 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
   it = info_.hardware_parameters.find("position_state_following_offset");
   if (it != info_.hardware_parameters.end())
   {
-    position_state_following_offset_ = parse_double(it->second);
+    position_state_following_offset_ = std::stod(it->second);
     it = info_.hardware_parameters.find("custom_interface_with_following_offset");
     if (it != info_.hardware_parameters.end())
     {
       custom_interface_with_following_offset_ = it->second;
     }
   }
-  // it's extremely improbable that std::distance results int this value - therefore default
+  // its extremlly unprobably that std::distance results int this value - therefore default
   index_custom_interface_with_following_offset_ = std::numeric_limits<size_t>::max();
 
   // Initialize storage for standard interfaces
@@ -169,7 +182,7 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
       auto param_it = joint.parameters.find("multiplier");
       if (param_it != joint.parameters.end())
       {
-        mimic_joint.multiplier = parse_double(joint.parameters.at("multiplier"));
+        mimic_joint.multiplier = std::stod(joint.parameters.at("multiplier"));
       }
       mimic_joints_.push_back(mimic_joint);
     }
@@ -681,6 +694,7 @@ void GenericSystem::initialize_storage_vectors(
   }
 
   // Initialize with values from URDF
+  bool print_hint = false;
   for (auto i = 0u; i < component_infos.size(); i++)
   {
     const auto & component = component_infos[i];
@@ -696,10 +710,34 @@ void GenericSystem::initialize_storage_vectors(
         // Check the initial_value param is used
         if (!interface.initial_value.empty())
         {
-          states[index][i] = parse_double(interface.initial_value);
+          states[index][i] = std::stod(interface.initial_value);
+        }
+        else
+        {
+          // Initialize the value in old way with warning message
+          auto it2 = component.parameters.find("initial_" + interface.name);
+          if (it2 != component.parameters.end())
+          {
+            states[index][i] = std::stod(it2->second);
+            print_hint = true;
+          }
+          else
+          {
+            print_hint = true;
+          }
         }
       }
     }
+  }
+  if (print_hint)
+  {
+    RCUTILS_LOG_WARN_ONCE_NAMED(
+      "mock_generic_system",
+      "Parsing of optional initial interface values failed or uses a deprecated format. Add "
+      "initial values for every state interface in the ros2_control.xacro. For example: \n"
+      "<state_interface name=\"velocity\"> \n"
+      "  <param name=\"initial_value\">0.0</param> \n"
+      "</state_interface>");
   }
 }
 
