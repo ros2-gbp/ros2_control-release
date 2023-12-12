@@ -114,11 +114,9 @@ public:
 
   CONTROLLER_INTERFACE_PUBLIC
   virtual return_type init(
-    const std::string & controller_name, const std::string & namespace_ = "",
-    const rclcpp::NodeOptions & node_options =
-      rclcpp::NodeOptions()
-        .allow_undeclared_parameters(true)
-        .automatically_declare_parameters_from_overrides(true));
+    const std::string & controller_name, const std::string & urdf, unsigned int cm_update_rate,
+    const std::string & namespace_ = "",
+    const rclcpp::NodeOptions & node_options = rclcpp::NodeOptions().enable_logger_service(true));
 
   /// Custom configure method to read additional parameters for controller-nodes
   /*
@@ -154,6 +152,12 @@ public:
 
   CONTROLLER_INTERFACE_PUBLIC
   unsigned int get_update_rate() const;
+
+  CONTROLLER_INTERFACE_PUBLIC
+  bool is_async() const;
+
+  CONTROLLER_INTERFACE_PUBLIC
+  const std::string & get_robot_description() const;
 
   /// Declare and initialize a parameter with a type.
   /**
@@ -222,6 +226,8 @@ protected:
   std::vector<hardware_interface::LoanedCommandInterface> command_interfaces_;
   std::vector<hardware_interface::LoanedStateInterface> state_interfaces_;
   unsigned int update_rate_ = 0;
+  bool is_async_ = false;
+  std::string urdf_ = "";
 
 private:
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
