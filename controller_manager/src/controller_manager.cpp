@@ -150,7 +150,9 @@ std::vector<std::string> get_following_controller_names(
   }
   // If the controller is not configured, return empty
   if (!(is_controller_active(controller_it->c) || is_controller_inactive(controller_it->c)))
+  {
     return following_controllers;
+  }
   const auto cmd_itfs = controller_it->c->command_interface_configuration().names;
   for (const auto & itf : cmd_itfs)
   {
@@ -210,7 +212,10 @@ std::vector<std::string> get_preceding_controller_names(
   for (const auto & ctrl : controllers)
   {
     // If the controller is not configured, then continue
-    if (!(is_controller_active(ctrl.c) || is_controller_inactive(ctrl.c))) continue;
+    if (!(is_controller_active(ctrl.c) || is_controller_inactive(ctrl.c)))
+    {
+      continue;
+    }
     auto cmd_itfs = ctrl.c->command_interface_configuration().names;
     for (const auto & itf : cmd_itfs)
     {
@@ -777,7 +782,7 @@ controller_interface::return_type ControllerManager::configure_controller(
   to = from;
 
   // Reordering the controllers
-  std::sort(
+  std::stable_sort(
     to.begin(), to.end(),
     std::bind(
       &ControllerManager::controller_sorting, this, std::placeholders::_1, std::placeholders::_2,
@@ -2443,7 +2448,10 @@ bool ControllerManager::controller_sorting(
   if (!((is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c)) &&
         (is_controller_active(ctrl_b.c) || is_controller_inactive(ctrl_b.c))))
   {
-    if (is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c)) return true;
+    if (is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c))
+    {
+      return true;
+    }
     return false;
   }
 
@@ -2453,17 +2461,30 @@ bool ControllerManager::controller_sorting(
   {
     // The case of the controllers that don't have any command interfaces. For instance,
     // joint_state_broadcaster
-    return true;
+    // If the controller b is also under the same condition, then maintain their initial order
+    const auto command_interfaces_exist =
+      !ctrl_b.c->command_interface_configuration().names.empty();
+    return ctrl_b.c->is_chainable() && command_interfaces_exist;
+  }
+  else if (ctrl_b.c->command_interface_configuration().names.empty() || !ctrl_b.c->is_chainable())
+  {
+    // If only the controller b is a broadcaster or non chainable type , then swap the controllers
+    return false;
   }
   else
   {
     auto following_ctrls = get_following_controller_names(ctrl_a.info.name, controllers);
-    if (following_ctrls.empty()) return false;
+    if (following_ctrls.empty())
+    {
+      return false;
+    }
     // If the ctrl_b is any of the following controllers of ctrl_a, then place ctrl_a before ctrl_b
     if (
       std::find(following_ctrls.begin(), following_ctrls.end(), ctrl_b.info.name) !=
       following_ctrls.end())
+    {
       return true;
+    }
     else
     {
       auto ctrl_a_preceding_ctrls = get_preceding_controller_names(ctrl_a.info.name, controllers);
@@ -2496,7 +2517,10 @@ bool ControllerManager::controller_sorting(
 
       // If there is no common parent, then they belong to 2 different sets
       auto following_ctrls_b = get_following_controller_names(ctrl_b.info.name, controllers);
-      if (following_ctrls_b.empty()) return true;
+      if (following_ctrls_b.empty())
+      {
+        return true;
+      }
       auto find_first_element = [&](const auto & controllers_list) -> size_t
       {
         auto it = std::find_if(
@@ -2558,7 +2582,7 @@ void ControllerManager::controller_activity_diagnostic_callback(
   }
   else
   {
-    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "Not all controllers are active");
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "Not all controllers are active");
   }
 }
 
