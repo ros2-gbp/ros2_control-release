@@ -39,9 +39,9 @@ class TestLoadController : public ControllerManagerFixture<controller_manager::C
       std::chrono::milliseconds(10),
       [&]()
       {
-        cm_->read(time_, PERIOD);
-        cm_->update(time_, PERIOD);
-        cm_->write(time_, PERIOD);
+        cm_->read(TIME, PERIOD);
+        cm_->update(TIME, PERIOD);
+        cm_->write(TIME, PERIOD);
       });
 
     update_executor_ =
@@ -100,60 +100,29 @@ TEST_F(TestLoadController, spawner_test_type_in_param)
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
 
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
-  {
-    auto ctrl_1 = cm_->get_loaded_controllers()[0];
-    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
-    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
-  }
+  auto ctrl_1 = cm_->get_loaded_controllers()[0];
+  ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
+  ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+  ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
 
   // Try to spawn again, it should fail because already active
   EXPECT_NE(call_spawner("ctrl_1 -c test_controller_manager"), 0) << "Cannot configure from active";
-
-  std::vector<std::string> start_controllers = {};
-  std::vector<std::string> stop_controllers = {"ctrl_1"};
-  cm_->switch_controller(
-    start_controllers, stop_controllers,
-    controller_manager_msgs::srv::SwitchController::Request::STRICT, true, rclcpp::Duration(0, 0));
-
+  ctrl_1.c->get_node()->deactivate();
   // We should be able to reconfigure and activate a configured controller
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
-
-  ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
-  {
-    auto ctrl_1 = cm_->get_loaded_controllers()[0];
-    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
-    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
-  }
-
-  cm_->switch_controller(
-    start_controllers, stop_controllers,
-    controller_manager_msgs::srv::SwitchController::Request::STRICT, true, rclcpp::Duration(0, 0));
-  cm_->unload_controller("ctrl_1");
-  cm_->load_controller("ctrl_1");
-
+  ctrl_1.c->get_node()->deactivate();
+  ctrl_1.c->get_node()->cleanup();
   // We should be able to reconfigure and activate am unconfigured loaded controller
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
-  ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
-  {
-    auto ctrl_1 = cm_->get_loaded_controllers()[0];
-    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
-    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
-  }
+  ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
 
   // Unload and reload
   EXPECT_EQ(call_unspawner("ctrl_1 -c test_controller_manager"), 0);
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 0ul) << "Controller should have been unloaded";
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul) << "Controller should have been loaded";
-  {
-    auto ctrl_1 = cm_->get_loaded_controllers()[0];
-    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
-    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
-  }
+  ctrl_1 = cm_->get_loaded_controllers()[0];
+  ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
 }
 
 TEST_F(TestLoadController, multi_ctrls_test_type_in_param)

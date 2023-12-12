@@ -40,9 +40,9 @@ const auto COMPARE_DELTA = 0.0001;
 class TestGenericSystem : public ::testing::Test
 {
 public:
-  void test_generic_system_with_mimic_joint(std::string & urdf);
-  void test_generic_system_with_mock_sensor_commands(std::string & urdf);
-  void test_generic_system_with_mock_gpio_commands(std::string & urdf);
+  void test_generic_system_with_mimic_joint(const std::string & urdf);
+  void test_generic_system_with_mock_sensor_commands(const std::string & urdf);
+  void test_generic_system_with_mock_gpio_commands(const std::string & urdf);
 
 protected:
   void SetUp() override
@@ -611,7 +611,6 @@ class TestableResourceManager : public hardware_interface::ResourceManager
 public:
   friend TestGenericSystem;
 
-  FRIEND_TEST(TestGenericSystem, generic_fake_system_2dof_symetric_interfaces);
   FRIEND_TEST(TestGenericSystem, generic_system_2dof_symetric_interfaces);
   FRIEND_TEST(TestGenericSystem, generic_system_2dof_asymetric_interfaces);
   FRIEND_TEST(TestGenericSystem, generic_system_2dof_other_interfaces);
@@ -1079,7 +1078,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_sensor)
   ASSERT_EQ(0.33, j2p_c.get_value());
 }
 
-void TestGenericSystem::test_generic_system_with_mock_sensor_commands(std::string & urdf)
+void TestGenericSystem::test_generic_system_with_mock_sensor_commands(const std::string & urdf)
 {
   TestableResourceManager rm(urdf);
   // Activate components to get all interfaces available
@@ -1218,7 +1217,7 @@ TEST_F(TestGenericSystem, generic_system_2dof_sensor_mock_command_True)
   test_generic_system_with_mock_sensor_commands(urdf);
 }
 
-void TestGenericSystem::test_generic_system_with_mimic_joint(std::string & urdf)
+void TestGenericSystem::test_generic_system_with_mimic_joint(const std::string & urdf)
 {
   TestableResourceManager rm(urdf);
   // Activate components to get all interfaces available
@@ -1527,7 +1526,7 @@ TEST_F(TestGenericSystem, valid_urdf_ros2_control_system_robot_with_gpio)
   generic_system_functional_test(urdf);
 }
 
-void TestGenericSystem::test_generic_system_with_mock_gpio_commands(std::string & urdf)
+void TestGenericSystem::test_generic_system_with_mock_gpio_commands(const std::string & urdf)
 {
   TestableResourceManager rm(urdf);
 
