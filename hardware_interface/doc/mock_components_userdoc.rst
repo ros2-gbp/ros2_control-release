@@ -14,7 +14,7 @@ The main intention is to reduce debugging time on the physical hardware and boos
 
 Generic System
 ^^^^^^^^^^^^^^
-The component implements ``hardware_interface::SystemInterface>`` supporting command and state interfaces.
+The component implements ``hardware_interface::SystemInterface`` supporting command and state interfaces.
 For more information about hardware components check :ref:`detailed documentation <overview_hardware_components>`.
 
 Features:
@@ -35,6 +35,11 @@ disable_commands (optional; boolean; default: false)
 mock_sensor_commands (optional; boolean; default: false)
   Creates fake command interfaces for faking sensor measurements with an external command.
   Those interfaces are usually used by a :ref:`forward controller <forward_command_controller_userdoc>` to provide access from ROS-world.
+
+disable_commands (optional; boolean; default: false)
+  Disables mirroring commands to states.
+  This option is helpful to simulate an erroneous connection to the hardware when nothing breaks, but suddenly there is no feedback from a hardware interface.
+  Or it can help you to test your setup when the hardware is running without feedback, i.e., in open loop configuration.
 
 position_state_following_offset (optional; double; default: 0.0)
   Following offset added to the commanded values when mirrored to states.

@@ -54,7 +54,6 @@ struct ComponentInfo
   std::string name;
   /// Type of the component: sensor, joint, or GPIO.
   std::string type;
-
   /**
    * Name of the command interfaces that can be set, e.g. "position", "velocity", etc.
    * Used by joints and GPIOs.
@@ -109,10 +108,8 @@ struct HardwareInfo
   std::string name;
   /// Type of the hardware: actuator, sensor or system.
   std::string type;
-  /// Component is async
-  bool is_async;
-  /// Name of the pluginlib plugin of the hardware that will be loaded.
-  std::string hardware_plugin_name;
+  /// Class of the hardware that will be dynamically loaded.
+  std::string hardware_class_type;
   /// (Optional) Key-value pairs for hardware parameters.
   std::unordered_map<std::string, std::string> hardware_parameters;
   /**

@@ -176,6 +176,55 @@ const auto hardware_resources =
   </ros2_control>
 )";
 
+const auto unitilizable_hardware_resources =
+  R"(
+  <ros2_control name="TestUnitilizableActuatorHardware" type="actuator">
+    <hardware>
+      <plugin>test_unitilizable_actuator</plugin>
+    </hardware>
+    <joint name="joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <command_interface name="max_velocity" />
+    </joint>
+  </ros2_control>
+  <ros2_control name="TestUnitilizableSensorHardware" type="sensor">
+    <hardware>
+      <plugin>test_unitilizable_sensor</plugin>
+      <param name="example_param_write_for_sec">2</param>
+      <param name="example_param_read_for_sec">2</param>
+    </hardware>
+    <sensor name="sensor1">
+      <state_interface name="velocity"/>
+    </sensor>
+  </ros2_control>
+  <ros2_control name="TestUnitilizableSystemHardware" type="system">
+    <hardware>
+      <plugin>test_unitilizable_system</plugin>
+      <param name="example_param_write_for_sec">2</param>
+      <param name="example_param_read_for_sec">2</param>
+    </hardware>
+    <joint name="joint2">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="acceleration"/>
+      <command_interface name="max_acceleration" />
+    </joint>
+    <joint name="joint3">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="acceleration"/>
+    </joint>
+    <joint name="configuration">
+      <command_interface name="max_tcp_jerk"/>
+      <state_interface name="max_tcp_jerk"/>
+    </joint>
+  </ros2_control>
+)";
+
 const auto hardware_resources_missing_state_keys =
   R"(
   <ros2_control name="TestActuatorHardware" type="actuator">
@@ -406,6 +455,8 @@ const auto diffbot_urdf =
 
 const auto minimal_robot_urdf =
   std::string(urdf_head) + std::string(hardware_resources) + std::string(urdf_tail);
+const auto minimal_unitilizable_robot_urdf =
+  std::string(urdf_head) + std::string(unitilizable_hardware_resources) + std::string(urdf_tail);
 
 const auto minimal_robot_missing_state_keys_urdf =
   std::string(urdf_head) + std::string(hardware_resources_missing_state_keys) +
@@ -417,7 +468,7 @@ const auto minimal_robot_missing_command_keys_urdf =
 
 [[maybe_unused]] const std::string TEST_ACTUATOR_HARDWARE_NAME = "TestActuatorHardware";
 [[maybe_unused]] const std::string TEST_ACTUATOR_HARDWARE_TYPE = "actuator";
-[[maybe_unused]] const std::string TEST_ACTUATOR_HARDWARE_PLUGIN_NAME = "test_actuator";
+[[maybe_unused]] const std::string TEST_ACTUATOR_HARDWARE_CLASS_TYPE = "test_actuator";
 [[maybe_unused]] const std::vector<std::string> TEST_ACTUATOR_HARDWARE_COMMAND_INTERFACES = {
   "joint1/position", "joint1/max_velocity"};
 [[maybe_unused]] const std::vector<std::string> TEST_ACTUATOR_HARDWARE_STATE_INTERFACES = {
@@ -425,14 +476,14 @@ const auto minimal_robot_missing_command_keys_urdf =
 
 [[maybe_unused]] const std::string TEST_SENSOR_HARDWARE_NAME = "TestSensorHardware";
 [[maybe_unused]] const std::string TEST_SENSOR_HARDWARE_TYPE = "sensor";
-[[maybe_unused]] const std::string TEST_SENSOR_HARDWARE_PLUGIN_NAME = "test_sensor";
+[[maybe_unused]] const std::string TEST_SENSOR_HARDWARE_CLASS_TYPE = "test_sensor";
 [[maybe_unused]] const std::vector<std::string> TEST_SENSOR_HARDWARE_COMMAND_INTERFACES = {""};
 [[maybe_unused]] const std::vector<std::string> TEST_SENSOR_HARDWARE_STATE_INTERFACES = {
   "sensor1/velocity"};
 
 [[maybe_unused]] const std::string TEST_SYSTEM_HARDWARE_NAME = "TestSystemHardware";
 [[maybe_unused]] const std::string TEST_SYSTEM_HARDWARE_TYPE = "system";
-[[maybe_unused]] const std::string TEST_SYSTEM_HARDWARE_PLUGIN_NAME = "test_system";
+[[maybe_unused]] const std::string TEST_SYSTEM_HARDWARE_CLASS_TYPE = "test_system";
 [[maybe_unused]] const std::vector<std::string> TEST_SYSTEM_HARDWARE_COMMAND_INTERFACES = {
   "joint2/velocity", "joint2/max_acceleration", "joint3/velocity", "configuration/max_tcp_jerk"};
 [[maybe_unused]] const std::vector<std::string> TEST_SYSTEM_HARDWARE_STATE_INTERFACES = {
