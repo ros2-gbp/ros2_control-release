@@ -16,25 +16,28 @@
 #define HARDWARE_INTERFACE__RESOURCE_MANAGER_HPP_
 
 #include <memory>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "hardware_interface/actuator.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
+#include "hardware_interface/sensor.hpp"
+#include "hardware_interface/system.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "hardware_interface/types/lifecycle_state_names.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/duration.hpp"
+#include "rclcpp/node.hpp"
 #include "rclcpp/time.hpp"
 
 namespace hardware_interface
 {
-class ActuatorInterface;
-class SensorInterface;
-class SystemInterface;
 class ResourceStorage;
+class ControllerManager;
 
 struct HardwareReadWriteStatus
 {
@@ -46,7 +49,9 @@ class HARDWARE_INTERFACE_PUBLIC ResourceManager
 {
 public:
   /// Default constructor for the Resource Manager.
-  ResourceManager();
+  ResourceManager(
+    unsigned int update_rate = 100,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
 
   /// Constructor for the Resource Manager.
   /**
@@ -61,11 +66,12 @@ public:
    * \param[in] validate_interfaces boolean argument indicating whether the exported
    * interfaces ought to be validated. Defaults to true.
    * \param[in] activate_all boolean argument indicating if all resources should be immediately
-   * activated. Currently used only in tests. In typical applications use parameters
-   * "autostart_components" and "autoconfigure_components" instead.
+   * activated. Currently used only in tests.
    */
   explicit ResourceManager(
-    const std::string & urdf, bool validate_interfaces = true, bool activate_all = false);
+    const std::string & urdf, bool validate_interfaces = true, bool activate_all = false,
+    unsigned int update_rate = 100,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
 
   ResourceManager(const ResourceManager &) = delete;
 
@@ -80,8 +86,12 @@ public:
    * \param[in] urdf string containing the URDF.
    * \param[in] validate_interfaces boolean argument indicating whether the exported
    * interfaces ought to be validated. Defaults to true.
+   * \param[in] load_and_initialize_components boolean argument indicating whether to load and
+   * initialize the components present in the parsed URDF. Defaults to true.
    */
-  void load_urdf(const std::string & urdf, bool validate_interfaces = true);
+  void load_urdf(
+    const std::string & urdf, bool validate_interfaces = true,
+    bool load_and_initialize_components = true);
 
   /**
    * @brief if the resource manager load_urdf(...) function has been called this returns true.
@@ -325,7 +335,9 @@ public:
    * by default
    * \param[in] start_interfaces vector of string identifiers for the command interfaces starting.
    * \param[in] stop_interfaces vector of string identifiers for the command interfaces stopping.
-   * \return true if switch can be prepared, false if a component rejects switch request.
+   * \return true if switch can be prepared; false if a component rejects switch request, and if
+   * at least one of the input interfaces are not existing or not available (i.e., component is not
+   * in ACTIVE or INACTIVE state).
    */
   bool prepare_command_mode_switch(
     const std::vector<std::string> & start_interfaces,
@@ -338,6 +350,8 @@ public:
    * \note this is intended for mode-switching when a hardware interface needs to change
    * control mode depending on which command interface is claimed.
    * \note this is for realtime switching of the command interface.
+   * \note it is assumed that `prepare_command_mode_switch` is called just before this method
+   * with the same input arguments.
    * \param[in] start_interfaces vector of string identifiers for the command interfaces starting.
    * \param[in] stop_interfaces vector of string identifiers for the command interfacs stopping.
    * \return true if switch is performed, false if a component rejects switching.
@@ -367,7 +381,7 @@ public:
    * Reads from all active hardware components.
    *
    * Part of the real-time critical update loop.
-   * It is realtime-safe if used hadware interfaces are implemented adequately.
+   * It is realtime-safe if used hardware interfaces are implemented adequately.
    */
   HardwareReadWriteStatus read(const rclcpp::Time & time, const rclcpp::Duration & period);
 
@@ -376,17 +390,9 @@ public:
    * Writes to all active hardware components.
    *
    * Part of the real-time critical update loop.
-   * It is realtime-safe if used hadware interfaces are implemented adequately.
+   * It is realtime-safe if used hardware interfaces are implemented adequately.
    */
   HardwareReadWriteStatus write(const rclcpp::Time & time, const rclcpp::Duration & period);
-
-  /// Activates all available hardware components in the system.
-  /**
-   * All available hardware components int the ros2_control framework are activated.
-   * This is used to preserve default behavior from previous versions where all hardware components
-   * are activated per default.
-   */
-  void activate_all_components();
 
   /// Checks whether a command interface is registered under the given key.
   /**

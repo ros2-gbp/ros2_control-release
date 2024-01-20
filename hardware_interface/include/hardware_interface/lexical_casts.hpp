@@ -16,6 +16,7 @@
 #define HARDWARE_INTERFACE__LEXICAL_CASTS_HPP_
 
 #include <locale>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -28,24 +29,9 @@ namespace hardware_interface
  * from
  https://github.com/ros-planning/srdfdom/blob/ad17b8d25812f752c397a6011cec64aeff090c46/src/model.cpp#L53
 */
-double stod(const std::string & s)
-{
-  // convert from string using no locale
-  std::istringstream stream(s);
-  stream.imbue(std::locale::classic());
-  double result;
-  stream >> result;
-  if (stream.fail() || !stream.eof())
-  {
-    throw std::invalid_argument("Failed converting string to real number");
-  }
-  return result;
-}
+double stod(const std::string & s);
 
-bool parse_bool(const std::string & bool_string)
-{
-  return bool_string == "true" || bool_string == "True";
-}
+bool parse_bool(const std::string & bool_string);
 
 }  // namespace hardware_interface
 

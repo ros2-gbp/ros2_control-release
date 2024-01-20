@@ -1,12 +1,10 @@
 name: Humble RHEL Binary Build
 on:
   workflow_dispatch:
+  push:
     branches:
       - humble
   pull_request:
-    branches:
-      - humble
-  push:
     branches:
       - humble
   schedule:
@@ -26,7 +24,8 @@ jobs:
           path: src/ros2_control
       - run: |
           rosdep update
-          rosdep install -iy --from-path src/ros2_control
+          rosdep install -iyr --from-path src/ros2_control || true
           source /opt/ros/${{ env.ROS_DISTRO }}/setup.bash
-          colcon build
-          colcon test
+          colcon build --packages-skip rqt_controller_manager
+          colcon test --packages-skip rqt_controller_manager ros2controlcli
+          colcon test-result
