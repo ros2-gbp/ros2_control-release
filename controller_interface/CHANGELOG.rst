@@ -2,25 +2,14 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.3.0 (2024-01-20)
-------------------
-* Issue 695: Changing 'namespace\_' variables to 'node_namespace' to make it more explicit (`#1239 <https://github.com/ros-controls/ros2_control/issues/1239>`_)
-* Contributors: bailaC
+3.22.0 (2024-01-20)
+-------------------
 
-4.2.0 (2023-12-12)
-------------------
+3.21.2 (2023-12-05)
+-------------------
 
-4.1.0 (2023-11-30)
-------------------
-* Add few warning compiler options to error (`#1181 <https://github.com/ros-controls/ros2_control/issues/1181>`_)
-* [ControllerInterface] Avoid warning about conversion from `int64_t` to `unsigned int` (`#1173 <https://github.com/ros-controls/ros2_control/issues/1173>`_)
-* Contributors: Dr. Denis, Sai Kishor Kothakota
-
-4.0.0 (2023-11-21)
-------------------
-* Pass controller manager update rate on the init of the controller interface  (`#1141 <https://github.com/ros-controls/ros2_control/issues/1141>`_)
-* Pass URDF to controllers on init (`#1088 <https://github.com/ros-controls/ros2_control/issues/1088>`_)
-* Contributors: Bence Magyar, Sai Kishor Kothakota
+3.21.1 (2023-11-14)
+-------------------
 
 3.21.0 (2023-11-06)
 -------------------
