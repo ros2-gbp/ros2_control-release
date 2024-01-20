@@ -150,7 +150,9 @@ std::vector<std::string> get_following_controller_names(
   }
   // If the controller is not configured, return empty
   if (!(is_controller_active(controller_it->c) || is_controller_inactive(controller_it->c)))
+  {
     return following_controllers;
+  }
   const auto cmd_itfs = controller_it->c->command_interface_configuration().names;
   for (const auto & itf : cmd_itfs)
   {
@@ -210,7 +212,10 @@ std::vector<std::string> get_preceding_controller_names(
   for (const auto & ctrl : controllers)
   {
     // If the controller is not configured, then continue
-    if (!(is_controller_active(ctrl.c) || is_controller_inactive(ctrl.c))) continue;
+    if (!(is_controller_active(ctrl.c) || is_controller_inactive(ctrl.c)))
+    {
+      continue;
+    }
     auto cmd_itfs = ctrl.c->command_interface_configuration().names;
     for (const auto & itf : cmd_itfs)
     {
@@ -281,12 +286,12 @@ ControllerManager::ControllerManager(
       "[Deprecated] Passing the robot description parameter directly to the control_manager node "
       "is deprecated. Use '~/robot_description' topic from 'robot_state_publisher' instead.");
     init_resource_manager(robot_description);
+    init_services();
   }
 
   diagnostics_updater_.setHardwareID("ros2_control");
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
-  init_services();
 }
 
 ControllerManager::ControllerManager(
@@ -308,12 +313,15 @@ ControllerManager::ControllerManager(
     RCLCPP_WARN(get_logger(), "'update_rate' parameter not set, using default value.");
   }
 
+  if (resource_manager_->is_urdf_already_loaded())
+  {
+    init_services();
+  }
   subscribe_to_robot_description_topic();
 
   diagnostics_updater_.setHardwareID("ros2_control");
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
-  init_services();
 }
 
 void ControllerManager::subscribe_to_robot_description_topic()
@@ -346,6 +354,7 @@ void ControllerManager::robot_description_callback(const std_msgs::msg::String &
       return;
     }
     init_resource_manager(robot_description.data.c_str());
+    init_services();
   }
   catch (std::runtime_error & e)
   {
@@ -946,7 +955,7 @@ controller_interface::return_type ControllerManager::switch_controller(
     {
       RCLCPP_WARN(
         get_logger(),
-        "Controller with name '%s' is not inactive so its following"
+        "Controller with name '%s' is not inactive so its following "
         "controllers do not have to be checked, because it cannot be activated.",
         controller_it->info.name.c_str());
       ret = controller_interface::return_type::ERROR;
@@ -1562,6 +1571,12 @@ void ControllerManager::activate_controllers(
         controller->get_node()->get_name(), new_state.label().c_str(), new_state.id(),
         hardware_interface::lifecycle_state_names::ACTIVE,
         lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+    }
+
+    // if it is a chainable controller, make the reference interfaces available on activation
+    if (controller->is_chainable())
+    {
+      resource_manager_->make_controller_reference_interfaces_available(controller_name);
     }
 
     if (controller->is_async())
@@ -2451,7 +2466,10 @@ bool ControllerManager::controller_sorting(
   if (!((is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c)) &&
         (is_controller_active(ctrl_b.c) || is_controller_inactive(ctrl_b.c))))
   {
-    if (is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c)) return true;
+    if (is_controller_active(ctrl_a.c) || is_controller_inactive(ctrl_a.c))
+    {
+      return true;
+    }
     return false;
   }
 
@@ -2463,9 +2481,13 @@ bool ControllerManager::controller_sorting(
     // joint_state_broadcaster
     // If the controller b is also under the same condition, then maintain their initial order
     if (ctrl_b.c->command_interface_configuration().names.empty() || !ctrl_b.c->is_chainable())
+    {
       return false;
+    }
     else
+    {
       return true;
+    }
   }
   else if (ctrl_b.c->command_interface_configuration().names.empty() || !ctrl_b.c->is_chainable())
   {
@@ -2475,12 +2497,17 @@ bool ControllerManager::controller_sorting(
   else
   {
     auto following_ctrls = get_following_controller_names(ctrl_a.info.name, controllers);
-    if (following_ctrls.empty()) return false;
+    if (following_ctrls.empty())
+    {
+      return false;
+    }
     // If the ctrl_b is any of the following controllers of ctrl_a, then place ctrl_a before ctrl_b
     if (
       std::find(following_ctrls.begin(), following_ctrls.end(), ctrl_b.info.name) !=
       following_ctrls.end())
+    {
       return true;
+    }
     else
     {
       auto ctrl_a_preceding_ctrls = get_preceding_controller_names(ctrl_a.info.name, controllers);
@@ -2513,21 +2540,27 @@ bool ControllerManager::controller_sorting(
 
       // If there is no common parent, then they belong to 2 different sets
       auto following_ctrls_b = get_following_controller_names(ctrl_b.info.name, controllers);
-      if (following_ctrls_b.empty()) return true;
-      auto find_first_element = [&](const auto & controllers_list)
+      if (following_ctrls_b.empty())
+      {
+        return true;
+      }
+      auto find_first_element = [&](const auto & controllers_list) -> int64_t
       {
         auto it = std::find_if(
           controllers.begin(), controllers.end(),
           std::bind(controller_name_compare, std::placeholders::_1, controllers_list.back()));
         if (it != controllers.end())
         {
-          int dist = std::distance(controllers.begin(), it);
-          return dist;
+          return std::distance(controllers.begin(), it);
         }
+        return 0;
       };
-      const int ctrl_a_chain_first_controller = find_first_element(following_ctrls);
-      const int ctrl_b_chain_first_controller = find_first_element(following_ctrls_b);
-      if (ctrl_a_chain_first_controller < ctrl_b_chain_first_controller) return true;
+      const auto ctrl_a_chain_first_controller = find_first_element(following_ctrls);
+      const auto ctrl_b_chain_first_controller = find_first_element(following_ctrls_b);
+      if (ctrl_a_chain_first_controller < ctrl_b_chain_first_controller)
+      {
+        return true;
+      }
     }
 
     // If the ctrl_a's state interface is the one exported by the ctrl_b then ctrl_b should be
