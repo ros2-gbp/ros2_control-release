@@ -255,8 +255,8 @@ rclcpp::NodeOptions get_cm_node_options()
 
 ControllerManager::ControllerManager(
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & namespace_, const rclcpp::NodeOptions & options)
-: rclcpp::Node(manager_node_name, namespace_, options),
+  const std::string & node_namespace, const rclcpp::NodeOptions & options)
+: rclcpp::Node(manager_node_name, node_namespace, options),
   resource_manager_(std::make_unique<hardware_interface::ResourceManager>(
     update_rate_, this->get_node_clock_interface())),
   diagnostics_updater_(this),
@@ -286,19 +286,19 @@ ControllerManager::ControllerManager(
       "[Deprecated] Passing the robot description parameter directly to the control_manager node "
       "is deprecated. Use '~/robot_description' topic from 'robot_state_publisher' instead.");
     init_resource_manager(robot_description_);
+    init_services();
   }
 
   diagnostics_updater_.setHardwareID("ros2_control");
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
-  init_services();
 }
 
 ControllerManager::ControllerManager(
   std::unique_ptr<hardware_interface::ResourceManager> resource_manager,
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & namespace_, const rclcpp::NodeOptions & options)
-: rclcpp::Node(manager_node_name, namespace_, options),
+  const std::string & node_namespace, const rclcpp::NodeOptions & options)
+: rclcpp::Node(manager_node_name, node_namespace, options),
   resource_manager_(std::move(resource_manager)),
   diagnostics_updater_(this),
   executor_(executor),
@@ -313,12 +313,15 @@ ControllerManager::ControllerManager(
     RCLCPP_WARN(get_logger(), "'update_rate' parameter not set, using default value.");
   }
 
+  if (resource_manager_->is_urdf_already_loaded())
+  {
+    init_services();
+  }
   subscribe_to_robot_description_topic();
 
   diagnostics_updater_.setHardwareID("ros2_control");
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
-  init_services();
 }
 
 void ControllerManager::subscribe_to_robot_description_topic()
@@ -352,6 +355,7 @@ void ControllerManager::robot_description_callback(const std_msgs::msg::String &
       return;
     }
     init_resource_manager(robot_description_);
+    init_services();
   }
   catch (std::runtime_error & e)
   {
@@ -948,7 +952,7 @@ controller_interface::return_type ControllerManager::switch_controller(
     {
       RCLCPP_WARN(
         get_logger(),
-        "Controller with name '%s' is not inactive so its following"
+        "Controller with name '%s' is not inactive so its following "
         "controllers do not have to be checked, because it cannot be activated.",
         controller_it->info.name.c_str());
       status = controller_interface::return_type::ERROR;
@@ -1332,53 +1336,22 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::add_co
   return to.back().c;
 }
 
-void ControllerManager::manage_switch()
-{
-  // Ask hardware interfaces to change mode
-  if (!resource_manager_->perform_command_mode_switch(
-        activate_command_interface_request_, deactivate_command_interface_request_))
-  {
-    RCLCPP_ERROR(get_logger(), "Error while performing mode switch.");
-  }
-
-  std::vector<ControllerSpec> & rt_controller_list =
-    rt_controllers_wrapper_.update_and_get_used_by_rt_list();
-
-  deactivate_controllers(rt_controller_list, deactivate_request_);
-
-  switch_chained_mode(to_chained_mode_request_, true);
-  switch_chained_mode(from_chained_mode_request_, false);
-
-  // activate controllers once the switch is fully complete
-  if (!switch_params_.activate_asap)
-  {
-    activate_controllers(rt_controller_list, activate_request_);
-  }
-  else
-  {
-    // activate controllers as soon as their required joints are done switching
-    activate_controllers_asap(rt_controller_list, activate_request_);
-  }
-
-  // TODO(destogl): move here "do_switch = false"
-}
-
 void ControllerManager::deactivate_controllers(
   const std::vector<ControllerSpec> & rt_controller_list,
   const std::vector<std::string> controllers_to_deactivate)
 {
   // deactivate controllers
-  for (const auto & request : controllers_to_deactivate)
+  for (const auto & controller_name : controllers_to_deactivate)
   {
     auto found_it = std::find_if(
       rt_controller_list.begin(), rt_controller_list.end(),
-      std::bind(controller_name_compare, std::placeholders::_1, request));
+      std::bind(controller_name_compare, std::placeholders::_1, controller_name));
     if (found_it == rt_controller_list.end())
     {
       RCLCPP_ERROR(
         get_logger(),
         "Got request to deactivate controller '%s' but it is not in the realtime controller list",
-        request.c_str());
+        controller_name.c_str());
       continue;
     }
     auto controller = found_it->c;
@@ -1386,11 +1359,16 @@ void ControllerManager::deactivate_controllers(
     {
       const auto new_state = controller->get_node()->deactivate();
       controller->release_interfaces();
+      // if it is a chainable controller, make the reference interfaces unavailable on deactivation
+      if (controller->is_chainable())
+      {
+        resource_manager_->make_controller_reference_interfaces_unavailable(controller_name);
+      }
       if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
       {
         RCLCPP_ERROR(
           get_logger(), "After deactivating, controller '%s' is in state '%s', expected Inactive",
-          request.c_str(), new_state.label().c_str());
+          controller_name.c_str(), new_state.label().c_str());
       }
     }
   }
@@ -1402,35 +1380,27 @@ void ControllerManager::switch_chained_mode(
   std::vector<ControllerSpec> & rt_controller_list =
     rt_controllers_wrapper_.update_and_get_used_by_rt_list();
 
-  for (const auto & request : chained_mode_switch_list)
+  for (const auto & controller_name : chained_mode_switch_list)
   {
     auto found_it = std::find_if(
       rt_controller_list.begin(), rt_controller_list.end(),
-      std::bind(controller_name_compare, std::placeholders::_1, request));
+      std::bind(controller_name_compare, std::placeholders::_1, controller_name));
     if (found_it == rt_controller_list.end())
     {
       RCLCPP_FATAL(
         get_logger(),
         "Got request to turn %s chained mode for controller '%s', but controller is not in the "
         "realtime controller list. (This should never happen!)",
-        (to_chained_mode ? "ON" : "OFF"), request.c_str());
+        (to_chained_mode ? "ON" : "OFF"), controller_name.c_str());
       continue;
     }
     auto controller = found_it->c;
     if (!is_controller_active(*controller))
     {
-      if (controller->set_chained_mode(to_chained_mode))
-      {
-        if (to_chained_mode)
-        {
-          resource_manager_->make_controller_reference_interfaces_available(request);
-        }
-        else
-        {
-          resource_manager_->make_controller_reference_interfaces_unavailable(request);
-        }
-      }
-      else
+      // if it is a chainable controller, make the reference interfaces available on preactivation
+      // (This is needed when you activate a couple of chainable controller altogether)
+      resource_manager_->make_controller_reference_interfaces_available(controller_name);
+      if (!controller->set_chained_mode(to_chained_mode))
       {
         RCLCPP_ERROR(
           get_logger(),
@@ -1438,7 +1408,7 @@ void ControllerManager::switch_chained_mode(
           "it! The control will probably not work as expected. Try to restart all controllers. "
           "If "
           "the error persist check controllers' individual configuration.",
-          (to_chained_mode ? "ON" : "OFF"), request.c_str());
+          (to_chained_mode ? "ON" : "OFF"), controller_name.c_str());
       }
     }
     else
@@ -1447,7 +1417,7 @@ void ControllerManager::switch_chained_mode(
         get_logger(),
         "Got request to turn %s chained mode for controller '%s', but this can not happen if "
         "controller is in '%s' state. (This should never happen!)",
-        (to_chained_mode ? "ON" : "OFF"), request.c_str(),
+        (to_chained_mode ? "ON" : "OFF"), controller_name.c_str(),
         hardware_interface::lifecycle_state_names::ACTIVE);
     }
   }
@@ -1457,21 +1427,20 @@ void ControllerManager::activate_controllers(
   const std::vector<ControllerSpec> & rt_controller_list,
   const std::vector<std::string> controllers_to_activate)
 {
-  for (const auto & request : controllers_to_activate)
+  for (const auto & controller_name : controllers_to_activate)
   {
     auto found_it = std::find_if(
       rt_controller_list.begin(), rt_controller_list.end(),
-      std::bind(controller_name_compare, std::placeholders::_1, request));
+      std::bind(controller_name_compare, std::placeholders::_1, controller_name));
     if (found_it == rt_controller_list.end())
     {
       RCLCPP_ERROR(
         get_logger(),
         "Got request to activate controller '%s' but it is not in the realtime controller list",
-        request.c_str());
+        controller_name.c_str());
       continue;
     }
     auto controller = found_it->c;
-    auto controller_name = found_it->info.name;
     // reset the next update cycle time for newly activated controllers
     *found_it->next_update_cycle_time =
       rclcpp::Time(0, 0, this->get_node_clock_interface()->get_clock()->get_clock_type());
@@ -1500,7 +1469,7 @@ void ControllerManager::activate_controllers(
         RCLCPP_ERROR(
           get_logger(),
           "Resource conflict for controller '%s'. Command interface '%s' is already claimed.",
-          request.c_str(), command_interface.c_str());
+          controller_name.c_str(), command_interface.c_str());
         assignment_successful = false;
         break;
       }
@@ -1510,7 +1479,8 @@ void ControllerManager::activate_controllers(
       }
       catch (const std::exception & e)
       {
-        RCLCPP_ERROR(get_logger(), "Can't activate controller '%s': %s", request.c_str(), e.what());
+        RCLCPP_ERROR(
+          get_logger(), "Can't activate controller '%s': %s", controller_name.c_str(), e.what());
         assignment_successful = false;
         break;
       }
@@ -1544,7 +1514,8 @@ void ControllerManager::activate_controllers(
       }
       catch (const std::exception & e)
       {
-        RCLCPP_ERROR(get_logger(), "Can't activate controller '%s': %s", request.c_str(), e.what());
+        RCLCPP_ERROR(
+          get_logger(), "Can't activate controller '%s': %s", controller_name.c_str(), e.what());
         assignment_successful = false;
         break;
       }
@@ -1567,13 +1538,17 @@ void ControllerManager::activate_controllers(
         lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
     }
 
+    // if it is a chainable controller, make the reference interfaces available on activation
+    if (controller->is_chainable())
+    {
+      resource_manager_->make_controller_reference_interfaces_available(controller_name);
+    }
+
     if (controller->is_async())
     {
       async_controller_threads_.at(controller_name)->activate();
     }
   }
-  // All controllers activated, switching done
-  switch_params_.do_switch = false;
 }
 
 void ControllerManager::activate_controllers_asap(
@@ -2028,6 +2003,38 @@ void ControllerManager::read(const rclcpp::Time & time, const rclcpp::Duration &
     deactivate_controllers(rt_controller_list, stop_request);
     // TODO(destogl): do auto-start of broadcasters
   }
+}
+
+void ControllerManager::manage_switch()
+{
+  // Ask hardware interfaces to change mode
+  if (!resource_manager_->perform_command_mode_switch(
+        activate_command_interface_request_, deactivate_command_interface_request_))
+  {
+    RCLCPP_ERROR(get_logger(), "Error while performing mode switch.");
+  }
+
+  std::vector<ControllerSpec> & rt_controller_list =
+    rt_controllers_wrapper_.update_and_get_used_by_rt_list();
+
+  deactivate_controllers(rt_controller_list, deactivate_request_);
+
+  switch_chained_mode(to_chained_mode_request_, true);
+  switch_chained_mode(from_chained_mode_request_, false);
+
+  // activate controllers once the switch is fully complete
+  if (!switch_params_.activate_asap)
+  {
+    activate_controllers(rt_controller_list, activate_request_);
+  }
+  else
+  {
+    // activate controllers as soon as their required joints are done switching
+    activate_controllers_asap(rt_controller_list, activate_request_);
+  }
+
+  // All controllers switched --> switching done
+  switch_params_.do_switch = false;
 }
 
 controller_interface::return_type ControllerManager::update(
