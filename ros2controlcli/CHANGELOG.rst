@@ -2,22 +2,22 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.4.0 (2024-01-31)
-------------------
+3.23.0 (2024-02-01)
+-------------------
 
-4.3.0 (2024-01-20)
-------------------
-* [docs] Remove joint_state_controller (`#1263 <https://github.com/ros-controls/ros2_control/issues/1263>`_)
-* Contributors: Christoph Fröhlich
+3.22.1 (2024-01-25)
+-------------------
 
-4.2.0 (2023-12-12)
-------------------
+3.22.0 (2024-01-20)
+-------------------
+* [docs] Remove joint_state_controller (`#1263 <https://github.com/ros-controls/ros2_control/issues/1263>`_) (`#1265 <https://github.com/ros-controls/ros2_control/issues/1265>`_)
+* Contributors: mergify[bot]
 
-4.1.0 (2023-11-30)
-------------------
+3.21.2 (2023-12-05)
+-------------------
 
-4.0.0 (2023-11-21)
-------------------
+3.21.1 (2023-11-14)
+-------------------
 
 3.21.0 (2023-11-06)
 -------------------
