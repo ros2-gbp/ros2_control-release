@@ -664,7 +664,20 @@ controller_interface::return_type ControllerManager::unload_controller(
   RCLCPP_DEBUG(get_logger(), "Cleanup controller");
   // TODO(destogl): remove reference interface if chainable; i.e., add a separate method for
   // cleaning-up controllers?
-  controller.c->get_node()->cleanup();
+  if (is_controller_inactive(*controller.c))
+  {
+    RCLCPP_DEBUG(
+      get_logger(), "Controller '%s' is cleaned-up before unloading!", controller_name.c_str());
+    // TODO(destogl): remove reference interface if chainable; i.e., add a separate method for
+    // cleaning-up controllers?
+    const auto new_state = controller.c->get_node()->cleanup();
+    if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED)
+    {
+      RCLCPP_WARN(
+        get_logger(), "Failed to clean-up the controller '%s' before unloading!",
+        controller_name.c_str());
+    }
+  }
   executor_->remove_node(controller.c->get_node()->get_node_base_interface());
   to.erase(found_it);
 
@@ -877,14 +890,15 @@ controller_interface::return_type ControllerManager::switch_controller(
     strictness = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
   }
 
-  RCLCPP_DEBUG(get_logger(), "Switching controllers:");
+  RCLCPP_DEBUG(get_logger(), "Activating controllers:");
   for (const auto & controller : activate_controllers)
   {
-    RCLCPP_DEBUG(get_logger(), "- Activating controller '%s'", controller.c_str());
+    RCLCPP_DEBUG(get_logger(), " - %s", controller.c_str());
   }
+  RCLCPP_DEBUG(get_logger(), "Deactivating controllers:");
   for (const auto & controller : deactivate_controllers)
   {
-    RCLCPP_DEBUG(get_logger(), "- Deactivating controller '%s'", controller.c_str());
+    RCLCPP_DEBUG(get_logger(), " - %s", controller.c_str());
   }
 
   const auto list_controllers = [this, strictness](
@@ -1220,6 +1234,17 @@ controller_interface::return_type ControllerManager::switch_controller(
     RCLCPP_INFO(get_logger(), "Empty activate and deactivate list, not requesting switch");
     clear_requests();
     return controller_interface::return_type::OK;
+  }
+
+  RCLCPP_DEBUG(get_logger(), "Request for command interfaces from activating controllers:");
+  for (const auto & interface : activate_command_interface_request_)
+  {
+    RCLCPP_DEBUG(get_logger(), " - %s", interface.c_str());
+  }
+  RCLCPP_DEBUG(get_logger(), "Release of command interfaces from deactivating controllers:");
+  for (const auto & interface : deactivate_command_interface_request_)
+  {
+    RCLCPP_DEBUG(get_logger(), " - %s", interface.c_str());
   }
 
   if (
@@ -2606,7 +2631,7 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   auto check_for_element = [](const auto & list, const auto & element)
   { return std::find(list.begin(), list.end(), element) != list.end(); };
 
-  rclcpp::NodeOptions controller_node_options = rclcpp::NodeOptions().enable_logger_service(true);
+  rclcpp::NodeOptions controller_node_options = controller.c->define_custom_node_options();
   std::vector<std::string> node_options_arguments = controller_node_options.arguments();
   const std::string ros_args_arg = "--ros-args";
   if (controller.info.parameters_file.has_value())
