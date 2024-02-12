@@ -21,7 +21,7 @@ jobs:
         with:
           required-ros-distributions: ${{ env.ROS_DISTRO }}
       - uses: actions/checkout@v4
-      - uses: ros-tooling/action-ros-ci@0.3.5
+      - uses: ros-tooling/action-ros-ci@0.3.6
         with:
           target-ros2-distro: ${{ env.ROS_DISTRO }}
           import-token: ${{ secrets.GITHUB_TOKEN }}
@@ -34,6 +34,7 @@ jobs:
             ros2controlcli
             ros2_control
             ros2_control_test_assets
+            hardware_interface_testing
             transmission_interface
 
           vcs-repo-file-url: |
@@ -45,7 +46,7 @@ jobs:
               }
             }
           colcon-mixin-repository: https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
-      - uses: codecov/codecov-action@v3.1.4
+      - uses: codecov/codecov-action@v4.0.1
         with:
           file: ros_ws/lcov/total_coverage.info
           flags: unittests
