@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - master
+      - humble
   pull_request:
     branches:
-      - master
+      - humble
 
 jobs:
   coverage:
@@ -15,9 +15,9 @@ jobs:
     strategy:
       fail-fast: false
     env:
-      ROS_DISTRO: rolling
+      ROS_DISTRO: humble
     steps:
-      - uses: ros-tooling/setup-ros@0.7.1
+      - uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: ${{ env.ROS_DISTRO }}
       - uses: actions/checkout@v4
@@ -29,7 +29,11 @@ jobs:
           package-name:
             controller_interface
             controller_manager
+            controller_manager_msgs
             hardware_interface
+            ros2controlcli
+            ros2_control
+            ros2_control_test_assets
             hardware_interface_testing
             transmission_interface
 
@@ -47,7 +51,7 @@ jobs:
           file: ros_ws/lcov/total_coverage.info
           flags: unittests
           name: codecov-umbrella
-      - uses: actions/upload-artifact@v4.3.0
+      - uses: actions/upload-artifact@v4
         with:
-          name: colcon-logs-ubuntu-22.04-coverage-rolling
+          name: colcon-logs-ubuntu-22.04-coverage-humble
           path: ros_ws/log

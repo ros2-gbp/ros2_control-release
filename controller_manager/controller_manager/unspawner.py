@@ -25,16 +25,13 @@ from rclpy.node import Node
 
 
 def main(args=None):
+
     rclpy.init(args=args)
     parser = argparse.ArgumentParser()
     parser.add_argument("controller_names", help="Name of the controller", nargs="+")
     parser.add_argument(
-        "-c",
-        "--controller-manager",
-        help="Name of the controller manager ROS node",
-        default="/controller_manager",
-        required=False,
-    )
+        '-c', '--controller-manager', help='Name of the controller manager ROS node',
+        default='/controller_manager', required=False)
 
     command_line_args = rclpy.utilities.remove_ros_args(args=sys.argv)[1:]
     args = parser.parse_args(command_line_args)
@@ -61,10 +58,10 @@ def main(args=None):
         rclpy.shutdown()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     warnings.warn(
         "'unspawner.py' is deprecated, please use 'unspawner' (without .py extension)",
-        DeprecationWarning,
+        DeprecationWarning
     )
     ret = main()
     sys.exit(ret)
