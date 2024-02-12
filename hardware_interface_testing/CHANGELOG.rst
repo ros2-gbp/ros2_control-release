@@ -1,9 +1,11 @@
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Changelog for package joint_limits
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Changelog for package hardware_interface_testing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 2.39.0 (2024-02-12)
 -------------------
+* Move `test_components` to own package (backport `#1325 <https://github.com/ros-controls/ros2_control/issues/1325>`_) (`#1340 <https://github.com/ros-controls/ros2_control/issues/1340>`_)
+* Contributors: mergify[bot]
 
 2.38.0 (2024-01-25)
 -------------------
@@ -46,8 +48,6 @@ Changelog for package joint_limits
 
 2.27.0 (2023-06-14)
 -------------------
-* [Humble] enable ReflowComments to also use ColumnLimit on comments (`#1038 <https://github.com/ros-controls/ros2_control/issues/1038>`_)
-* Contributors: Sai Kishor Kothakota
 
 2.26.0 (2023-05-20)
 -------------------
@@ -102,16 +102,12 @@ Changelog for package joint_limits
 
 2.13.0 (2022-08-03)
 -------------------
-* Make output of joint limits nicer. (`#788 <https://github.com/ros-controls/ros2_control/issues/788>`_)
-* Contributors: Denis Štogl
 
 2.12.1 (2022-07-14)
 -------------------
 
 2.12.0 (2022-07-09)
 -------------------
-* Move Joint Limits structures for use in controllers (`#462 <https://github.com/ros-controls/ros2_control/issues/462>`_)
-* Contributors: Denis Štogl, Andy Zelenak, Bence Magyar
 
 2.11.0 (2022-07-03)
 -------------------
