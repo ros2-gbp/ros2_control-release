@@ -36,11 +36,6 @@ mock_sensor_commands (optional; boolean; default: false)
   Creates fake command interfaces for faking sensor measurements with an external command.
   Those interfaces are usually used by a :ref:`forward controller <forward_command_controller_userdoc>` to provide access from ROS-world.
 
-disable_commands (optional; boolean; default: false)
-  Disables mirroring commands to states.
-  This option is helpful to simulate an erroneous connection to the hardware when nothing breaks, but suddenly there is no feedback from a hardware interface.
-  Or it can help you to test your setup when the hardware is running without feedback, i.e., in open loop configuration.
-
 position_state_following_offset (optional; double; default: 0.0)
   Following offset added to the commanded values when mirrored to states.
 
@@ -58,3 +53,19 @@ mimic (optional; string)
 
 multiplier (optional; double; default: 1; used if mimic joint is defined)
   Multiplier of values for mimicking joint defined in ``mimic`` parameter. Example: ``<param name="multiplier">-2</param>``.
+
+Per-interface Parameters
+,,,,,,,,,,,,,,,,,,,,,,,,
+
+initial_value (optional; double)
+  Initial value of certain state interface directly after startup. Example:
+
+  .. code-block:: xml
+
+     <state_interface name="position">
+       <param name="initial_value">3.45</param>
+     </state_interface>
+
+  Note: This parameter is shared with the gazebo and gazebo classic plugins for
+  joint interfaces. For Mock components it is also possible to set initial
+  values for gpio or sensor state interfaces.

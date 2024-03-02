@@ -18,8 +18,7 @@
 
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
-
-#include "rcutils/logging_macros.h"
+#include "ros2_control_test_assets/test_hardware_interface_constants.hpp"
 
 using hardware_interface::CommandInterface;
 using hardware_interface::return_type;
@@ -56,7 +55,6 @@ class TestSystem : public SystemInterface
 
   std::vector<CommandInterface> export_command_interfaces() override
   {
-    RCUTILS_LOG_INFO_NAMED("test_system", "Exporting configuration interfaces.");
     std::vector<CommandInterface> command_interfaces;
     for (auto i = 0u; i < info_.joints.size(); ++i)
     {
@@ -84,11 +82,16 @@ class TestSystem : public SystemInterface
   return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     // simulate error on read
-    if (velocity_command_[0] == 28282828)
+    if (velocity_command_[0] == test_constants::READ_FAIL_VALUE)
     {
       // reset value to get out from error on the next call - simplifies CM tests
       velocity_command_[0] = 0.0;
       return return_type::ERROR;
+    }
+    // simulate deactivate on read
+    if (velocity_command_[0] == test_constants::READ_DEACTIVATE_VALUE)
+    {
+      return return_type::DEACTIVATE;
     }
     return return_type::OK;
   }
@@ -96,20 +99,25 @@ class TestSystem : public SystemInterface
   return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     // simulate error on write
-    if (velocity_command_[0] == 23232323)
+    if (velocity_command_[0] == test_constants::WRITE_FAIL_VALUE)
     {
       // reset value to get out from error on the next call - simplifies CM tests
       velocity_command_[0] = 0.0;
       return return_type::ERROR;
     }
+    // simulate deactivate on write
+    if (velocity_command_[0] == test_constants::WRITE_DEACTIVATE_VALUE)
+    {
+      return return_type::DEACTIVATE;
+    }
     return return_type::OK;
   }
 
 private:
-  std::array<double, 2> velocity_command_ = {0.0, 0.0};
-  std::array<double, 2> position_state_ = {0.0, 0.0};
-  std::array<double, 2> velocity_state_ = {0.0, 0.0};
-  std::array<double, 2> acceleration_state_ = {0.0, 0.0};
+  std::array<double, 2> velocity_command_ = {{0.0, 0.0}};
+  std::array<double, 2> position_state_ = {{0.0, 0.0}};
+  std::array<double, 2> velocity_state_ = {{0.0, 0.0}};
+  std::array<double, 2> acceleration_state_ = {{0.0, 0.0}};
   double max_acceleration_command_ = 0.0;
   double configuration_state_ = 0.0;
   double configuration_command_ = 0.0;
