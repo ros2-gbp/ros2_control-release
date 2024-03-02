@@ -150,6 +150,7 @@ class ControllerManager(Plugin):
             self._update_controllers()
 
     def _update_controllers(self):
+
         if not self._cm_name:
             return
 
@@ -414,4 +415,4 @@ def _get_parameter_controller_names(node, node_name):
     """Get list of ROS parameter names that potentially represent a controller configuration."""
     parameter_names = call_list_parameters(node=node, node_name=node_name)
     suffix = ".type"
-    return [n[: -len(suffix)] for n in parameter_names.result().result.names if n.endswith(suffix)]
+    return [n[: -len(suffix)] for n in parameter_names if n.endswith(suffix)]

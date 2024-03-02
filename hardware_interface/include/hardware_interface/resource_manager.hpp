@@ -16,28 +16,25 @@
 #define HARDWARE_INTERFACE__RESOURCE_MANAGER_HPP_
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "hardware_interface/actuator.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
-#include "hardware_interface/sensor.hpp"
-#include "hardware_interface/system.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
-#include "hardware_interface/types/lifecycle_state_names.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/duration.hpp"
-#include "rclcpp/node.hpp"
 #include "rclcpp/time.hpp"
 
 namespace hardware_interface
 {
+class ActuatorInterface;
+class SensorInterface;
+class SystemInterface;
 class ResourceStorage;
-class ControllerManager;
 
 struct HardwareReadWriteStatus
 {
@@ -49,9 +46,7 @@ class HARDWARE_INTERFACE_PUBLIC ResourceManager
 {
 public:
   /// Default constructor for the Resource Manager.
-  ResourceManager(
-    unsigned int update_rate = 100,
-    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
+  ResourceManager();
 
   /// Constructor for the Resource Manager.
   /**
@@ -69,9 +64,7 @@ public:
    * activated. Currently used only in tests.
    */
   explicit ResourceManager(
-    const std::string & urdf, bool validate_interfaces = true, bool activate_all = false,
-    unsigned int update_rate = 100,
-    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
+    const std::string & urdf, bool validate_interfaces = true, bool activate_all = false);
 
   ResourceManager(const ResourceManager &) = delete;
 
@@ -393,6 +386,18 @@ public:
    * It is realtime-safe if used hardware interfaces are implemented adequately.
    */
   HardwareReadWriteStatus write(const rclcpp::Time & time, const rclcpp::Duration & period);
+
+  /// Activates all available hardware components in the system.
+  /**
+   * All available hardware components int the ros2_control framework are activated.
+   * This is used to preserve default behavior from previous versions where all hardware components
+   * are activated per default.
+   */
+  [[deprecated(
+    "The method 'activate_all_components' is deprecated. "
+    "Use the new 'hardware_components_initial_state' parameter structure to setup the "
+    "components")]] void
+  activate_all_components();
 
   /// Checks whether a command interface is registered under the given key.
   /**
