@@ -2,33 +2,26 @@
 Changelog for package joint_limits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.6.0 (2024-03-02)
-------------------
-* Add -Werror=missing-braces to compile options (`#1423 <https://github.com/ros-controls/ros2_control/issues/1423>`_)
-* Contributors: Sai Kishor Kothakota
+3.24.0 (2024-03-02)
+-------------------
+* [CI] Code coverage + pre-commit (backport `#1413 <https://github.com/ros-controls/ros2_control/issues/1413>`_) (`#1415 <https://github.com/ros-controls/ros2_control/issues/1415>`_)
+* Add header to import limits from standard URDF definition (`#1298 <https://github.com/ros-controls/ros2_control/issues/1298>`_) (`#1418 <https://github.com/ros-controls/ros2_control/issues/1418>`_)
+* Contributors: mergify[bot]
 
-4.5.0 (2024-02-12)
-------------------
+3.23.0 (2024-02-01)
+-------------------
 
-4.4.0 (2024-01-31)
-------------------
-* [Format] Correct formatting of JointLimits URDF file. (`#1339 <https://github.com/ros-controls/ros2_control/issues/1339>`_)
-* Add header to import limits from standard URDF definition (`#1298 <https://github.com/ros-controls/ros2_control/issues/1298>`_)
-* Contributors: Dr. Denis, Sai Kishor Kothakota
+3.22.1 (2024-01-25)
+-------------------
 
-4.3.0 (2024-01-20)
-------------------
+3.22.0 (2024-01-20)
+-------------------
 
-4.2.0 (2023-12-12)
-------------------
+3.21.2 (2023-12-05)
+-------------------
 
-4.1.0 (2023-11-30)
-------------------
-* Add few warning compiler options to error (`#1181 <https://github.com/ros-controls/ros2_control/issues/1181>`_)
-* Contributors: Sai Kishor Kothakota
-
-4.0.0 (2023-11-21)
-------------------
+3.21.1 (2023-11-14)
+-------------------
 
 3.21.0 (2023-11-06)
 -------------------
