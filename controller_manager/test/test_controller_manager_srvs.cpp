@@ -832,8 +832,7 @@ TEST_F(TestControllerManagerSrvs, list_sorted_complex_chained_controllers)
   auto get_ctrl_pos = [result](const std::string & controller_name) -> int64_t
   {
     auto it = std::find_if(
-      result->controller.begin(), result->controller.end(),
-      [controller_name](auto itf)
+      result->controller.begin(), result->controller.end(), [controller_name](auto itf)
       { return (itf.name.find(controller_name) != std::string::npos); });
     return std::distance(result->controller.begin(), it);
   };
@@ -865,7 +864,7 @@ TEST_F(TestControllerManagerSrvs, list_sorted_independent_chained_controllers)
   /// &&
   /// test_controller_name_2 -> chain_ctrl_6 -> chain_ctrl_5 -> chain_ctrl_4
   /// &&
-  /// test_controller_name_7 -> test_controller_name_8
+  /// test_controller_name_8 -> test_controller_name_7
   ///
   /// NOTE: A -> B signifies that the controller A is utilizing the reference interfaces exported
   /// from the controller B (or) the controller B is utilizing the expected interfaces exported from
@@ -1044,8 +1043,7 @@ TEST_F(TestControllerManagerSrvs, list_sorted_independent_chained_controllers)
   auto get_ctrl_pos = [result](const std::string & controller_name) -> int64_t
   {
     auto it = std::find_if(
-      result->controller.begin(), result->controller.end(),
-      [controller_name](auto itf)
+      result->controller.begin(), result->controller.end(), [controller_name](auto itf)
       { return (itf.name.find(controller_name) != std::string::npos); });
     return std::distance(result->controller.begin(), it);
   };
@@ -1321,8 +1319,7 @@ TEST_F(TestControllerManagerSrvs, list_large_number_of_controllers_with_chains)
   auto get_ctrl_pos = [result](const std::string & controller_name) -> int64_t
   {
     auto it = std::find_if(
-      result->controller.begin(), result->controller.end(),
-      [controller_name](auto itf)
+      result->controller.begin(), result->controller.end(), [controller_name](auto itf)
       { return (itf.name.find(controller_name) != std::string::npos); });
     return std::distance(result->controller.begin(), it);
   };
@@ -1546,8 +1543,7 @@ TEST_F(TestControllerManagerSrvs, list_sorted_large_chained_controller_tree)
   auto get_ctrl_pos = [result](const std::string & controller_name) -> int64_t
   {
     auto it = std::find_if(
-      result->controller.begin(), result->controller.end(),
-      [controller_name](auto itf)
+      result->controller.begin(), result->controller.end(), [controller_name](auto itf)
       { return (itf.name.find(controller_name) != std::string::npos); });
     return std::distance(result->controller.begin(), it);
   };
