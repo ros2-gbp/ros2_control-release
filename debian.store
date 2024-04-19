@@ -1,1 +1,1 @@
-{"base": "b68c4f052", "parent": "debian/rolling/controller_manager", "previous": "2bf57f95e", "trim": "", "trimbase": ""}
+{"base": "8bcbe63c1", "parent": "debian/jazzy/controller_manager", "previous": "4a29d9579", "trim": "", "trimbase": ""}
