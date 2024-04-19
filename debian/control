@@ -1,0 +1,12 @@
+Source: ros-jazzy-controller-interface
+Section: misc
+Priority: optional
+Maintainer: Bence Magyar <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ament-cmake, ament-cmake-googletest <!nocheck>, libsensor-msgs-dev, libsensor-msgs-dev <!nocheck>, python3-sensor-msgs, python3-sensor-msgs <!nocheck>, ros-jazzy-hardware-interface, ros-jazzy-rclcpp-lifecycle, ros-sensor-msgs, ros-sensor-msgs <!nocheck>, ros-jazzy-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-jazzy-controller-interface
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-jazzy-hardware-interface, ros-jazzy-rclcpp-lifecycle, ros-jazzy-ros-workspace
+Description: Description of controller_interface
