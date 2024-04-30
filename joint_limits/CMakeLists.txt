@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(joint_limits LANGUAGES CXX)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
-  add_compile_options(-Wall -Wextra -Werror=conversion -Werror=unused-but-set-variable -Werror=return-type -Werror=shadow
-          -Werror=missing-braces)
+  add_compile_options(-Wall -Wextra -Wconversion)
 endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -61,4 +60,3 @@ install(TARGETS joint_limits
 ament_export_targets(export_joint_limits HAS_LIBRARY_TARGET)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 ament_package()
-ament_generate_version_header(${PROJECT_NAME})

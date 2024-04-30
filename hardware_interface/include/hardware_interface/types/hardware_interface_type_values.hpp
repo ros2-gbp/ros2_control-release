@@ -17,13 +17,13 @@
 
 namespace hardware_interface
 {
-/// Constant defining position interface name
+/// Constant defining position interface
 constexpr char HW_IF_POSITION[] = "position";
-/// Constant defining velocity interface name
+/// Constant defining velocity interface
 constexpr char HW_IF_VELOCITY[] = "velocity";
-/// Constant defining acceleration interface name
+/// Constant defining acceleration interface
 constexpr char HW_IF_ACCELERATION[] = "acceleration";
-/// Constant defining effort interface name
+/// Constant defining effort interface
 constexpr char HW_IF_EFFORT[] = "effort";
 }  // namespace hardware_interface
 

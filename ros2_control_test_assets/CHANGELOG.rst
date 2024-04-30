@@ -2,39 +2,28 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.9.0 (2024-04-30)
-------------------
-* Component parser: Get mimic information from URDF (`#1256 <https://github.com/ros-controls/ros2_control/issues/1256>`_)
-* Contributors: Christoph Fröhlich
+3.25.0 (2024-04-30)
+-------------------
 
-4.8.0 (2024-03-27)
-------------------
+3.24.0 (2024-03-02)
+-------------------
 
-4.7.0 (2024-03-22)
-------------------
+3.23.0 (2024-02-01)
+-------------------
 
-4.6.0 (2024-03-02)
-------------------
+3.22.1 (2024-01-25)
+-------------------
 
-4.5.0 (2024-02-12)
-------------------
+3.22.0 (2024-01-20)
+-------------------
+* [ResourceManager] adds test for uninitialized hardware (`#1243 <https://github.com/ros-controls/ros2_control/issues/1243>`_) (`#1270 <https://github.com/ros-controls/ros2_control/issues/1270>`_)
+* Contributors: mergify[bot]
 
-4.4.0 (2024-01-31)
-------------------
+3.21.2 (2023-12-05)
+-------------------
 
-4.3.0 (2024-01-20)
-------------------
-* [ResourceManager] adds test for uninitialized hardware (`#1243 <https://github.com/ros-controls/ros2_control/issues/1243>`_)
-* Contributors: Maximilian Schik
-
-4.2.0 (2023-12-12)
-------------------
-
-4.1.0 (2023-11-30)
-------------------
-
-4.0.0 (2023-11-21)
-------------------
+3.21.1 (2023-11-14)
+-------------------
 
 3.21.0 (2023-11-06)
 -------------------

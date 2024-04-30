@@ -2,42 +2,33 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.9.0 (2024-04-30)
-------------------
-* [CI] Specify runner/container images and codecov for joint_limits  (`#1504 <https://github.com/ros-controls/ros2_control/issues/1504>`_)
-* [CLI] Add `set_hardware_component_state` verb (`#1248 <https://github.com/ros-controls/ros2_control/issues/1248>`_)
+3.25.0 (2024-04-30)
+-------------------
+* [CI] Specify runner/container images and codecov for joint_limits  (`#1504 <https://github.com/ros-controls/ros2_control/issues/1504>`_) (`#1520 <https://github.com/ros-controls/ros2_control/issues/1520>`_)
+* [CLI] Add `set_hardware_component_state` verb (`#1248 <https://github.com/ros-controls/ros2_control/issues/1248>`_) (`#1471 <https://github.com/ros-controls/ros2_control/issues/1471>`_)
 * Contributors: Christoph Fröhlich
 
-4.8.0 (2024-03-27)
-------------------
+3.24.0 (2024-03-02)
+-------------------
+* Added spawner colours to `list_controllers` depending upon active or inactive (`#1409 <https://github.com/ros-controls/ros2_control/issues/1409>`_) (`#1425 <https://github.com/ros-controls/ros2_control/issues/1425>`_)
+* Contributors: mergify[bot]
 
-4.7.0 (2024-03-22)
-------------------
+3.23.0 (2024-02-01)
+-------------------
 
-4.6.0 (2024-03-02)
-------------------
-* Added spawner colours to `list_controllers` depending upon active or inactive (`#1409 <https://github.com/ros-controls/ros2_control/issues/1409>`_)
-* Contributors: Soham Patil
+3.22.1 (2024-01-25)
+-------------------
 
-4.5.0 (2024-02-12)
-------------------
+3.22.0 (2024-01-20)
+-------------------
+* [docs] Remove joint_state_controller (`#1263 <https://github.com/ros-controls/ros2_control/issues/1263>`_) (`#1265 <https://github.com/ros-controls/ros2_control/issues/1265>`_)
+* Contributors: mergify[bot]
 
-4.4.0 (2024-01-31)
-------------------
+3.21.2 (2023-12-05)
+-------------------
 
-4.3.0 (2024-01-20)
-------------------
-* [docs] Remove joint_state_controller (`#1263 <https://github.com/ros-controls/ros2_control/issues/1263>`_)
-* Contributors: Christoph Fröhlich
-
-4.2.0 (2023-12-12)
-------------------
-
-4.1.0 (2023-11-30)
-------------------
-
-4.0.0 (2023-11-21)
-------------------
+3.21.1 (2023-11-14)
+-------------------
 
 3.21.0 (2023-11-06)
 -------------------
