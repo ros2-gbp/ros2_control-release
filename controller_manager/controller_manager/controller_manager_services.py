@@ -127,9 +127,7 @@ def reload_controller_libraries(node, controller_manager_name, force_kill, servi
     )
 
 
-def set_hardware_component_state(
-    node, controller_manager_name, component_name, lifecyle_state, service_timeout=10.0
-):
+def set_hardware_component_state(node, controller_manager_name, component_name, lifecyle_state):
     request = SetHardwareComponentState.Request()
     request.name = component_name
     request.target_state = lifecyle_state
@@ -138,7 +136,6 @@ def set_hardware_component_state(
         f"{controller_manager_name}/set_hardware_component_state",
         SetHardwareComponentState,
         request,
-        service_timeout,
     )
 
 

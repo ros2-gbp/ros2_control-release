@@ -65,7 +65,7 @@ robot_description (mandatory; string)
   String with the URDF string as robot description.
   This is usually result of the parsed description files by ``xacro`` command.
 
-update_rate (mandatory; integer)
+update_rate (mandatory; double)
   The frequency of controller manager's real-time update loop.
   This loop reads states from hardware, updates controller and writes commands to hardware.
 
@@ -89,23 +89,21 @@ There are two scripts to interact with controller manager from launch files:
 .. code-block:: console
 
     $ ros2 run controller_manager spawner -h
-    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [-n NAMESPACE] [--load-only] [--inactive] [-t CONTROLLER_TYPE] [-u]
+    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--stopped] [-t CONTROLLER_TYPE] [-u]
                       [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT]
                       controller_name
 
     positional arguments:
       controller_name       Name of the controller
 
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       -c CONTROLLER_MANAGER, --controller-manager CONTROLLER_MANAGER
                             Name of the controller manager ROS node
       -p PARAM_FILE, --param-file PARAM_FILE
                             Controller param file to be loaded into controller node before configure
-      -n NAMESPACE, --namespace NAMESPACE
-                            Namespace for the controller
       --load-only           Only load the controller and leave unconfigured.
-      --inactive            Load and configure the controller, however do not activate them
+      --stopped             Load and configure the controller, however do not start them
       -t CONTROLLER_TYPE, --controller-type CONTROLLER_TYPE
                             If not provided it should exist in the controller manager namespace
       -u, --unload-on-kill  Wait until this application is interrupted and unload controller

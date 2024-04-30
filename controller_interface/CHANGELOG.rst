@@ -2,133 +2,117 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.25.0 (2024-04-30)
+2.41.0 (2024-04-30)
 -------------------
 
-3.24.0 (2024-03-02)
+2.40.0 (2024-03-02)
 -------------------
 
-3.23.0 (2024-02-01)
+2.39.1 (2024-02-14)
 -------------------
 
-3.22.1 (2024-01-25)
+2.39.0 (2024-02-12)
 -------------------
 
-3.22.0 (2024-01-20)
+2.38.0 (2024-01-25)
 -------------------
 
-3.21.2 (2023-12-05)
+2.37.0 (2024-01-20)
 -------------------
 
-3.21.1 (2023-11-14)
+2.36.1 (2024-01-08)
 -------------------
 
-3.21.0 (2023-11-06)
+2.36.0 (2023-12-12)
 -------------------
 
-3.20.0 (2023-10-31)
+2.35.1 (2023-11-27)
 -------------------
 
-3.19.1 (2023-10-04)
+2.35.0 (2023-11-14)
 -------------------
 
-3.19.0 (2023-10-03)
+2.34.0 (2023-11-08)
 -------------------
-* Enable services for setting the log-level in controller per default (`#1102 <https://github.com/ros-controls/ros2_control/issues/1102>`_)
-* Contributors: Dr. Denis
 
-3.18.0 (2023-08-17)
+2.33.0 (2023-10-11)
 -------------------
-* add a broadcaster for range sensor (`#1091 <https://github.com/ros-controls/ros2_control/issues/1091>`_)
+
+2.32.0 (2023-10-03)
+-------------------
+
+2.31.0 (2023-09-11)
+-------------------
+* add a broadcaster for range sensor (`#1091 <https://github.com/ros-controls/ros2_control/issues/1091>`_) (`#1100 <https://github.com/ros-controls/ros2_control/issues/1100>`_)
 * Contributors: flochre
 
-3.17.0 (2023-08-07)
+2.30.0 (2023-08-14)
 -------------------
 
-3.16.0 (2023-07-09)
+2.29.0 (2023-07-09)
 -------------------
 
-3.15.0 (2023-06-23)
+2.28.0 (2023-06-23)
 -------------------
 
-3.14.0 (2023-06-14)
+2.27.0 (2023-06-14)
 -------------------
-* Add -Wconversion flag to protect future developments (`#1053 <https://github.com/ros-controls/ros2_control/issues/1053>`_)
-* enable ReflowComments to also use ColumnLimit on comments (`#1037 <https://github.com/ros-controls/ros2_control/issues/1037>`_)
-* Contributors: Sai Kishor Kothakota, gwalck
+* [Humble] enable ReflowComments to also use ColumnLimit on comments (`#1038 <https://github.com/ros-controls/ros2_control/issues/1038>`_)
+* Contributors: Sai Kishor Kothakota
 
-3.13.0 (2023-05-18)
--------------------
-
-3.12.2 (2023-04-29)
+2.26.0 (2023-05-20)
 -------------------
 
-3.12.1 (2023-04-14)
+2.25.3 (2023-04-29)
 -------------------
-* Add missing build_export_depends to controller_interface (`#989 <https://github.com/ros-controls/ros2_control/issues/989>`_)
+
+2.25.2 (2023-04-20)
+-------------------
+
+2.25.1 (2023-04-14)
+-------------------
+* Add missing build_export_depends to controller_interface (backport `#989 <https://github.com/ros-controls/ros2_control/issues/989>`_) (`#990 <https://github.com/ros-controls/ros2_control/issues/990>`_)
 * Contributors: Scott K Logan
 
-3.12.0 (2023-04-02)
--------------------
-* [Controller Interface] Add time and period paramters to update_reference_from_subscribers() (`#846 <https://github.com/ros-controls/ros2_control/issues/846>`_) #API-break
-* Contributors: Robotgir, Denis Štogl
-
-3.11.0 (2023-03-22)
--------------------
-* [ControllerManager] Add Class for Async Controllers and Lifecycle Management (`#932 <https://github.com/ros-controls/ros2_control/issues/932>`_)
-* Contributors: Márk Szitanics
-
-3.10.0 (2023-03-16)
+2.25.0 (2023-04-02)
 -------------------
 
-3.9.1 (2023-03-09)
-------------------
+2.24.1 (2023-03-09)
+-------------------
 
-3.9.0 (2023-02-28)
-------------------
+2.24.0 (2023-02-28)
+-------------------
 
-3.8.0 (2023-02-10)
-------------------
-* Fix CMake install so overriding works (`#926 <https://github.com/ros-controls/ros2_control/issues/926>`_)
-* Async params (`#927 <https://github.com/ros-controls/ros2_control/issues/927>`_)
-* Contributors: Márk Szitanics, Tyler Weaver
+2.23.0 (2023-02-20)
+-------------------
 
-3.7.0 (2023-01-24)
-------------------
+2.22.0 (2023-01-31)
+-------------------
 
-3.6.0 (2023-01-12)
-------------------
-* Update imu_sensor.hpp (`#893 <https://github.com/ros-controls/ros2_control/issues/893>`_)
-  Covariances values should come from the IMU_Broadcaster, like the frame_id or the time
+2.21.0 (2023-01-24)
+-------------------
+
+2.20.0 (2023-01-12)
+-------------------
+* Update imu_sensor.hpp (`#893 <https://github.com/ros-controls/ros2_control/issues/893>`_) (`#896 <https://github.com/ros-controls/ros2_control/issues/896>`_)
 * Contributors: flochre
 
-3.5.1 (2023-01-06)
-------------------
+2.19.0 (2023-01-06)
+-------------------
 
-3.5.0 (2022-12-06)
-------------------
+2.18.0 (2022-12-03)
+-------------------
 
-3.4.0 (2022-11-27)
-------------------
+2.17.0 (2022-11-27)
+-------------------
 
-3.3.0 (2022-11-15)
-------------------
-
-3.2.0 (2022-10-15)
-------------------
-
-3.1.0 (2022-10-05)
-------------------
-* Add docs in export interface configurations for controllers. (`#804 <https://github.com/ros-controls/ros2_control/issues/804>`_)
+2.16.0 (2022-10-17)
+-------------------
+* Add docs in export interface configurations for controllers. (`#804 <https://github.com/ros-controls/ros2_control/issues/804>`_) (`#842 <https://github.com/ros-controls/ros2_control/issues/842>`_)
 * Contributors: Denis Štogl
-
-3.0.0 (2022-09-19)
-------------------
 
 2.15.0 (2022-09-19)
 -------------------
-* Remove autodeclare of parameters for controllers. (`#757 <https://github.com/ros-controls/ros2_control/issues/757>`_)
-* Contributors: Denis Štogl
 
 2.14.0 (2022-09-04)
 -------------------
