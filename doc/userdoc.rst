@@ -45,6 +45,15 @@ Alternatives to the standard kernel include
 Though installing a realtime-kernel will definitely get the best results when it comes to low
 jitter, using a lowlatency kernel can improve things a lot with being really easy to install.
 
+Subscribers
+-----------
+
+~/robot_description [std_msgs::msg::String]
+  String with the URDF xml, e.g., from ``robot_state_publisher``.
+  Reloading of the URDF is not supported yet.
+  All joints defined in the ``<ros2_control>``-tag have to be present in the URDF.
+
+
 Parameters
 -----------
 
@@ -74,17 +83,9 @@ update_rate (mandatory; integer)
   The frequency of controller manager's real-time update loop.
   This loop reads states from hardware, updates controller and writes commands to hardware.
 
-
 <controller_name>.type
   Name of a plugin exported using ``pluginlib`` for a controller.
   This is a class from which controller's instance with name "``controller_name``" is created.
-
-Subscribers
------------
-
-robot_description (std_msgs/msg/String)
-  The URDF string as robot description.
-  This is usually published by the ``robot_state_publisher`` node.
 
 Handling Multiple Controller Managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -224,6 +225,10 @@ Note that not all controllers have to be restarted, e.g., broadcasters.
 Restarting hardware
 ^^^^^^^^^^^^^^^^^^^^^
 
-If hardware gets restarted then you should go through its lifecycle again.
-This can be simply achieved by returning ``ERROR`` from ``write`` and ``read`` methods of interface implementation.
-**NOT IMPLEMENTED YET - PLEASE STOP/RESTART ALL CONTROLLERS MANUALLY FOR NOW** The controller manager detects that and stops all the controllers that are commanding that hardware and restarts broadcasters that are listening to its states.
+If hardware gets restarted then you should go through its lifecycle again in order to reconfigure and export the interfaces
+
+Hardware and Controller Errors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If the hardware during it's ``read`` or ``write`` method returns ``return_type::ERROR``, the controller manager will stop all controllers that are using the hardware's command and state interfaces.
+Likewise, if a controller returns ``return_type::ERROR`` from its ``update`` method, the controller manager will deactivate the respective controller. In future, the controller manager will try to start any fallback controllers if available.
