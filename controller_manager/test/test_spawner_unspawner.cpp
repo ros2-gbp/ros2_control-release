@@ -23,6 +23,7 @@
 #include "controller_manager/controller_manager.hpp"
 #include "controller_manager_test_common.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "test_chainable_controller/test_chainable_controller.hpp"
 #include "test_controller/test_controller.hpp"
 
 using ::testing::_;
@@ -39,9 +40,9 @@ class TestLoadController : public ControllerManagerFixture<controller_manager::C
       std::chrono::milliseconds(10),
       [&]()
       {
-        cm_->read(TIME, PERIOD);
-        cm_->update(TIME, PERIOD);
-        cm_->write(TIME, PERIOD);
+        cm_->read(time_, PERIOD);
+        cm_->update(time_, PERIOD);
+        cm_->write(time_, PERIOD);
       });
 
     update_executor_ =
@@ -100,29 +101,60 @@ TEST_F(TestLoadController, spawner_test_type_in_param)
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
 
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
-  auto ctrl_1 = cm_->get_loaded_controllers()[0];
-  ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
-  ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-  ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  {
+    auto ctrl_1 = cm_->get_loaded_controllers()[0];
+    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
+    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  }
 
   // Try to spawn again, it should fail because already active
   EXPECT_NE(call_spawner("ctrl_1 -c test_controller_manager"), 0) << "Cannot configure from active";
-  ctrl_1.c->get_node()->deactivate();
+
+  std::vector<std::string> start_controllers = {};
+  std::vector<std::string> stop_controllers = {"ctrl_1"};
+  cm_->switch_controller(
+    start_controllers, stop_controllers,
+    controller_manager_msgs::srv::SwitchController::Request::STRICT, true, rclcpp::Duration(0, 0));
+
   // We should be able to reconfigure and activate a configured controller
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
-  ctrl_1.c->get_node()->deactivate();
-  ctrl_1.c->get_node()->cleanup();
+
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
+  {
+    auto ctrl_1 = cm_->get_loaded_controllers()[0];
+    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
+    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  }
+
+  cm_->switch_controller(
+    start_controllers, stop_controllers,
+    controller_manager_msgs::srv::SwitchController::Request::STRICT, true, rclcpp::Duration(0, 0));
+  cm_->unload_controller("ctrl_1");
+  cm_->load_controller("ctrl_1");
+
   // We should be able to reconfigure and activate am unconfigured loaded controller
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
-  ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
+  {
+    auto ctrl_1 = cm_->get_loaded_controllers()[0];
+    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
+    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  }
 
   // Unload and reload
   EXPECT_EQ(call_unspawner("ctrl_1 -c test_controller_manager"), 0);
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 0ul) << "Controller should have been unloaded";
   EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 0);
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul) << "Controller should have been loaded";
-  ctrl_1 = cm_->get_loaded_controllers()[0];
-  ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  {
+    auto ctrl_1 = cm_->get_loaded_controllers()[0];
+    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
+    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  }
 }
 
 TEST_F(TestLoadController, multi_ctrls_test_type_in_param)
@@ -228,6 +260,56 @@ TEST_F(TestLoadController, spawner_test_type_in_arg)
   ASSERT_EQ(ctrl_2.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
 }
 
+TEST_F(TestLoadController, spawner_test_type_in_params_file)
+{
+  const std::string test_file_path = ament_index_cpp::get_package_prefix("controller_manager") +
+                                     "/test/test_controller_spawner_with_type.yaml";
+
+  // Provide controller type via the parsed file
+  EXPECT_EQ(
+    call_spawner(
+      "ctrl_with_parameters_and_type chainable_ctrl_with_parameters_and_type --load-only -c "
+      "test_controller_manager -p " +
+      test_file_path),
+    0);
+
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), 2ul);
+
+  auto ctrl_with_parameters_and_type = cm_->get_loaded_controllers()[0];
+  ASSERT_EQ(ctrl_with_parameters_and_type.info.name, "ctrl_with_parameters_and_type");
+  ASSERT_EQ(ctrl_with_parameters_and_type.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+  ASSERT_EQ(
+    ctrl_with_parameters_and_type.c->get_state().id(),
+    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+
+  auto chain_ctrl_with_parameters_and_type = cm_->get_loaded_controllers()[1];
+  ASSERT_EQ(
+    chain_ctrl_with_parameters_and_type.info.name, "chainable_ctrl_with_parameters_and_type");
+  ASSERT_EQ(
+    chain_ctrl_with_parameters_and_type.info.type,
+    test_chainable_controller::TEST_CONTROLLER_CLASS_NAME);
+  ASSERT_EQ(
+    chain_ctrl_with_parameters_and_type.c->get_state().id(),
+    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+
+  EXPECT_EQ(
+    call_spawner(
+      "ctrl_with_parameters_and_no_type -c test_controller_manager -p " + test_file_path),
+    256);
+  // Will still be same as the current call will fail
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), 2ul);
+
+  auto ctrl_1 = cm_->get_loaded_controllers()[0];
+  ASSERT_EQ(ctrl_1.info.name, "ctrl_with_parameters_and_type");
+  ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+  ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+
+  auto ctrl_2 = cm_->get_loaded_controllers()[1];
+  ASSERT_EQ(ctrl_2.info.name, "chainable_ctrl_with_parameters_and_type");
+  ASSERT_EQ(ctrl_2.info.type, test_chainable_controller::TEST_CONTROLLER_CLASS_NAME);
+  ASSERT_EQ(ctrl_2.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+}
+
 TEST_F(TestLoadController, unload_on_kill)
 {
   // Launch spawner with unload on kill
@@ -241,4 +323,59 @@ TEST_F(TestLoadController, unload_on_kill)
     << "timeout should have killed spawner and returned non 0 code";
 
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 0ul);
+}
+
+TEST_F(TestLoadController, spawner_test_fallback_controllers)
+{
+  const std::string test_file_path = ament_index_cpp::get_package_prefix("controller_manager") +
+                                     "/test/test_controller_spawner_with_fallback_controllers.yaml";
+
+  cm_->set_parameter(rclcpp::Parameter("ctrl_1.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
+  cm_->set_parameter(rclcpp::Parameter("ctrl_2.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
+  cm_->set_parameter(rclcpp::Parameter("ctrl_3.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
+
+  ControllerManagerRunner cm_runner(this);
+  EXPECT_EQ(
+    call_spawner(
+      "ctrl_1 -c test_controller_manager --load-only --fallback_controllers ctrl_3 ctrl_4 ctrl_5 "
+      "-p " +
+      test_file_path),
+    0);
+
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
+  {
+    auto ctrl_1 = cm_->get_loaded_controllers()[0];
+    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
+    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_THAT(
+      ctrl_1.info.fallback_controllers_names, testing::ElementsAre("ctrl_3", "ctrl_4", "ctrl_5"));
+    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+  }
+
+  // Try to spawn now the controller with fallback controllers inside the yaml
+  EXPECT_EQ(
+    call_spawner("ctrl_2 ctrl_3 -c test_controller_manager --load-only -p " + test_file_path), 0);
+
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), 3ul);
+  {
+    auto ctrl_1 = cm_->get_loaded_controllers()[0];
+    ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
+    ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_THAT(
+      ctrl_1.info.fallback_controllers_names, testing::ElementsAre("ctrl_3", "ctrl_4", "ctrl_5"));
+    ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+
+    auto ctrl_2 = cm_->get_loaded_controllers()[1];
+    ASSERT_EQ(ctrl_2.info.name, "ctrl_2");
+    ASSERT_EQ(ctrl_2.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_THAT(
+      ctrl_2.info.fallback_controllers_names, testing::ElementsAre("ctrl_6", "ctrl_7", "ctrl_8"));
+    ASSERT_EQ(ctrl_2.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+
+    auto ctrl_3 = cm_->get_loaded_controllers()[2];
+    ASSERT_EQ(ctrl_3.info.name, "ctrl_3");
+    ASSERT_EQ(ctrl_3.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_THAT(ctrl_3.info.fallback_controllers_names, testing::ElementsAre("ctrl_9"));
+    ASSERT_EQ(ctrl_3.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+  }
 }

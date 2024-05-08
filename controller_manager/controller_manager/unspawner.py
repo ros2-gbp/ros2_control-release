@@ -25,7 +25,6 @@ from rclpy.node import Node
 
 
 def main(args=None):
-
     rclpy.init(args=args)
     parser = argparse.ArgumentParser()
     parser.add_argument("controller_names", help="Name of the controller", nargs="+")

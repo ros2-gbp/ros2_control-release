@@ -17,13 +17,16 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "hardware_interface/actuator.hpp"
 #include "hardware_interface/actuator_interface.hpp"
+#include "hardware_interface/async_components.hpp"
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/sensor.hpp"
@@ -64,6 +67,26 @@ auto trigger_and_print_hardware_state_transition =
   return result;
 };
 
+std::string interfaces_to_string(
+  const std::vector<std::string> & start_interfaces,
+  const std::vector<std::string> & stop_interfaces)
+{
+  std::stringstream ss;
+  ss << "Start interfaces: " << std::endl << "[" << std::endl;
+  for (const auto & start_if : start_interfaces)
+  {
+    ss << "  " << start_if << std::endl;
+  }
+  ss << "]" << std::endl;
+  ss << "Stop interfaces: " << std::endl << "[" << std::endl;
+  for (const auto & stop_if : stop_interfaces)
+  {
+    ss << "  " << stop_if << std::endl;
+  }
+  ss << "]" << std::endl;
+  return ss.str();
+};
+
 class ResourceStorage
 {
   static constexpr const char * pkg_name = "hardware_interface";
@@ -73,36 +96,76 @@ class ResourceStorage
   static constexpr const char * system_interface_name = "hardware_interface::SystemInterface";
 
 public:
-  ResourceStorage()
+  // TODO(VX792): Change this when HW ifs get their own update rate,
+  // because the ResourceStorage really shouldn't know about the cm's parameters
+  ResourceStorage(
+    unsigned int update_rate = 100,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr)
   : actuator_loader_(pkg_name, actuator_interface_name),
     sensor_loader_(pkg_name, sensor_interface_name),
-    system_loader_(pkg_name, system_interface_name)
+    system_loader_(pkg_name, system_interface_name),
+    cm_update_rate_(update_rate),
+    clock_interface_(clock_interface)
   {
   }
 
   template <class HardwareT, class HardwareInterfaceT>
-  void load_hardware(
+  [[nodiscard]] bool load_hardware(
     const HardwareInfo & hardware_info, pluginlib::ClassLoader<HardwareInterfaceT> & loader,
     std::vector<HardwareT> & container)
   {
-    RCUTILS_LOG_INFO_NAMED(
-      "resource_manager", "Loading hardware '%s' ", hardware_info.name.c_str());
-    // hardware_class_type has to match class name in plugin xml description
-    // TODO(karsten1987) extract package from hardware_class_type
-    // e.g.: <package_vendor>/<system_type>
-    auto interface = std::unique_ptr<HardwareInterfaceT>(
-      loader.createUnmanagedInstance(hardware_info.hardware_class_type));
-    HardwareT hardware(std::move(interface));
-    container.emplace_back(std::move(hardware));
-    // initialize static data about hardware component to reduce later calls
-    HardwareComponentInfo component_info;
-    component_info.name = hardware_info.name;
-    component_info.type = hardware_info.type;
-    component_info.class_type = hardware_info.hardware_class_type;
+    bool is_loaded = false;
+    try
+    {
+      RCUTILS_LOG_INFO_NAMED(
+        "resource_manager", "Loading hardware '%s' ", hardware_info.name.c_str());
+      // hardware_plugin_name has to match class name in plugin xml description
+      auto interface = std::unique_ptr<HardwareInterfaceT>(
+        loader.createUnmanagedInstance(hardware_info.hardware_plugin_name));
+      if (interface)
+      {
+        RCUTILS_LOG_INFO_NAMED(
+          "resource_manager", "Loaded hardware '%s' from plugin '%s'", hardware_info.name.c_str(),
+          hardware_info.hardware_plugin_name.c_str());
+        HardwareT hardware(std::move(interface));
+        container.emplace_back(std::move(hardware));
+        // initialize static data about hardware component to reduce later calls
+        HardwareComponentInfo component_info;
+        component_info.name = hardware_info.name;
+        component_info.type = hardware_info.type;
+        component_info.plugin_name = hardware_info.hardware_plugin_name;
+        component_info.is_async = hardware_info.is_async;
 
-    hardware_info_map_.insert(std::make_pair(component_info.name, component_info));
-    hardware_used_by_controllers_.insert(
-      std::make_pair(component_info.name, std::vector<std::string>()));
+        hardware_info_map_.insert(std::make_pair(component_info.name, component_info));
+        hardware_used_by_controllers_.insert(
+          std::make_pair(component_info.name, std::vector<std::string>()));
+        is_loaded = true;
+      }
+      else
+      {
+        RCUTILS_LOG_ERROR_NAMED(
+          "resource_manager", "Failed to load hardware '%s' from plugin '%s'",
+          hardware_info.name.c_str(), hardware_info.hardware_plugin_name.c_str());
+      }
+    }
+    catch (const pluginlib::PluginlibException & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception while loading hardware: %s", ex.what());
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception occurred while loading hardware '%s': %s",
+        hardware_info.name.c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Unknown exception occurred while loading hardware '%s'",
+        hardware_info.name.c_str());
+    }
+    return is_loaded;
   }
 
   template <class HardwareT>
@@ -111,30 +174,62 @@ public:
     RCUTILS_LOG_INFO_NAMED(
       "resource_manager", "Initialize hardware '%s' ", hardware_info.name.c_str());
 
-    const rclcpp_lifecycle::State new_state = hardware.initialize(hardware_info);
-
-    bool result = new_state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED;
-
-    if (result)
+    bool result = false;
+    try
     {
-      RCUTILS_LOG_INFO_NAMED(
-        "resource_manager", "Successful initialization of hardware '%s'",
+      const rclcpp_lifecycle::State new_state = hardware.initialize(hardware_info);
+      result = new_state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED;
+
+      if (result)
+      {
+        RCUTILS_LOG_INFO_NAMED(
+          "resource_manager", "Successful initialization of hardware '%s'",
+          hardware_info.name.c_str());
+      }
+      else
+      {
+        RCUTILS_LOG_INFO_NAMED(
+          "resource_manager", "Failed to initialize hardware '%s'", hardware_info.name.c_str());
+      }
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception occurred while initializing hardware '%s': %s",
+        hardware_info.name.c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Unknown exception occurred while initializing hardware '%s'",
         hardware_info.name.c_str());
     }
-    else
-    {
-      RCUTILS_LOG_INFO_NAMED(
-        "resource_manager", "Failed to initialize hardware '%s'", hardware_info.name.c_str());
-    }
+
     return result;
   }
 
   template <class HardwareT>
   bool configure_hardware(HardwareT & hardware)
   {
-    bool result = trigger_and_print_hardware_state_transition(
-      std::bind(&HardwareT::configure, &hardware), "configure", hardware.get_name(),
-      lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE);
+    bool result = false;
+    try
+    {
+      result = trigger_and_print_hardware_state_transition(
+        std::bind(&HardwareT::configure, &hardware), "configure", hardware.get_name(),
+        lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE);
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception occurred while configuring hardware '%s': %s",
+        hardware.get_name().c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Unknown exception occurred while configuring hardware '%s'",
+        hardware.get_name().c_str());
+    }
 
     if (result)
     {
@@ -192,6 +287,15 @@ public:
             " This can happen due to multiple calls to 'configure'",
             hardware.get_name().c_str(), interface.c_str());
         }
+      }
+
+      if (hardware_info_map_[hardware.get_name()].is_async)
+      {
+        async_component_threads_.emplace(
+          std::piecewise_construct, std::forward_as_tuple(hardware.get_name()),
+          std::forward_as_tuple(cm_update_rate_, clock_interface_));
+
+        async_component_threads_.at(hardware.get_name()).register_component(&hardware);
       }
     }
     return result;
@@ -252,9 +356,25 @@ public:
   template <class HardwareT>
   bool cleanup_hardware(HardwareT & hardware)
   {
-    bool result = trigger_and_print_hardware_state_transition(
-      std::bind(&HardwareT::cleanup, &hardware), "cleanup", hardware.get_name(),
-      lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+    bool result = false;
+    try
+    {
+      result = trigger_and_print_hardware_state_transition(
+        std::bind(&HardwareT::cleanup, &hardware), "cleanup", hardware.get_name(),
+        lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception occurred while cleaning up hardware '%s': %s",
+        hardware.get_name().c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Unknown exception occurred while cleaning up hardware '%s'",
+        hardware.get_name().c_str());
+    }
 
     if (result)
     {
@@ -266,12 +386,30 @@ public:
   template <class HardwareT>
   bool shutdown_hardware(HardwareT & hardware)
   {
-    bool result = trigger_and_print_hardware_state_transition(
-      std::bind(&HardwareT::shutdown, &hardware), "shutdown", hardware.get_name(),
-      lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED);
+    bool result = false;
+    try
+    {
+      result = trigger_and_print_hardware_state_transition(
+        std::bind(&HardwareT::shutdown, &hardware), "shutdown", hardware.get_name(),
+        lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED);
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception occurred while shutting down hardware '%s': %s",
+        hardware.get_name().c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Unknown exception occurred while shutting down hardware '%s'",
+        hardware.get_name().c_str());
+    }
 
     if (result)
     {
+      remove_all_hardware_interfaces_from_available_list(hardware.get_name());
+      async_component_threads_.erase(hardware.get_name());
       // TODO(destogl): change this - deimport all things if there is there are interfaces there
       // deimport_non_movement_command_interfaces(hardware);
       // deimport_state_interfaces(hardware);
@@ -283,12 +421,32 @@ public:
   template <class HardwareT>
   bool activate_hardware(HardwareT & hardware)
   {
-    bool result = trigger_and_print_hardware_state_transition(
-      std::bind(&HardwareT::activate, &hardware), "activate", hardware.get_name(),
-      lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+    bool result = false;
+    try
+    {
+      result = trigger_and_print_hardware_state_transition(
+        std::bind(&HardwareT::activate, &hardware), "activate", hardware.get_name(),
+        lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception occurred while activating hardware '%s': %s",
+        hardware.get_name().c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Unknown exception occurred while activating hardware '%s'",
+        hardware.get_name().c_str());
+    }
 
     if (result)
     {
+      if (async_component_threads_.find(hardware.get_name()) != async_component_threads_.end())
+      {
+        async_component_threads_.at(hardware.get_name()).activate();
+      }
       // TODO(destogl): make all command interfaces available (currently are all available)
     }
 
@@ -298,9 +456,25 @@ public:
   template <class HardwareT>
   bool deactivate_hardware(HardwareT & hardware)
   {
-    bool result = trigger_and_print_hardware_state_transition(
-      std::bind(&HardwareT::deactivate, &hardware), "deactivate", hardware.get_name(),
-      lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE);
+    bool result = false;
+    try
+    {
+      result = trigger_and_print_hardware_state_transition(
+        std::bind(&HardwareT::deactivate, &hardware), "deactivate", hardware.get_name(),
+        lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE);
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Exception occurred while deactivating hardware '%s': %s",
+        hardware.get_name().c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager", "Unknown exception occurred while deactivating hardware '%s'",
+        hardware.get_name().c_str());
+    }
 
     if (result)
     {
@@ -412,25 +586,60 @@ public:
   template <class HardwareT>
   void import_state_interfaces(HardwareT & hardware)
   {
-    auto interfaces = hardware.export_state_interfaces();
-    std::vector<std::string> interface_names;
-    interface_names.reserve(interfaces.size());
-    for (auto & interface : interfaces)
+    try
     {
-      auto key = interface.get_name();
-      state_interface_map_.emplace(std::make_pair(key, std::move(interface)));
-      interface_names.push_back(key);
+      auto interfaces = hardware.export_state_interfaces();
+      std::vector<std::string> interface_names;
+      interface_names.reserve(interfaces.size());
+      for (auto & interface : interfaces)
+      {
+        auto key = interface.get_name();
+        state_interface_map_.emplace(std::make_pair(key, std::move(interface)));
+        interface_names.push_back(key);
+      }
+      hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
+      available_state_interfaces_.reserve(
+        available_state_interfaces_.capacity() + interface_names.size());
     }
-    hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
-    available_state_interfaces_.reserve(
-      available_state_interfaces_.capacity() + interface_names.size());
+    catch (const std::exception & e)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager",
+        "Exception occurred while importing state interfaces for the hardware '%s' : %s",
+        hardware.get_name().c_str(), e.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager",
+        "Unknown exception occurred while importing state interfaces for the hardware '%s'",
+        hardware.get_name().c_str());
+    }
   }
 
   template <class HardwareT>
   void import_command_interfaces(HardwareT & hardware)
   {
-    auto interfaces = hardware.export_command_interfaces();
-    hardware_info_map_[hardware.get_name()].command_interfaces = add_command_interfaces(interfaces);
+    try
+    {
+      auto interfaces = hardware.export_command_interfaces();
+      hardware_info_map_[hardware.get_name()].command_interfaces =
+        add_command_interfaces(interfaces);
+    }
+    catch (const std::exception & ex)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager",
+        "Exception occurred while importing command interfaces for the hardware '%s' : %s",
+        hardware.get_name().c_str(), ex.what());
+    }
+    catch (...)
+    {
+      RCUTILS_LOG_ERROR_NAMED(
+        "resource_manager",
+        "Unknown exception occurred while importing command interfaces for the hardware '%s'",
+        hardware.get_name().c_str());
+    }
   }
 
   /// Adds exported command interfaces into internal storage.
@@ -493,7 +702,10 @@ public:
     auto load_and_init_actuators = [&](auto & container)
     {
       check_for_duplicates(hardware_info);
-      load_hardware<Actuator, ActuatorInterface>(hardware_info, actuator_loader_, container);
+      if (!load_hardware<Actuator, ActuatorInterface>(hardware_info, actuator_loader_, container))
+      {
+        return;
+      }
       if (initialize_hardware(hardware_info, container.back()))
       {
         import_state_interfaces(container.back());
@@ -504,11 +716,18 @@ public:
         RCUTILS_LOG_WARN_NAMED(
           "resource_manager",
           "Actuator hardware component '%s' from plugin '%s' failed to initialize.",
-          hardware_info.name.c_str(), hardware_info.hardware_class_type.c_str());
+          hardware_info.name.c_str(), hardware_info.hardware_plugin_name.c_str());
       }
     };
 
-    load_and_init_actuators(actuators_);
+    if (hardware_info.is_async)
+    {
+      load_and_init_actuators(async_actuators_);
+    }
+    else
+    {
+      load_and_init_actuators(actuators_);
+    }
   }
 
   void load_and_initialize_sensor(const HardwareInfo & hardware_info)
@@ -516,7 +735,10 @@ public:
     auto load_and_init_sensors = [&](auto & container)
     {
       check_for_duplicates(hardware_info);
-      load_hardware<Sensor, SensorInterface>(hardware_info, sensor_loader_, container);
+      if (!load_hardware<Sensor, SensorInterface>(hardware_info, sensor_loader_, container))
+      {
+        return;
+      }
       if (initialize_hardware(hardware_info, container.back()))
       {
         import_state_interfaces(container.back());
@@ -526,11 +748,18 @@ public:
         RCUTILS_LOG_WARN_NAMED(
           "resource_manager",
           "Sensor hardware component '%s' from plugin '%s' failed to initialize.",
-          hardware_info.name.c_str(), hardware_info.hardware_class_type.c_str());
+          hardware_info.name.c_str(), hardware_info.hardware_plugin_name.c_str());
       }
     };
 
-    load_and_init_sensors(sensors_);
+    if (hardware_info.is_async)
+    {
+      load_and_init_sensors(async_sensors_);
+    }
+    else
+    {
+      load_and_init_sensors(sensors_);
+    }
   }
 
   void load_and_initialize_system(const HardwareInfo & hardware_info)
@@ -538,7 +767,10 @@ public:
     auto load_and_init_systems = [&](auto & container)
     {
       check_for_duplicates(hardware_info);
-      load_hardware<System, SystemInterface>(hardware_info, system_loader_, container);
+      if (!load_hardware<System, SystemInterface>(hardware_info, system_loader_, container))
+      {
+        return;
+      }
       if (initialize_hardware(hardware_info, container.back()))
       {
         import_state_interfaces(container.back());
@@ -549,11 +781,18 @@ public:
         RCUTILS_LOG_WARN_NAMED(
           "resource_manager",
           "System hardware component '%s' from plugin '%s' failed to initialize.",
-          hardware_info.name.c_str(), hardware_info.hardware_class_type.c_str());
+          hardware_info.name.c_str(), hardware_info.hardware_plugin_name.c_str());
       }
     };
 
-    load_and_init_systems(systems_);
+    if (hardware_info.is_async)
+    {
+      load_and_init_systems(async_systems_);
+    }
+    else
+    {
+      load_and_init_systems(systems_);
+    }
   }
 
   void initialize_actuator(
@@ -572,11 +811,18 @@ public:
         RCUTILS_LOG_WARN_NAMED(
           "resource_manager",
           "Actuator hardware component '%s' from plugin '%s' failed to initialize.",
-          hardware_info.name.c_str(), hardware_info.hardware_class_type.c_str());
+          hardware_info.name.c_str(), hardware_info.hardware_plugin_name.c_str());
       }
     };
 
-    init_actuators(actuators_);
+    if (hardware_info.is_async)
+    {
+      init_actuators(async_actuators_);
+    }
+    else
+    {
+      init_actuators(actuators_);
+    }
   }
 
   void initialize_sensor(
@@ -594,11 +840,18 @@ public:
         RCUTILS_LOG_WARN_NAMED(
           "resource_manager",
           "Sensor hardware component '%s' from plugin '%s' failed to initialize.",
-          hardware_info.name.c_str(), hardware_info.hardware_class_type.c_str());
+          hardware_info.name.c_str(), hardware_info.hardware_plugin_name.c_str());
       }
     };
 
-    init_sensors(sensors_);
+    if (hardware_info.is_async)
+    {
+      init_sensors(async_sensors_);
+    }
+    else
+    {
+      init_sensors(sensors_);
+    }
   }
 
   void initialize_system(
@@ -617,11 +870,18 @@ public:
         RCUTILS_LOG_WARN_NAMED(
           "resource_manager",
           "System hardware component '%s' from plugin '%s' failed to initialize.",
-          hardware_info.name.c_str(), hardware_info.hardware_class_type.c_str());
+          hardware_info.name.c_str(), hardware_info.hardware_plugin_name.c_str());
       }
     };
 
-    init_systems(systems_);
+    if (hardware_info.is_async)
+    {
+      init_systems(async_systems_);
+    }
+    else
+    {
+      init_systems(systems_);
+    }
   }
 
   // hardware plugins
@@ -632,6 +892,10 @@ public:
   std::vector<Actuator> actuators_;
   std::vector<Sensor> sensors_;
   std::vector<System> systems_;
+
+  std::vector<Actuator> async_actuators_;
+  std::vector<Sensor> async_sensors_;
+  std::vector<System> async_systems_;
 
   std::unordered_map<std::string, HardwareComponentInfo> hardware_info_map_;
 
@@ -652,15 +916,28 @@ public:
 
   /// List of all claimed command interfaces
   std::unordered_map<std::string, bool> claimed_command_interface_map_;
+
+  /// List of async components by type
+  std::unordered_map<std::string, AsyncComponentThread> async_component_threads_;
+
+  // Update rate of the controller manager, and the clock interface of its node
+  // Used by async components.
+  unsigned int cm_update_rate_;
+  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface_;
 };
 
-ResourceManager::ResourceManager() : resource_storage_(std::make_unique<ResourceStorage>()) {}
+ResourceManager::ResourceManager(
+  unsigned int update_rate, rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+: resource_storage_(std::make_unique<ResourceStorage>(update_rate, clock_interface))
+{
+}
 
 ResourceManager::~ResourceManager() = default;
 
 ResourceManager::ResourceManager(
-  const std::string & urdf, bool validate_interfaces, bool activate_all)
-: resource_storage_(std::make_unique<ResourceStorage>())
+  const std::string & urdf, bool validate_interfaces, bool activate_all, unsigned int update_rate,
+  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+: resource_storage_(std::make_unique<ResourceStorage>(update_rate, clock_interface))
 {
   load_urdf(urdf, validate_interfaces);
 
@@ -691,8 +968,7 @@ void ResourceManager::load_urdf(
     {
       if (individual_hardware_info.type == actuator_type)
       {
-        std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-        std::lock_guard<std::recursive_mutex> guard_claimed(claimed_command_interfaces_lock_);
+        std::scoped_lock guard(resource_interfaces_lock_, claimed_command_interfaces_lock_);
         resource_storage_->load_and_initialize_actuator(individual_hardware_info);
       }
       if (individual_hardware_info.type == sensor_type)
@@ -702,8 +978,7 @@ void ResourceManager::load_urdf(
       }
       if (individual_hardware_info.type == system_type)
       {
-        std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-        std::lock_guard<std::recursive_mutex> guard_claimed(claimed_command_interfaces_lock_);
+        std::scoped_lock guard(resource_interfaces_lock_, claimed_command_interfaces_lock_);
         resource_storage_->load_and_initialize_system(individual_hardware_info);
       }
     }
@@ -768,8 +1043,7 @@ bool ResourceManager::state_interface_is_available(const std::string & name) con
 void ResourceManager::import_controller_reference_interfaces(
   const std::string & controller_name, std::vector<CommandInterface> & interfaces)
 {
-  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  std::lock_guard<std::recursive_mutex> guard_claimed(claimed_command_interfaces_lock_);
+  std::scoped_lock guard(resource_interfaces_lock_, claimed_command_interfaces_lock_);
   auto interface_names = resource_storage_->add_command_interfaces(interfaces);
   resource_storage_->controllers_reference_interfaces_map_[controller_name] = interface_names;
 }
@@ -823,8 +1097,7 @@ void ResourceManager::remove_controller_reference_interfaces(const std::string &
     resource_storage_->controllers_reference_interfaces_map_.at(controller_name);
   resource_storage_->controllers_reference_interfaces_map_.erase(controller_name);
 
-  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  std::lock_guard<std::recursive_mutex> guard_claimed(claimed_command_interfaces_lock_);
+  std::scoped_lock guard(resource_interfaces_lock_, claimed_command_interfaces_lock_);
   resource_storage_->remove_command_interfaces(interface_names);
 }
 
@@ -978,18 +1251,20 @@ void ResourceManager::import_component(
 // CM API: Called in "callback/slow"-thread
 std::unordered_map<std::string, HardwareComponentInfo> ResourceManager::get_components_status()
 {
-  for (auto & component : resource_storage_->actuators_)
+  auto loop_and_get_state = [&](auto & container)
   {
-    resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
-  }
-  for (auto & component : resource_storage_->sensors_)
-  {
-    resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
-  }
-  for (auto & component : resource_storage_->systems_)
-  {
-    resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
-  }
+    for (auto & component : container)
+    {
+      resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
+    }
+  };
+
+  loop_and_get_state(resource_storage_->actuators_);
+  loop_and_get_state(resource_storage_->async_actuators_);
+  loop_and_get_state(resource_storage_->sensors_);
+  loop_and_get_state(resource_storage_->async_sensors_);
+  loop_and_get_state(resource_storage_->systems_);
+  loop_and_get_state(resource_storage_->async_systems_);
 
   return resource_storage_->hardware_info_map_;
 }
@@ -1004,24 +1279,6 @@ bool ResourceManager::prepare_command_mode_switch(
   {
     return true;
   }
-
-  auto interfaces_to_string = [&]()
-  {
-    std::stringstream ss;
-    ss << "Start interfaces: " << std::endl << "[" << std::endl;
-    for (const auto & start_if : start_interfaces)
-    {
-      ss << "  " << start_if << std::endl;
-    }
-    ss << "]" << std::endl;
-    ss << "Stop interfaces: " << std::endl << "[" << std::endl;
-    for (const auto & stop_if : stop_interfaces)
-    {
-      ss << "  " << stop_if << std::endl;
-    }
-    ss << "]" << std::endl;
-    return ss.str();
-  };
 
   // Check if interface exists
   std::stringstream ss_not_existing;
@@ -1044,7 +1301,8 @@ bool ResourceManager::prepare_command_mode_switch(
     ss_not_existing << "]" << std::endl;
     RCUTILS_LOG_ERROR_NAMED(
       "resource_manager", "Not acceptable command interfaces combination: \n%s%s",
-      interfaces_to_string().c_str(), ss_not_existing.str().c_str());
+      interfaces_to_string(start_interfaces, stop_interfaces).c_str(),
+      ss_not_existing.str().c_str());
     return false;
   }
 
@@ -1069,12 +1327,12 @@ bool ResourceManager::prepare_command_mode_switch(
     ss_not_available << "]" << std::endl;
     RCUTILS_LOG_ERROR_NAMED(
       "resource_manager", "Not acceptable command interfaces combination: \n%s%s",
-      interfaces_to_string().c_str(), ss_not_available.str().c_str());
+      interfaces_to_string(start_interfaces, stop_interfaces).c_str(),
+      ss_not_available.str().c_str());
     return false;
   }
 
-  auto call_prepare_mode_switch =
-    [&start_interfaces, &stop_interfaces, &interfaces_to_string](auto & components)
+  auto call_prepare_mode_switch = [&start_interfaces, &stop_interfaces](auto & components)
   {
     bool ret = true;
     for (auto & component : components)
@@ -1083,14 +1341,38 @@ bool ResourceManager::prepare_command_mode_switch(
         component.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE ||
         component.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
       {
-        if (
-          return_type::OK !=
-          component.prepare_command_mode_switch(start_interfaces, stop_interfaces))
+        try
+        {
+          if (
+            return_type::OK !=
+            component.prepare_command_mode_switch(start_interfaces, stop_interfaces))
+          {
+            RCUTILS_LOG_ERROR_NAMED(
+              "resource_manager",
+              "Component '%s' did not accept command interfaces combination: \n%s",
+              component.get_name().c_str(),
+              interfaces_to_string(start_interfaces, stop_interfaces).c_str());
+            ret = false;
+          }
+        }
+        catch (const std::exception & e)
         {
           RCUTILS_LOG_ERROR_NAMED(
             "resource_manager",
-            "Component '%s' did not accept command interfaces combination: \n%s",
-            component.get_name().c_str(), interfaces_to_string().c_str());
+            "Exception occurred while preparing command mode switch for component '%s' for the "
+            "interfaces: \n %s : %s",
+            component.get_name().c_str(),
+            interfaces_to_string(start_interfaces, stop_interfaces).c_str(), e.what());
+          ret = false;
+        }
+        catch (...)
+        {
+          RCUTILS_LOG_ERROR_NAMED(
+            "resource_manager",
+            "Unknown exception occurred while preparing command mode switch for component '%s' for "
+            "the interfaces: \n %s",
+            component.get_name().c_str(),
+            interfaces_to_string(start_interfaces, stop_interfaces).c_str());
           ret = false;
         }
       }
@@ -1124,13 +1406,37 @@ bool ResourceManager::perform_command_mode_switch(
         component.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE ||
         component.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
       {
-        if (
-          return_type::OK !=
-          component.perform_command_mode_switch(start_interfaces, stop_interfaces))
+        try
+        {
+          if (
+            return_type::OK !=
+            component.perform_command_mode_switch(start_interfaces, stop_interfaces))
+          {
+            RCUTILS_LOG_ERROR_NAMED(
+              "resource_manager", "Component '%s' could not perform switch",
+              component.get_name().c_str());
+            ret = false;
+          }
+        }
+        catch (const std::exception & e)
         {
           RCUTILS_LOG_ERROR_NAMED(
-            "resource_manager", "Component '%s' could not perform switch",
-            component.get_name().c_str());
+            "resource_manager",
+            "Exception occurred while performing command mode switch for component '%s' for the "
+            "interfaces: \n %s : %s",
+            component.get_name().c_str(),
+            interfaces_to_string(start_interfaces, stop_interfaces).c_str(), e.what());
+          ret = false;
+        }
+        catch (...)
+        {
+          RCUTILS_LOG_ERROR_NAMED(
+            "resource_manager",
+            "Unknown exception occurred while performing command mode switch for component '%s' "
+            "for "
+            "the interfaces: \n %s",
+            component.get_name().c_str(),
+            interfaces_to_string(start_interfaces, stop_interfaces).c_str());
           ret = false;
         }
       }
@@ -1224,8 +1530,33 @@ return_type ResourceManager::set_component_state(
       std::bind(&ResourceStorage::set_component_state<System>, resource_storage_.get(), _1, _2),
       resource_storage_->systems_);
   }
+  if (!found)
+  {
+    found = find_set_component_state(
+      std::bind(&ResourceStorage::set_component_state<Actuator>, resource_storage_.get(), _1, _2),
+      resource_storage_->async_actuators_);
+  }
+  if (!found)
+  {
+    found = find_set_component_state(
+      std::bind(&ResourceStorage::set_component_state<System>, resource_storage_.get(), _1, _2),
+      resource_storage_->async_systems_);
+  }
+  if (!found)
+  {
+    found = find_set_component_state(
+      std::bind(&ResourceStorage::set_component_state<Sensor>, resource_storage_.get(), _1, _2),
+      resource_storage_->async_sensors_);
+  }
 
   return result;
+}
+
+void ResourceManager::shutdown_async_components()
+{
+  resource_storage_->async_component_threads_.erase(
+    resource_storage_->async_component_threads_.begin(),
+    resource_storage_->async_component_threads_.end());
 }
 
 // CM API: Called in "update"-thread
@@ -1240,12 +1571,42 @@ HardwareReadWriteStatus ResourceManager::read(
   {
     for (auto & component : components)
     {
-      if (component.read(time, period) != return_type::OK)
+      auto ret_val = return_type::OK;
+      try
+      {
+        ret_val = component.read(time, period);
+      }
+      catch (const std::exception & e)
+      {
+        RCUTILS_LOG_ERROR_NAMED(
+          "resource_manager", "Exception thrown durind read of the component '%s': %s",
+          component.get_name().c_str(), e.what());
+        ret_val = return_type::ERROR;
+      }
+      catch (...)
+      {
+        RCUTILS_LOG_ERROR_NAMED(
+          "resource_manager", "Unknown exception thrown during read of the component '%s'",
+          component.get_name().c_str());
+        ret_val = return_type::ERROR;
+      }
+      if (ret_val == return_type::ERROR)
       {
         read_write_status.ok = false;
         read_write_status.failed_hardware_names.push_back(component.get_name());
         resource_storage_->remove_all_hardware_interfaces_from_available_list(component.get_name());
       }
+      else if (ret_val == return_type::DEACTIVATE)
+      {
+        resource_storage_->deactivate_hardware(component);
+      }
+      // If desired: automatic re-activation. We could add a flag for this...
+      // else
+      // {
+      // using lifecycle_msgs::msg::State;
+      // rclcpp_lifecycle::State state(State::PRIMARY_STATE_ACTIVE, lifecycle_state_names::ACTIVE);
+      // set_component_state(component.get_name(), state);
+      // }
     }
   };
 
@@ -1268,11 +1629,34 @@ HardwareReadWriteStatus ResourceManager::write(
   {
     for (auto & component : components)
     {
-      if (component.write(time, period) != return_type::OK)
+      auto ret_val = return_type::OK;
+      try
+      {
+        ret_val = component.write(time, period);
+      }
+      catch (const std::exception & e)
+      {
+        RCUTILS_LOG_ERROR_NAMED(
+          "resource_manager", "Exception thrown during write of the component '%s': %s",
+          component.get_name().c_str(), e.what());
+        ret_val = return_type::ERROR;
+      }
+      catch (...)
+      {
+        RCUTILS_LOG_ERROR_NAMED(
+          "resource_manager", "Unknown exception thrown during write of the component '%s'",
+          component.get_name().c_str());
+        ret_val = return_type::ERROR;
+      }
+      if (ret_val == return_type::ERROR)
       {
         read_write_status.ok = false;
         read_write_status.failed_hardware_names.push_back(component.get_name());
         resource_storage_->remove_all_hardware_interfaces_from_available_list(component.get_name());
+      }
+      else if (ret_val == return_type::DEACTIVATE)
+      {
+        resource_storage_->deactivate_hardware(component);
       }
     }
   };
@@ -1312,6 +1696,7 @@ bool ResourceManager::state_interface_exists(const std::string & key) const
   return resource_storage_->state_interface_map_.find(key) !=
          resource_storage_->state_interface_map_.end();
 }
+
 // END: "used only in tests and locally"
 
 // BEGIN: private methods
@@ -1385,27 +1770,6 @@ void ResourceManager::validate_storage(
     }
 
     throw std::runtime_error(err_msg);
-  }
-}
-
-// Temporary method to keep old interface and reduce framework changes in the PRs
-void ResourceManager::activate_all_components()
-{
-  using lifecycle_msgs::msg::State;
-  rclcpp_lifecycle::State active_state(
-    State::PRIMARY_STATE_ACTIVE, hardware_interface::lifecycle_state_names::ACTIVE);
-
-  for (auto & component : resource_storage_->actuators_)
-  {
-    set_component_state(component.get_name(), active_state);
-  }
-  for (auto & component : resource_storage_->sensors_)
-  {
-    set_component_state(component.get_name(), active_state);
-  }
-  for (auto & component : resource_storage_->systems_)
-  {
-    set_component_state(component.get_name(), active_state);
   }
 }
 

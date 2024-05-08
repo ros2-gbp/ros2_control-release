@@ -44,9 +44,6 @@ class ListHardwareComponentsVerb(VerbExtension):
                 )
                 if hasattr(component, "plugin_name"):
                     plugin_name = component.plugin_name
-                # Keep compatibility to the obsolete filed name in Humble
-                elif hasattr(component, "class_type"):
-                    plugin_name = component.class_type
                 else:
                     plugin_name = f"{bcolors.WARNING}plugin name missing!{bcolors.ENDC}"
 
@@ -56,7 +53,6 @@ class ListHardwareComponentsVerb(VerbExtension):
                     f"\tcommand interfaces"
                 )
                 for cmd_interface in component.command_interfaces:
-
                     if cmd_interface.is_available:
                         available_str = f"{bcolors.OKBLUE}[available]{bcolors.ENDC}"
                     else:

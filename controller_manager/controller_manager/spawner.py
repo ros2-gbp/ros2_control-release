@@ -19,6 +19,7 @@ import os
 import sys
 import time
 import warnings
+import yaml
 
 from controller_manager import (
     configure_controller,
@@ -32,9 +33,15 @@ import rclpy
 from rcl_interfaces.msg import Parameter
 from rclpy.duration import Duration
 from rclpy.node import Node
+
+# @note: The versions conditioning is added here to support the source-compatibility with Humble
+# The `get_parameter_value` function is moved to `rclpy.parameter` module from `ros2param.api` module from version 3.6.0
+try:
+    from rclpy.parameter import get_parameter_value
+except ImportError:
+    from ros2param.api import get_parameter_value
 from rclpy.signals import SignalHandlerOptions
 from ros2param.api import call_set_parameters
-from ros2param.api import get_parameter_value
 
 # from https://stackoverflow.com/a/287944
 
@@ -57,8 +64,7 @@ def first_match(iterable, predicate):
 
 def wait_for_value_or(function, node, timeout, default, description):
     while node.get_clock().now() < timeout:
-        result = function()
-        if result:
+        if result := function():
             return result
         node.get_logger().info(
             f"Waiting for {description}", throttle_duration_sec=2, skip_first=True
@@ -130,8 +136,22 @@ def is_controller_loaded(node, controller_manager, controller_name):
     return any(c.name == controller_name for c in controllers)
 
 
-def main(args=None):
+def get_parameter_from_param_file(controller_name, parameter_file, parameter_name):
+    with open(parameter_file) as f:
+        parameters = yaml.safe_load(f)
+        if controller_name in parameters:
+            value = parameters[controller_name]
+            if not isinstance(value, dict) or "ros__parameters" not in value:
+                raise RuntimeError(
+                    f"YAML file : {parameter_file} is not a valid ROS parameter file for controller : {controller_name}"
+                )
+            if parameter_name in parameters[controller_name]["ros__parameters"]:
+                return parameters[controller_name]["ros__parameters"][parameter_name]
+            else:
+                return None
 
+
+def main(args=None):
     rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     parser = argparse.ArgumentParser()
     parser.add_argument("controller_names", help="List of controllers", nargs="+")
@@ -158,12 +178,6 @@ def main(args=None):
         required=False,
     )
     parser.add_argument(
-        "--stopped",
-        help="Load and configure the controller, however do not activate them",
-        action="store_true",
-        required=False,
-    )
-    parser.add_argument(
         "--inactive",
         help="Load and configure the controller, however do not activate them",
         action="store_true",
@@ -172,7 +186,7 @@ def main(args=None):
     parser.add_argument(
         "-t",
         "--controller-type",
-        help="If not provided it should exist in the controller manager namespace",
+        help="If not provided it should exist in the controller manager namespace (deprecated)",
         default=None,
         required=False,
     )
@@ -196,6 +210,14 @@ def main(args=None):
         action="store_true",
         required=False,
     )
+    parser.add_argument(
+        "--fallback_controllers",
+        help="Fallback controllers list are activated as a fallback strategy when the"
+        " spawned controllers fail. When the argument is provided, it takes precedence over"
+        " the fallback_controllers list in the param file",
+        default=None,
+        nargs="+",
+    )
 
     command_line_args = rclpy.utilities.remove_ros_args(args=sys.argv)[1:]
     args = parser.parse_args(command_line_args)
@@ -203,8 +225,15 @@ def main(args=None):
     controller_manager_name = args.controller_manager
     controller_namespace = args.namespace
     param_file = args.param_file
-    controller_type = args.controller_type
     controller_manager_timeout = args.controller_manager_timeout
+
+    if args.controller_type:
+        warnings.filterwarnings("always")
+        warnings.warn(
+            "The '--controller-type' argument is deprecated and will be removed in future releases."
+            " Declare the controller type parameter in the param file instead.",
+            DeprecationWarning,
+        )
 
     if param_file and not os.path.isfile(param_file):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
@@ -222,10 +251,14 @@ def main(args=None):
         if not wait_for_controller_manager(
             node, controller_manager_name, controller_manager_timeout
         ):
-            node.get_logger().error("Controller manager not available")
+            node.get_logger().error(
+                bcolors.FAIL + "Controller manager not available" + bcolors.ENDC
+            )
             return 1
 
         for controller_name in controller_names:
+            fallback_controllers = args.fallback_controllers
+            controller_type = args.controller_type
             prefixed_controller_name = controller_name
             if controller_namespace:
                 prefixed_controller_name = controller_namespace + "/" + controller_name
@@ -237,6 +270,10 @@ def main(args=None):
                     + bcolors.ENDC
                 )
             else:
+                if not controller_type and param_file:
+                    controller_type = get_parameter_from_param_file(
+                        controller_name, param_file, "type"
+                    )
                 if controller_type:
                     parameter = Parameter()
                     parameter.name = prefixed_controller_name + ".type"
@@ -301,6 +338,43 @@ def main(args=None):
                         )
                         return 1
 
+                if not fallback_controllers and param_file:
+                    fallback_controllers = get_parameter_from_param_file(
+                        controller_name, param_file, "fallback_controllers"
+                    )
+
+                if fallback_controllers:
+                    parameter = Parameter()
+                    parameter.name = prefixed_controller_name + ".fallback_controllers"
+                    parameter.value = get_parameter_value(string_value=str(fallback_controllers))
+
+                    response = call_set_parameters(
+                        node=node, node_name=controller_manager_name, parameters=[parameter]
+                    )
+                    assert len(response.results) == 1
+                    result = response.results[0]
+                    if result.successful:
+                        node.get_logger().info(
+                            bcolors.OKCYAN
+                            + 'Setting fallback_controllers to ["'
+                            + ",".join(fallback_controllers)
+                            + '"] for '
+                            + bcolors.BOLD
+                            + prefixed_controller_name
+                            + bcolors.ENDC
+                        )
+                    else:
+                        node.get_logger().fatal(
+                            bcolors.FAIL
+                            + 'Could not set fallback_controllers to ["'
+                            + ",".join(fallback_controllers)
+                            + '"] for '
+                            + bcolors.BOLD
+                            + prefixed_controller_name
+                            + bcolors.ENDC
+                        )
+                        return 1
+
                 ret = load_controller(node, controller_manager_name, controller_name)
                 if not ret.ok:
                     node.get_logger().fatal(
@@ -327,7 +401,7 @@ def main(args=None):
                     )
                     return 1
 
-                if not args.stopped and not args.inactive and not args.activate_as_group:
+                if not args.inactive and not args.activate_as_group:
                     ret = switch_controllers(
                         node, controller_manager_name, [], [controller_name], True, True, 5.0
                     )
@@ -345,7 +419,7 @@ def main(args=None):
                         + bcolors.ENDC
                     )
 
-        if not args.stopped and not args.inactive and args.activate_as_group:
+        if not args.inactive and args.activate_as_group:
             ret = switch_controllers(
                 node, controller_manager_name, [], controller_names, True, True, 5.0
             )
@@ -360,8 +434,6 @@ def main(args=None):
                 + "Configured and activated all the parsed controllers list!"
                 + bcolors.ENDC
             )
-        if args.stopped:
-            node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
 
         if not args.unload_on_kill:
             return 0
@@ -371,24 +443,25 @@ def main(args=None):
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            if not args.stopped and not args.inactive:
+            if not args.inactive:
                 node.get_logger().info("Interrupt captured, deactivating and unloading controller")
                 # TODO(saikishor) we might have an issue in future, if any of these controllers is in chained mode
                 ret = switch_controllers(
                     node, controller_manager_name, controller_names, [], True, True, 5.0
                 )
                 if not ret.ok:
-                    node.get_logger().error("Failed to deactivate controller")
+                    node.get_logger().error(
+                        bcolors.FAIL + "Failed to deactivate controller" + bcolors.ENDC
+                    )
                     return 1
 
                 node.get_logger().info("Deactivated controller")
 
-            elif args.stopped:
-                node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
-
             ret = unload_controller(node, controller_manager_name, controller_name)
             if not ret.ok:
-                node.get_logger().error("Failed to unload controller")
+                node.get_logger().error(
+                    bcolors.FAIL + "Failed to unload controller" + bcolors.ENDC
+                )
                 return 1
 
             node.get_logger().info("Unloaded controller")
