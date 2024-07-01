@@ -36,6 +36,7 @@ constexpr const auto kROS2ControlTag = "ros2_control";
 constexpr const auto kHardwareTag = "hardware";
 constexpr const auto kPluginNameTag = "plugin";
 constexpr const auto kParamTag = "param";
+constexpr const auto kGroupTag = "group";
 constexpr const auto kActuatorTag = "actuator";
 constexpr const auto kJointTag = "joint";
 constexpr const auto kSensorTag = "sensor";
@@ -578,6 +579,11 @@ HardwareInfo parse_resource_from_xml(
       const auto * type_it = ros2_control_child_it->FirstChildElement(kPluginNameTag);
       hardware.hardware_plugin_name =
         get_text_for_element(type_it, std::string("hardware ") + kPluginNameTag);
+      const auto * group_it = ros2_control_child_it->FirstChildElement(kGroupTag);
+      if (group_it)
+      {
+        hardware.group = get_text_for_element(group_it, std::string("hardware.") + kGroupTag);
+      }
       const auto * params_it = ros2_control_child_it->FirstChildElement(kParamTag);
       if (params_it)
       {
@@ -791,11 +797,13 @@ std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & 
   tinyxml2::XMLDocument doc;
   if (!doc.Parse(urdf.c_str()) && doc.Error())
   {
-    throw std::runtime_error("invalid URDF passed in to robot parser");
+    throw std::runtime_error(
+      "invalid URDF passed in to robot parser: " + std::string(doc.ErrorStr()));
   }
   if (doc.Error())
   {
-    throw std::runtime_error("invalid URDF passed in to robot parser");
+    throw std::runtime_error(
+      "invalid URDF passed in to robot parser: " + std::string(doc.ErrorStr()));
   }
 
   // Find robot tag
@@ -869,7 +877,7 @@ std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & 
         auto urdf_joint = model.getJoint(joint.name);
         if (!urdf_joint)
         {
-          throw std::runtime_error("Joint " + joint.name + " not found in URDF");
+          throw std::runtime_error("Joint '" + joint.name + "' not found in URDF");
         }
         if (!urdf_joint->mimic && joint.is_mimic == MimicAttribute::TRUE)
         {
