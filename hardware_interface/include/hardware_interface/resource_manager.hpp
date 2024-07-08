@@ -50,7 +50,8 @@ class HARDWARE_INTERFACE_PUBLIC ResourceManager
 public:
   /// Default constructor for the Resource Manager.
   explicit ResourceManager(
-    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface,
+    rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr logger_interface);
 
   /// Constructor for the Resource Manager.
   /**
@@ -67,8 +68,10 @@ public:
    * used for triggering async components.
    */
   explicit ResourceManager(
-    const std::string & urdf, bool activate_all = false, const unsigned int update_rate = 100,
-    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface = nullptr);
+    const std::string & urdf,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface,
+    rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr logger_interface,
+    bool activate_all = false, const unsigned int update_rate = 100);
 
   ResourceManager(const ResourceManager &) = delete;
 
@@ -127,6 +130,59 @@ public:
    * \return true if interface is available, false otherwise.
    */
   bool state_interface_is_available(const std::string & name) const;
+
+  /// Add controllers' exported state interfaces to resource manager.
+  /**
+   * Interface for transferring management of exported state interfaces to resource manager.
+   * When chaining controllers, state interfaces are used by the preceding
+   * controllers.
+   * Therefore, they should be managed in the same way as state interface of hardware.
+   *
+   * \param[in] controller_name name of the controller which state interfaces are imported.
+   * \param[in] interfaces list of controller's state interfaces as StateInterfaces.
+   */
+  void import_controller_exported_state_interfaces(
+    const std::string & controller_name, std::vector<StateInterface> & interfaces);
+
+  /// Get list of exported tate interface of a controller.
+  /**
+   * Returns lists of stored exported state interfaces names for a controller.
+   *
+   * \param[in] controller_name for which list of state interface names is returned.
+   * \returns list of reference interface names.
+   */
+  std::vector<std::string> get_controller_exported_state_interface_names(
+    const std::string & controller_name);
+
+  /// Add controller's exported state interfaces to available list.
+  /**
+   * Adds state interfacess of a controller with given name to the available list. This method
+   * should be called when a controller gets activated with chained mode turned on. That means, the
+   * controller's exported state interfaces can be used by another controllers in chained
+   * architectures.
+   *
+   * \param[in] controller_name name of the controller which interfaces should become available.
+   */
+  void make_controller_exported_state_interfaces_available(const std::string & controller_name);
+
+  /// Remove controller's exported state interface to available list.
+  /**
+   * Removes interfaces of a controller with given name from the available list. This method should
+   * be called when a controller gets deactivated and its reference interfaces cannot be used by
+   * another controller anymore.
+   *
+   * \param[in] controller_name name of the controller which interfaces should become unavailable.
+   */
+  void make_controller_exported_state_interfaces_unavailable(const std::string & controller_name);
+
+  /// Remove controllers exported state interfaces from resource manager.
+  /**
+   * Remove exported state interfaces from resource manager, i.e., resource storage.
+   * The interfaces will be deleted from all internal maps and lists.
+   *
+   * \param[in] controller_name list of interface names that will be deleted from resource manager.
+   */
+  void remove_controller_exported_state_interfaces(const std::string & controller_name);
 
   /// Add controllers' reference interfaces to resource manager.
   /**
@@ -408,6 +464,18 @@ public:
   bool state_interface_exists(const std::string & key) const;
 
 protected:
+  /// Gets the logger for the resource manager
+  /**
+   * \return logger of the resource manager
+   */
+  rclcpp::Logger get_logger() const;
+
+  /// Gets the clock for the resource manager
+  /**
+   * \return clock of the resource manager
+   */
+  rclcpp::Clock::SharedPtr get_clock() const;
+
   bool components_are_loaded_and_initialized_ = false;
 
   mutable std::recursive_mutex resource_interfaces_lock_;
