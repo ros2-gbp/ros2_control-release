@@ -83,6 +83,13 @@ public:
     const rclcpp::NodeOptions & options = get_cm_node_options());
 
   CONTROLLER_MANAGER_PUBLIC
+  ControllerManager(
+    std::shared_ptr<rclcpp::Executor> executor, const std::string & urdf,
+    bool activate_all_hw_components, const std::string & manager_node_name = "controller_manager",
+    const std::string & node_namespace = "",
+    const rclcpp::NodeOptions & options = get_cm_node_options());
+
+  CONTROLLER_MANAGER_PUBLIC
   virtual ~ControllerManager() = default;
 
   CONTROLLER_MANAGER_PUBLIC
@@ -572,6 +579,9 @@ private:
   std::vector<std::string> to_chained_mode_request_, from_chained_mode_request_;
   std::vector<std::string> activate_command_interface_request_,
     deactivate_command_interface_request_;
+
+  std::map<std::string, std::vector<std::string>> controller_chained_reference_interfaces_cache_;
+  std::map<std::string, std::vector<std::string>> controller_chained_state_interfaces_cache_;
 
   std::string robot_description_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscription_;
