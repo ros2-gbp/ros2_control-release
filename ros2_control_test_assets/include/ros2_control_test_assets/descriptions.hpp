@@ -1306,6 +1306,23 @@ const auto diffbot_urdf =
       <state_interface name="velocity"/>
     </joint>
   </ros2_control>
+  <ros2_control name="TestIMUSensorHardware" type="sensor">
+    <hardware>
+      <plugin>test_hardware_components/TestIMUSensor</plugin>
+    </hardware>
+    <sensor name="base_imu">
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+      <state_interface name="angular_velocity.x"/>
+      <state_interface name="angular_velocity.y"/>
+      <state_interface name="angular_velocity.z"/>
+      <state_interface name="linear_acceleration.x"/>
+      <state_interface name="linear_acceleration.y"/>
+      <state_interface name="linear_acceleration.z"/>
+    </sensor>
+  </ros2_control>
 </robot>
 )";
 
@@ -1663,47 +1680,6 @@ const auto gripper_hardware_resources_mimic_true_no_command_if =
     </joint>
   </ros2_control>
   )";
-
-// TODO(christophfroehlich) delete deprecated config test
-const auto gripper_hardware_resources_mimic_deprecated =
-  R"(
-  <ros2_control name="TestGripper" type="system">
-    <joint name="right_finger_joint">
-      <command_interface name="effort"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="left_finger_joint">
-      <param name="mimic">right_finger_joint</param>
-      <param name="multiplier">2</param>
-      <param name="offset">1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-  </ros2_control>
-  )";
-
-const auto gripper_hardware_resources_mimic_deprecated_unknown_joint =
-  R"(
-  <ros2_control name="TestGripper" type="system">
-    <joint name="right_finger_joint">
-      <command_interface name="effort"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="left_finger_joint">
-      <param name="mimic">middle_finger_joint</param>
-      <param name="multiplier">1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-  </ros2_control>
-  )";
-// end delete deprecated config test
 
 const auto gripper_hardware_resources_mimic_true_command_if =
   R"(
