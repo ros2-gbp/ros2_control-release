@@ -29,22 +29,20 @@ class TestableControllerManager : public controller_manager::ControllerManager
 {
   friend TestControllerManagerWithTestableCM;
 
-  FRIEND_TEST(
-    TestControllerManagerWithTestableCM, initial_no_load_and_initialize_components_called);
-  FRIEND_TEST(
-    TestControllerManagerWithTestableCM, load_and_initialize_components_called_after_callback);
-  FRIEND_TEST(
-    TestControllerManagerWithTestableCM,
-    expect_to_failure_when_invalid_urdf_is_given_and_be_able_to_submit_new_robot_description);
+  FRIEND_TEST(TestControllerManagerWithTestableCM, initial_no_load_urdf_called);
+  FRIEND_TEST(TestControllerManagerWithTestableCM, load_urdf_called_after_callback);
+  FRIEND_TEST(TestControllerManagerWithTestableCM, load_urdf_called_after_invalid_urdf_passed);
+  FRIEND_TEST(TestControllerManagerWithTestableCM, load_urdf_called_after_callback);
+  FRIEND_TEST(TestControllerManagerWithTestableCM, load_urdf_called_after_callback);
 
 public:
   TestableControllerManager(
     std::unique_ptr<hardware_interface::ResourceManager> resource_manager,
     std::shared_ptr<rclcpp::Executor> executor,
     const std::string & manager_node_name = "controller_manager",
-    const std::string & node_namespace = "")
+    const std::string & namespace_ = "")
   : controller_manager::ControllerManager(
-      std::move(resource_manager), executor, manager_node_name, node_namespace)
+      std::move(resource_manager), executor, manager_node_name, namespace_)
   {
   }
 };
@@ -61,36 +59,29 @@ public:
   }
 };
 
-TEST_P(TestControllerManagerWithTestableCM, initial_no_load_and_initialize_components_called)
+TEST_P(TestControllerManagerWithTestableCM, initial_no_load_urdf_called)
 {
-  ASSERT_FALSE(cm_->resource_manager_->are_components_initialized());
+  ASSERT_FALSE(cm_->resource_manager_->is_urdf_already_loaded());
 }
 
-TEST_P(TestControllerManagerWithTestableCM, load_and_initialize_components_called_after_callback)
+TEST_P(TestControllerManagerWithTestableCM, load_urdf_called_after_callback)
 {
-  ASSERT_FALSE(cm_->resource_manager_->are_components_initialized());
+  ASSERT_FALSE(cm_->resource_manager_->is_urdf_already_loaded());
   // mimic callback
   auto msg = std_msgs::msg::String();
   msg.data = ros2_control_test_assets::minimal_robot_urdf;
   cm_->robot_description_callback(msg);
-  ASSERT_TRUE(cm_->resource_manager_->are_components_initialized());
+  ASSERT_TRUE(cm_->resource_manager_->is_urdf_already_loaded());
 }
 
-TEST_P(
-  TestControllerManagerWithTestableCM,
-  expect_to_failure_when_invalid_urdf_is_given_and_be_able_to_submit_new_robot_description)
+TEST_P(TestControllerManagerWithTestableCM, load_urdf_called_after_invalid_urdf_passed)
 {
-  ASSERT_FALSE(cm_->resource_manager_->are_components_initialized());
-  // wrong urdf
+  ASSERT_FALSE(cm_->resource_manager_->is_urdf_already_loaded());
+  // mimic callback
   auto msg = std_msgs::msg::String();
-  msg.data = ros2_control_test_assets::minimal_uninitializable_robot_urdf;
+  msg.data = ros2_control_test_assets::minimal_robot_missing_command_keys_urdf;
   cm_->robot_description_callback(msg);
-  ASSERT_FALSE(cm_->resource_manager_->are_components_initialized());
-  // correct urdf
-  msg = std_msgs::msg::String();
-  msg.data = ros2_control_test_assets::minimal_robot_urdf;
-  cm_->robot_description_callback(msg);
-  ASSERT_TRUE(cm_->resource_manager_->are_components_initialized());
+  ASSERT_TRUE(cm_->resource_manager_->is_urdf_already_loaded());
 }
 
 INSTANTIATE_TEST_SUITE_P(
