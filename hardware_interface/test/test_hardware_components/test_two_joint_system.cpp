@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <array>
-#include <memory>
 #include <vector>
 
 #include "hardware_interface/system_interface.hpp"
@@ -103,8 +102,8 @@ class TestTwoJointSystem : public SystemInterface
   }
 
 private:
-  std::array<double, 2> position_command_ = {0.0, 0.0};
-  std::array<double, 2> position_state_ = {0.0, 0.0};
+  std::array<double, 2> position_command_ = {{0.0, 0.0}};
+  std::array<double, 2> position_state_ = {{0.0, 0.0}};
 };
 
 }  // namespace test_hardware_components
