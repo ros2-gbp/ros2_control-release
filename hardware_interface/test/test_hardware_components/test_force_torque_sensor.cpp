@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <vector>
 
 #include "hardware_interface/sensor_interface.hpp"

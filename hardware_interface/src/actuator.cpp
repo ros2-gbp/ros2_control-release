@@ -14,6 +14,7 @@
 
 #include "hardware_interface/actuator.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -35,13 +36,11 @@ using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 
 Actuator::Actuator(std::unique_ptr<ActuatorInterface> impl) : impl_(std::move(impl)) {}
 
-const rclcpp_lifecycle::State & Actuator::initialize(
-  const HardwareInfo & actuator_info, rclcpp::Logger logger,
-  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+const rclcpp_lifecycle::State & Actuator::initialize(const HardwareInfo & actuator_info)
 {
   if (impl_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN)
   {
-    switch (impl_->init(actuator_info, logger, clock_interface))
+    switch (impl_->on_init(actuator_info))
     {
       case CallbackReturn::SUCCESS:
         impl_->set_state(rclcpp_lifecycle::State(
@@ -214,8 +213,6 @@ return_type Actuator::perform_command_mode_switch(
 }
 
 std::string Actuator::get_name() const { return impl_->get_name(); }
-
-std::string Actuator::get_group_name() const { return impl_->get_group_name(); }
 
 const rclcpp_lifecycle::State & Actuator::get_state() const { return impl_->get_state(); }
 

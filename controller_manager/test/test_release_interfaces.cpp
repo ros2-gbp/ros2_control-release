@@ -14,9 +14,11 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "controller_interface/controller_interface.hpp"
 #include "controller_manager/controller_manager.hpp"
 #include "controller_manager_test_common.hpp"
 #include "lifecycle_msgs/msg/state.hpp"

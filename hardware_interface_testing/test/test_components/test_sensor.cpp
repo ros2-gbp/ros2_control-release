@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <vector>
 
 #include "hardware_interface/sensor_interface.hpp"
@@ -29,7 +30,7 @@ class TestSensor : public SensorInterface
       return CallbackReturn::ERROR;
     }
     // can only give feedback state for velocity
-    if (info_.sensors[0].state_interfaces.size() == 2)
+    if (info_.sensors[0].state_interfaces.size() != 1)
     {
       return CallbackReturn::ERROR;
     }
@@ -54,7 +55,7 @@ private:
   double velocity_state_ = 0.0;
 };
 
-class TestUninitializableSensor : public TestSensor
+class TestUnitilizableSensor : public TestSensor
 {
   CallbackReturn on_init(const hardware_interface::HardwareInfo & info) override
   {
@@ -65,4 +66,4 @@ class TestUninitializableSensor : public TestSensor
 
 #include "pluginlib/class_list_macros.hpp"  // NOLINT
 PLUGINLIB_EXPORT_CLASS(TestSensor, hardware_interface::SensorInterface)
-PLUGINLIB_EXPORT_CLASS(TestUninitializableSensor, hardware_interface::SensorInterface)
+PLUGINLIB_EXPORT_CLASS(TestUnitilizableSensor, hardware_interface::SensorInterface)
