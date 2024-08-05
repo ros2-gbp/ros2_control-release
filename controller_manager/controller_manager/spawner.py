@@ -19,6 +19,7 @@ import os
 import sys
 import time
 import warnings
+import yaml
 
 from controller_manager import (
     configure_controller,
@@ -32,7 +33,13 @@ import rclpy
 from rcl_interfaces.msg import Parameter
 from rclpy.duration import Duration
 from rclpy.node import Node
-from rclpy.parameter import get_parameter_value
+
+# @note: The versions conditioning is added here to support the source-compatibility with Humble
+# The `get_parameter_value` function is moved to `rclpy.parameter` module from `ros2param.api` module from version 3.6.0
+try:
+    from rclpy.parameter import get_parameter_value
+except ImportError:
+    from ros2param.api import get_parameter_value
 from rclpy.signals import SignalHandlerOptions
 from ros2param.api import call_set_parameters
 
@@ -129,6 +136,24 @@ def is_controller_loaded(node, controller_manager, controller_name):
     return any(c.name == controller_name for c in controllers)
 
 
+def get_parameter_from_param_file(controller_name, namespace, parameter_file, parameter_name):
+    with open(parameter_file) as f:
+        namespaced_controller = (
+            controller_name if namespace == "/" else f"{namespace}/{controller_name}"
+        )
+        parameters = yaml.safe_load(f)
+        if namespaced_controller in parameters:
+            value = parameters[namespaced_controller]
+            if not isinstance(value, dict) or "ros__parameters" not in value:
+                raise RuntimeError(
+                    f"YAML file : {parameter_file} is not a valid ROS parameter file for controller : {namespaced_controller}"
+                )
+            if parameter_name in parameters[namespaced_controller]["ros__parameters"]:
+                return parameters[namespaced_controller]["ros__parameters"][parameter_name]
+            else:
+                return None
+
+
 def main(args=None):
     rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     parser = argparse.ArgumentParser()
@@ -144,10 +169,15 @@ def main(args=None):
         "-p",
         "--param-file",
         help="Controller param file to be loaded into controller node before configure",
+        default=None,
         required=False,
     )
     parser.add_argument(
-        "-n", "--namespace", help="Namespace for the controller", default="", required=False
+        "-n",
+        "--namespace",
+        help="DEPRECATED Namespace for the controller_manager and the controller(s)",
+        default=None,
+        required=False,
     )
     parser.add_argument(
         "--load-only",
@@ -159,13 +189,6 @@ def main(args=None):
         "--inactive",
         help="Load and configure the controller, however do not activate them",
         action="store_true",
-        required=False,
-    )
-    parser.add_argument(
-        "-t",
-        "--controller-type",
-        help="If not provided it should exist in the controller manager namespace",
-        default=None,
         required=False,
     )
     parser.add_argument(
@@ -188,14 +211,20 @@ def main(args=None):
         action="store_true",
         required=False,
     )
+    parser.add_argument(
+        "--fallback_controllers",
+        help="Fallback controllers list are activated as a fallback strategy when the"
+        " spawned controllers fail. When the argument is provided, it takes precedence over"
+        " the fallback_controllers list in the param file",
+        default=None,
+        nargs="+",
+    )
 
     command_line_args = rclpy.utilities.remove_ros_args(args=sys.argv)[1:]
     args = parser.parse_args(command_line_args)
     controller_names = args.controller_names
     controller_manager_name = args.controller_manager
-    controller_namespace = args.namespace
     param_file = args.param_file
-    controller_type = args.controller_type
     controller_manager_timeout = args.controller_manager_timeout
 
     if param_file and not os.path.isfile(param_file):
@@ -203,9 +232,27 @@ def main(args=None):
 
     node = Node("spawner_" + controller_names[0])
 
+    if node.get_namespace() != "/" and args.namespace:
+        raise RuntimeError(
+            f"Setting namespace through both '--namespace {args.namespace}' arg and the ROS 2 standard way "
+            f"'--ros-args -r __ns:={node.get_namespace()}' is not allowed!"
+        )
+
+    if args.namespace:
+        warnings.filterwarnings("always")
+        warnings.warn(
+            "The '--namespace' argument is deprecated and will be removed in future releases."
+            " Use the ROS 2 standard way of setting the node namespacing using --ros-args -r __ns:=<namespace>",
+            DeprecationWarning,
+        )
+
+    spawner_namespace = args.namespace if args.namespace else node.get_namespace()
+
+    if not spawner_namespace.startswith("/"):
+        spawner_namespace = f"/{spawner_namespace}"
+
     if not controller_manager_name.startswith("/"):
-        spawner_namespace = node.get_namespace()
-        if spawner_namespace != "/":
+        if spawner_namespace and spawner_namespace != "/":
             controller_manager_name = f"{spawner_namespace}/{controller_manager_name}"
         else:
             controller_manager_name = f"/{controller_manager_name}"
@@ -220,20 +267,25 @@ def main(args=None):
             return 1
 
         for controller_name in controller_names:
-            prefixed_controller_name = controller_name
-            if controller_namespace:
-                prefixed_controller_name = controller_namespace + "/" + controller_name
+            fallback_controllers = args.fallback_controllers
 
-            if is_controller_loaded(node, controller_manager_name, prefixed_controller_name):
+            if is_controller_loaded(node, controller_manager_name, controller_name):
                 node.get_logger().warn(
                     bcolors.WARNING
                     + "Controller already loaded, skipping load_controller"
                     + bcolors.ENDC
                 )
             else:
+                controller_type = (
+                    None
+                    if param_file is None
+                    else get_parameter_from_param_file(
+                        controller_name, spawner_namespace, param_file, "type"
+                    )
+                )
                 if controller_type:
                     parameter = Parameter()
-                    parameter.name = prefixed_controller_name + ".type"
+                    parameter.name = controller_name + ".type"
                     parameter.value = get_parameter_value(string_value=controller_type)
 
                     response = call_set_parameters(
@@ -248,7 +300,7 @@ def main(args=None):
                             + controller_type
                             + '" for '
                             + bcolors.BOLD
-                            + prefixed_controller_name
+                            + controller_name
                             + bcolors.ENDC
                         )
                     else:
@@ -258,14 +310,14 @@ def main(args=None):
                             + controller_type
                             + '" for '
                             + bcolors.BOLD
-                            + prefixed_controller_name
+                            + controller_name
                             + bcolors.ENDC
                         )
                         return 1
 
                 if param_file:
                     parameter = Parameter()
-                    parameter.name = prefixed_controller_name + ".params_file"
+                    parameter.name = controller_name + ".params_file"
                     parameter.value = get_parameter_value(string_value=param_file)
 
                     response = call_set_parameters(
@@ -280,7 +332,7 @@ def main(args=None):
                             + param_file
                             + '" for '
                             + bcolors.BOLD
-                            + prefixed_controller_name
+                            + controller_name
                             + bcolors.ENDC
                         )
                     else:
@@ -290,7 +342,44 @@ def main(args=None):
                             + param_file
                             + '" for '
                             + bcolors.BOLD
-                            + prefixed_controller_name
+                            + controller_name
+                            + bcolors.ENDC
+                        )
+                        return 1
+
+                if not fallback_controllers and param_file:
+                    fallback_controllers = get_parameter_from_param_file(
+                        controller_name, spawner_namespace, param_file, "fallback_controllers"
+                    )
+
+                if fallback_controllers:
+                    parameter = Parameter()
+                    parameter.name = controller_name + ".fallback_controllers"
+                    parameter.value = get_parameter_value(string_value=str(fallback_controllers))
+
+                    response = call_set_parameters(
+                        node=node, node_name=controller_manager_name, parameters=[parameter]
+                    )
+                    assert len(response.results) == 1
+                    result = response.results[0]
+                    if result.successful:
+                        node.get_logger().info(
+                            bcolors.OKCYAN
+                            + 'Setting fallback_controllers to ["'
+                            + ",".join(fallback_controllers)
+                            + '"] for '
+                            + bcolors.BOLD
+                            + controller_name
+                            + bcolors.ENDC
+                        )
+                    else:
+                        node.get_logger().fatal(
+                            bcolors.FAIL
+                            + 'Could not set fallback_controllers to ["'
+                            + ",".join(fallback_controllers)
+                            + '"] for '
+                            + bcolors.BOLD
+                            + controller_name
                             + bcolors.ENDC
                         )
                         return 1
@@ -301,16 +390,12 @@ def main(args=None):
                         bcolors.FAIL
                         + "Failed loading controller "
                         + bcolors.BOLD
-                        + prefixed_controller_name
+                        + controller_name
                         + bcolors.ENDC
                     )
                     return 1
                 node.get_logger().info(
-                    bcolors.OKBLUE
-                    + "Loaded "
-                    + bcolors.BOLD
-                    + prefixed_controller_name
-                    + bcolors.ENDC
+                    bcolors.OKBLUE + "Loaded " + bcolors.BOLD + controller_name + bcolors.ENDC
                 )
 
             if not args.load_only:
@@ -335,7 +420,7 @@ def main(args=None):
                         bcolors.OKGREEN
                         + "Configured and activated "
                         + bcolors.BOLD
-                        + prefixed_controller_name
+                        + controller_name
                         + bcolors.ENDC
                     )
 
