@@ -27,6 +27,7 @@
 
 using ::testing::_;
 using ::testing::Return;
+const char coveragepy_script[] = "python3 -m coverage run --append --branch";
 
 using namespace std::chrono_literals;
 class TestLoadController : public ControllerManagerFixture<controller_manager::ControllerManager>
@@ -68,14 +69,18 @@ protected:
 
 int call_spawner(const std::string extra_args)
 {
-  std::string spawner_script = "ros2 run controller_manager spawner ";
+  std::string spawner_script =
+    std::string(coveragepy_script) +
+    " $(ros2 pkg prefix controller_manager)/lib/controller_manager/spawner ";
   return std::system((spawner_script + extra_args).c_str());
 }
 
 int call_unspawner(const std::string extra_args)
 {
-  std::string spawner_script = "ros2 run controller_manager unspawner ";
-  return std::system((spawner_script + extra_args).c_str());
+  std::string unspawner_script =
+    std::string(coveragepy_script) +
+    " $(ros2 pkg prefix controller_manager)/lib/controller_manager/unspawner ";
+  return std::system((unspawner_script + extra_args).c_str());
 }
 
 TEST_F(TestLoadController, spawner_with_no_arguments_errors)
@@ -83,9 +88,10 @@ TEST_F(TestLoadController, spawner_with_no_arguments_errors)
   EXPECT_NE(call_spawner(""), 0) << "Missing mandatory arguments";
 }
 
-TEST_F(TestLoadController, spawner_without_manager_errors)
+TEST_F(TestLoadController, spawner_without_manager_errors_with_given_timeout)
 {
-  EXPECT_NE(call_spawner("ctrl_1"), 0) << "Wrong controller manager name";
+  EXPECT_NE(call_spawner("ctrl_1 --controller-manager-timeout 1.0"), 0)
+    << "Wrong controller manager name";
 }
 
 TEST_F(TestLoadController, spawner_without_type_parameter_or_arg_errors)
@@ -249,6 +255,7 @@ TEST_F(TestLoadController, spawner_test_type_in_params_file)
   const std::string test_file_path = ament_index_cpp::get_package_prefix("controller_manager") +
                                      "/test/test_controller_spawner_with_type.yaml";
 
+  ControllerManagerRunner cm_runner(this);
   // Provide controller type via the parsed file
   EXPECT_EQ(
     call_spawner(
@@ -278,7 +285,9 @@ TEST_F(TestLoadController, spawner_test_type_in_params_file)
 
   EXPECT_EQ(
     call_spawner(
-      "ctrl_with_parameters_and_no_type -c test_controller_manager -p " + test_file_path),
+      "ctrl_with_parameters_and_no_type -c test_controller_manager --controller-manager-timeout "
+      "1.0 -p " +
+      test_file_path),
     256);
   // Will still be same as the current call will fail
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 2ul);
@@ -298,11 +307,13 @@ TEST_F(TestLoadController, unload_on_kill)
 {
   // Launch spawner with unload on kill
   // timeout command will kill it after the specified time with signal SIGINT
+  ControllerManagerRunner cm_runner(this);
+  cm_->set_parameter(rclcpp::Parameter("ctrl_3.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
   std::stringstream ss;
   ss << "timeout --signal=INT 5 "
-     << "ros2 run controller_manager spawner "
-     << "ctrl_3 -c test_controller_manager -t "
-     << std::string(test_controller::TEST_CONTROLLER_CLASS_NAME) << " --unload-on-kill";
+     << std::string(coveragepy_script) +
+          " $(ros2 pkg prefix controller_manager)/lib/controller_manager/spawner "
+     << "ctrl_3 -c test_controller_manager --unload-on-kill";
 
   EXPECT_NE(std::system(ss.str().c_str()), 0)
     << "timeout should have killed spawner and returned non 0 code";
@@ -320,20 +331,14 @@ TEST_F(TestLoadController, spawner_test_fallback_controllers)
   cm_->set_parameter(rclcpp::Parameter("ctrl_3.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
 
   ControllerManagerRunner cm_runner(this);
-  EXPECT_EQ(
-    call_spawner(
-      "ctrl_1 -c test_controller_manager --load-only --fallback_controllers ctrl_3 ctrl_4 ctrl_5 "
-      "-p " +
-      test_file_path),
-    0);
+  EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager --load-only -p " + test_file_path), 0);
 
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 1ul);
   {
     auto ctrl_1 = cm_->get_loaded_controllers()[0];
     ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
     ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-    ASSERT_THAT(
-      ctrl_1.info.fallback_controllers_names, testing::ElementsAre("ctrl_3", "ctrl_4", "ctrl_5"));
+    ASSERT_TRUE(ctrl_1.info.fallback_controllers_names.empty());
     ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
   }
 
@@ -346,8 +351,7 @@ TEST_F(TestLoadController, spawner_test_fallback_controllers)
     auto ctrl_1 = cm_->get_loaded_controllers()[0];
     ASSERT_EQ(ctrl_1.info.name, "ctrl_1");
     ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-    ASSERT_THAT(
-      ctrl_1.info.fallback_controllers_names, testing::ElementsAre("ctrl_3", "ctrl_4", "ctrl_5"));
+    ASSERT_TRUE(ctrl_1.info.fallback_controllers_names.empty());
     ASSERT_EQ(ctrl_1.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
 
     auto ctrl_2 = cm_->get_loaded_controllers()[1];
@@ -362,6 +366,32 @@ TEST_F(TestLoadController, spawner_test_fallback_controllers)
     ASSERT_EQ(ctrl_3.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
     ASSERT_THAT(ctrl_3.info.fallback_controllers_names, testing::ElementsAre("ctrl_9"));
     ASSERT_EQ(ctrl_3.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+  }
+}
+
+TEST_F(TestLoadController, spawner_with_many_controllers)
+{
+  std::stringstream ss;
+  const size_t num_controllers = 50;
+  const std::string controller_base_name = "ctrl_";
+  for (size_t i = 0; i < num_controllers; i++)
+  {
+    const std::string controller_name = controller_base_name + std::to_string(static_cast<int>(i));
+    cm_->set_parameter(
+      rclcpp::Parameter(controller_name + ".type", test_controller::TEST_CONTROLLER_CLASS_NAME));
+    ss << controller_name << " ";
+  }
+
+  ControllerManagerRunner cm_runner(this);
+  EXPECT_EQ(call_spawner(ss.str() + " -c test_controller_manager"), 0);
+
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), num_controllers);
+
+  for (size_t i = 0; i < num_controllers; i++)
+  {
+    auto ctrl = cm_->get_loaded_controllers()[i];
+    ASSERT_EQ(ctrl.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
+    ASSERT_EQ(ctrl.c->get_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
   }
 }
 
@@ -416,7 +446,7 @@ TEST_F(TestLoadControllerWithoutRobotDescription, when_no_robot_description_spaw
   cm_->set_parameter(rclcpp::Parameter("ctrl_1.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
 
   ControllerManagerRunner cm_runner(this);
-  EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager"), 256)
+  EXPECT_EQ(call_spawner("ctrl_1 -c test_controller_manager --controller-manager-timeout 1.0"), 256)
     << "could not spawn controller because not robot description and not services for controller "
        "manager are active";
 }
@@ -498,7 +528,8 @@ TEST_F(TestLoadControllerWithNamespacedCM, multi_ctrls_test_type_in_param)
   cm_->set_parameter(rclcpp::Parameter("ctrl_3.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
 
   ControllerManagerRunner cm_runner(this);
-  EXPECT_EQ(call_spawner("ctrl_1 ctrl_2 -c test_controller_manager"), 256)
+  EXPECT_EQ(
+    call_spawner("ctrl_1 ctrl_2 -c test_controller_manager --controller-manager-timeout 1.0"), 256)
     << "Should fail without defining the namespace";
   EXPECT_EQ(
     call_spawner("ctrl_1 ctrl_2 -c test_controller_manager --ros-args -r __ns:=/foo_namespace"), 0);
@@ -593,11 +624,12 @@ TEST_F(TestLoadControllerWithNamespacedCM, spawner_test_type_in_params_file)
   const std::string test_file_path = ament_index_cpp::get_package_prefix("controller_manager") +
                                      "/test/test_controller_spawner_with_type.yaml";
 
+  ControllerManagerRunner cm_runner(this);
   // Provide controller type via the parsed file
   EXPECT_EQ(
     call_spawner(
       "ctrl_with_parameters_and_type chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager -p " +
+      "test_controller_manager --controller-manager-timeout 1.0 -p " +
       test_file_path),
     256)
     << "Should fail without the namespacing it";
@@ -653,25 +685,26 @@ TEST_F(
   const std::string test_file_path = ament_index_cpp::get_package_prefix("controller_manager") +
                                      "/test/test_controller_spawner_with_type.yaml";
 
+  ControllerManagerRunner cm_runner(this);
   // Provide controller type via the parsed file
   EXPECT_EQ(
     call_spawner(
       "ctrl_with_parameters_and_type chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager -p " +
+      "test_controller_manager --controller-manager-timeout 1.0 -p " +
       test_file_path),
     256)
     << "Should fail without the namespacing it";
   EXPECT_EQ(
     call_spawner(
       "ctrl_with_parameters_and_type chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --namespace foo_namespace -p " +
+      "test_controller_manager --namespace foo_namespace --controller-manager-timeout 1.0 -p " +
       test_file_path + " --ros-args -r __ns:=/random_namespace"),
     256)
     << "Should fail when parsed namespace through both way with different namespaces";
   EXPECT_EQ(
     call_spawner(
       "ctrl_with_parameters_and_type chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --namespace foo_namespace -p " +
+      "test_controller_manager --namespace foo_namespace --controller-manager-timeout 1.0 -p" +
       test_file_path + " --ros-args -r __ns:=/foo_namespace"),
     256)
     << "Should fail when parsed namespace through both ways even with same namespacing name";
