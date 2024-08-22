@@ -41,6 +41,7 @@
 
 namespace
 {
+const auto TIME = rclcpp::Time(0);
 const auto PERIOD = rclcpp::Duration::from_seconds(0.01);
 const auto STRICT = controller_manager_msgs::srv::SwitchController::Request::STRICT;
 const auto BEST_EFFORT = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
@@ -100,7 +101,6 @@ public:
         pass_robot_description_to_cm_and_rm(robot_description_);
       }
     }
-    time_ = rclcpp::Time(0, 0, cm_->get_node_clock_interface()->get_clock()->get_clock_type());
   }
 
   static void SetUpTestCase() { rclcpp::init(0, nullptr); }
@@ -119,7 +119,7 @@ public:
       {
         while (run_updater_)
         {
-          cm_->update(time_, rclcpp::Duration::from_seconds(0.01));
+          cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
       });
@@ -151,6 +151,7 @@ public:
     const std::future_status expected_future_status = std::future_status::timeout,
     const controller_interface::return_type expected_return = controller_interface::return_type::OK)
   {
+    // First activation not possible because controller not configured
     auto switch_future = std::async(
       std::launch::async, &controller_manager::ControllerManager::switch_controller, cm_,
       start_controllers, stop_controllers, strictness, true, rclcpp::Duration(0, 0));
@@ -193,9 +194,9 @@ public:
       std::chrono::milliseconds(10),
       [&]()
       {
-        cm_->read(time_, PERIOD);
-        cm_->update(time_, PERIOD);
-        cm_->write(time_, PERIOD);
+        cm_->read(TIME, PERIOD);
+        cm_->update(TIME, PERIOD);
+        cm_->write(TIME, PERIOD);
       });
 
     executor_->add_node(cm_);
@@ -222,7 +223,7 @@ public:
       while (service_executor.spin_until_future_complete(result, std::chrono::milliseconds(50)) !=
              rclcpp::FutureReturnCode::SUCCESS)
       {
-        cm_->update(time_, rclcpp::Duration::from_seconds(0.01));
+        cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
       }
     }
     else

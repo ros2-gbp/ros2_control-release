@@ -30,7 +30,7 @@ namespace
 constexpr const auto kRobotTag = "robot";
 constexpr const auto kROS2ControlTag = "ros2_control";
 constexpr const auto kHardwareTag = "hardware";
-constexpr const auto kPluginNameTag = "plugin";
+constexpr const auto kClassTypeTag = "plugin";
 constexpr const auto kParamTag = "param";
 constexpr const auto kActuatorTag = "actuator";
 constexpr const auto kJointTag = "joint";
@@ -49,8 +49,6 @@ constexpr const auto kTypeAttribute = "type";
 constexpr const auto kRoleAttribute = "role";
 constexpr const auto kReductionAttribute = "mechanical_reduction";
 constexpr const auto kOffsetAttribute = "offset";
-constexpr const auto kIsAsyncAttribute = "is_async";
-
 }  // namespace
 
 namespace hardware_interface
@@ -149,7 +147,6 @@ double get_parameter_value_or(
 
     params_it = params_it->NextSiblingElement();
   }
-
   return default_value;
 }
 
@@ -211,20 +208,6 @@ std::string parse_data_type_attribute(const tinyxml2::XMLElement * elem)
   }
 
   return data_type;
-}
-
-/// Parse is_async attribute
-/**
- * Parses an XMLElement and returns the value of the is_async attribute.
- * Defaults to "false" if not specified.
- *
- * \param[in] elem XMLElement that has the data_type attribute.
- * \return boolean specifying the if the value read was true or false.
- */
-bool parse_is_async_attribute(const tinyxml2::XMLElement * elem)
-{
-  const tinyxml2::XMLAttribute * attr = elem->FindAttribute(kIsAsyncAttribute);
-  return attr ? parse_bool(attr->Value()) : false;
 }
 
 /// Search XML snippet from URDF for parameters.
@@ -365,8 +348,7 @@ ComponentInfo parse_complex_component_from_xml(const tinyxml2::XMLElement * comp
     component.command_interfaces.push_back(parse_interfaces_from_xml(command_interfaces_it));
     component.command_interfaces.back().data_type =
       parse_data_type_attribute(command_interfaces_it);
-    component.command_interfaces.back().size =
-      static_cast<int>(parse_size_attribute(command_interfaces_it));
+    component.command_interfaces.back().size = parse_size_attribute(command_interfaces_it);
     command_interfaces_it = command_interfaces_it->NextSiblingElement(kCommandInterfaceTag);
   }
 
@@ -376,8 +358,7 @@ ComponentInfo parse_complex_component_from_xml(const tinyxml2::XMLElement * comp
   {
     component.state_interfaces.push_back(parse_interfaces_from_xml(state_interfaces_it));
     component.state_interfaces.back().data_type = parse_data_type_attribute(state_interfaces_it);
-    component.state_interfaces.back().size =
-      static_cast<int>(parse_size_attribute(state_interfaces_it));
+    component.state_interfaces.back().size = parse_size_attribute(state_interfaces_it);
     state_interfaces_it = state_interfaces_it->NextSiblingElement(kStateInterfaceTag);
   }
 
@@ -427,8 +408,8 @@ TransmissionInfo parse_transmission_from_xml(const tinyxml2::XMLElement * transm
 
   // Find name, type and class of a transmission
   transmission.name = get_attribute_value(transmission_it, kNameAttribute, transmission_it->Name());
-  const auto * type_it = transmission_it->FirstChildElement(kPluginNameTag);
-  transmission.type = get_text_for_element(type_it, kPluginNameTag);
+  const auto * type_it = transmission_it->FirstChildElement(kClassTypeTag);
+  transmission.type = get_text_for_element(type_it, kClassTypeTag);
 
   // Parse joints
   const auto * joint_it = transmission_it->FirstChildElement(kJointTag);
@@ -523,18 +504,17 @@ HardwareInfo parse_resource_from_xml(
   HardwareInfo hardware;
   hardware.name = get_attribute_value(ros2_control_it, kNameAttribute, kROS2ControlTag);
   hardware.type = get_attribute_value(ros2_control_it, kTypeAttribute, kROS2ControlTag);
-  hardware.is_async = parse_is_async_attribute(ros2_control_it);
 
   // Parse everything under ros2_control tag
-  hardware.hardware_plugin_name = "";
+  hardware.hardware_class_type = "";
   const auto * ros2_control_child_it = ros2_control_it->FirstChildElement();
   while (ros2_control_child_it)
   {
     if (!std::string(kHardwareTag).compare(ros2_control_child_it->Name()))
     {
-      const auto * type_it = ros2_control_child_it->FirstChildElement(kPluginNameTag);
-      hardware.hardware_plugin_name =
-        get_text_for_element(type_it, std::string("hardware ") + kPluginNameTag);
+      const auto * type_it = ros2_control_child_it->FirstChildElement(kClassTypeTag);
+      hardware.hardware_class_type =
+        get_text_for_element(type_it, std::string("hardware ") + kClassTypeTag);
       const auto * params_it = ros2_control_child_it->FirstChildElement(kParamTag);
       if (params_it)
       {
