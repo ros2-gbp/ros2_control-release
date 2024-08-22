@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(hardware_interface LANGUAGES CXX)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
-  add_compile_options(-Wall -Wextra -Werror=conversion -Werror=unused-but-set-variable -Werror=return-type -Werror=shadow
-          -Werror=missing-braces)
+  add_compile_options(-Wall -Wextra -Wconversion)
 endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -15,12 +14,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rcutils
   TinyXML2
   tinyxml2_vendor
-  joint_limits
-  urdf
 )
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_gen_version_h REQUIRED)
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
@@ -59,6 +55,23 @@ target_compile_definitions(mock_components PRIVATE "HARDWARE_INTERFACE_BUILDING_
 pluginlib_export_plugin_description_file(
   hardware_interface mock_components_plugin_description.xml)
 
+add_library(fake_components SHARED
+  src/mock_components/generic_system.cpp
+  src/mock_components/fake_generic_system.cpp
+)
+target_compile_features(fake_components PUBLIC cxx_std_17)
+target_include_directories(fake_components PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/hardware_interface>
+)
+ament_target_dependencies(fake_components PUBLIC ${THIS_PACKAGE_INCLUDE_DEPENDS})
+# Causes the visibility macros to use dllexport rather than dllimport,
+# which is appropriate when building the dll but not consuming it.
+target_compile_definitions(fake_components PRIVATE "HARDWARE_INTERFACE_BUILDING_DLL")
+
+pluginlib_export_plugin_description_file(
+  hardware_interface fake_components_plugin_description.xml)
+
 if(BUILD_TESTING)
 
   find_package(ament_cmake_gmock REQUIRED)
@@ -86,7 +99,6 @@ if(BUILD_TESTING)
   add_library(test_hardware_components SHARED
   test/test_hardware_components/test_single_joint_actuator.cpp
   test/test_hardware_components/test_force_torque_sensor.cpp
-  test/test_hardware_components/test_imu_sensor.cpp
   test/test_hardware_components/test_two_joint_system.cpp
   test/test_hardware_components/test_system_with_command_modes.cpp
   )
@@ -115,6 +127,7 @@ install(
 )
 install(
   TARGETS
+    fake_components
     mock_components
     hardware_interface
   EXPORT export_hardware_interface
@@ -126,4 +139,3 @@ install(
 ament_export_targets(export_hardware_interface HAS_LIBRARY_TARGET)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 ament_package()
-ament_generate_version_header(${PROJECT_NAME})

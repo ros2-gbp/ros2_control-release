@@ -19,10 +19,11 @@
 #ifndef CONTROLLER_MANAGER__CONTROLLER_SPEC_HPP_
 #define CONTROLLER_MANAGER__CONTROLLER_SPEC_HPP_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include "controller_interface/controller_interface_base.hpp"
+#include "controller_interface/controller_interface.hpp"
 #include "hardware_interface/controller_info.hpp"
 
 namespace controller_manager
@@ -40,10 +41,5 @@ struct ControllerSpec
   std::shared_ptr<rclcpp::Time> next_update_cycle_time;
 };
 
-struct ControllerChainSpec
-{
-  std::vector<std::string> following_controllers;
-  std::vector<std::string> preceding_controllers;
-};
 }  // namespace controller_manager
 #endif  // CONTROLLER_MANAGER__CONTROLLER_SPEC_HPP_

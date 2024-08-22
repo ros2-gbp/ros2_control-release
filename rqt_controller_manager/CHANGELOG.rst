@@ -2,68 +2,43 @@
 Changelog for package rqt_controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.16.0 (2024-08-22)
+3.28.0 (2024-08-22)
 -------------------
 
-4.15.0 (2024-08-05)
+3.27.0 (2024-07-23)
 -------------------
 
-4.14.0 (2024-07-23)
+3.26.0 (2024-07-09)
+-------------------
+* [rqt_controller_manager] Add hardware components (`#1455 <https://github.com/ros-controls/ros2_control/issues/1455>`_) (`#1587 <https://github.com/ros-controls/ros2_control/issues/1587>`_)
+* Contributors: mergify[bot]
+
+3.25.0 (2024-04-30)
+-------------------
+* Add cm as dependency to rqt_cm (`#1447 <https://github.com/ros-controls/ros2_control/issues/1447>`_) (`#1460 <https://github.com/ros-controls/ros2_control/issues/1460>`_)
+* Contributors: mergify[bot]
+
+3.24.0 (2024-03-02)
+-------------------
+* [CI] Code coverage + pre-commit (backport `#1413 <https://github.com/ros-controls/ros2_control/issues/1413>`_) (`#1415 <https://github.com/ros-controls/ros2_control/issues/1415>`_)
+* Contributors: mergify[bot]
+
+3.23.0 (2024-02-01)
 -------------------
 
-4.13.0 (2024-07-08)
+3.22.1 (2024-01-25)
 -------------------
 
-4.12.0 (2024-07-01)
+3.22.0 (2024-01-20)
 -------------------
-* [rqt_controller_manager] Add hardware components (`#1455 <https://github.com/ros-controls/ros2_control/issues/1455>`_)
-* Contributors: Christoph Fröhlich
+* Fix rqt controller manager crash on ros2_control restart (`#1273 <https://github.com/ros-controls/ros2_control/issues/1273>`_) (`#1276 <https://github.com/ros-controls/ros2_control/issues/1276>`_)
+* Contributors: mergify[bot]
 
-4.11.0 (2024-05-14)
--------------------
-
-4.10.0 (2024-05-08)
+3.21.2 (2023-12-05)
 -------------------
 
-4.9.0 (2024-04-30)
-------------------
-
-4.8.0 (2024-03-27)
-------------------
-* Fix rqt_controller_manager for non-humble (`#1454 <https://github.com/ros-controls/ros2_control/issues/1454>`_)
-* Add cm as dependency to rqt_cm (`#1447 <https://github.com/ros-controls/ros2_control/issues/1447>`_)
-* Contributors: Christoph Fröhlich
-
-4.7.0 (2024-03-22)
-------------------
-* Codeformat from new pre-commit config (`#1433 <https://github.com/ros-controls/ros2_control/issues/1433>`_)
-* rqt_controller_manager compatibility for humble (`#1429 <https://github.com/ros-controls/ros2_control/issues/1429>`_)
-* Contributors: Christoph Fröhlich
-
-4.6.0 (2024-03-02)
-------------------
-* [CI] Code coverage + pre-commit (`#1413 <https://github.com/ros-controls/ros2_control/issues/1413>`_)
-* Contributors: Christoph Fröhlich
-
-4.5.0 (2024-02-12)
-------------------
-
-4.4.0 (2024-01-31)
-------------------
-
-4.3.0 (2024-01-20)
-------------------
-* Fix rqt controller manager crash on ros2_control restart (`#1273 <https://github.com/ros-controls/ros2_control/issues/1273>`_)
-* Contributors: Sai Kishor Kothakota
-
-4.2.0 (2023-12-12)
-------------------
-
-4.1.0 (2023-11-30)
-------------------
-
-4.0.0 (2023-11-21)
-------------------
+3.21.1 (2023-11-14)
+-------------------
 
 3.21.0 (2023-11-06)
 -------------------

@@ -13,13 +13,14 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
 
 #include "controller_manager/controller_manager.hpp"
-#include "rclcpp/executors.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "realtime_tools/thread_priority.hpp"
 
 using namespace std::chrono_literals;
@@ -48,14 +49,17 @@ int main(int argc, char ** argv)
   std::thread cm_thread(
     [cm]()
     {
-      if (!realtime_tools::configure_sched_fifo(kSchedPriority))
+      if (realtime_tools::has_realtime_kernel())
       {
-        RCLCPP_WARN(
-          cm->get_logger(),
-          "Could not enable FIFO RT scheduling policy: with error number <%i>(%s). See "
-          "[https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] "
-          "for details on how to enable realtime scheduling.",
-          errno, strerror(errno));
+        if (!realtime_tools::configure_sched_fifo(kSchedPriority))
+        {
+          RCLCPP_WARN(
+            cm->get_logger(),
+            "Could not enable FIFO RT scheduling policy: with error number <%i>(%s). See "
+            "[https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] "
+            "for details on how to enable realtime scheduling.",
+            errno, strerror(errno));
+        }
       }
       else
       {
@@ -89,8 +93,6 @@ int main(int argc, char ** argv)
         next_iteration_time += period;
         std::this_thread::sleep_until(next_iteration_time);
       }
-
-      cm->shutdown_async_controllers_and_components();
     });
 
   executor->add_node(cm);

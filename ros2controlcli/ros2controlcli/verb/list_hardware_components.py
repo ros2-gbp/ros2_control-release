@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from controller_manager import list_hardware_components, bcolors
+from controller_manager import list_hardware_components
+from controller_manager.spawner import bcolors
 
 from lifecycle_msgs.msg import State
 

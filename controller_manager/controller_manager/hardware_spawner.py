@@ -19,7 +19,6 @@ import sys
 from controller_manager import (
     list_hardware_components,
     set_hardware_component_state,
-    bcolors,
 )
 from controller_manager.controller_manager_services import ServiceNotFoundError
 
@@ -27,6 +26,19 @@ from lifecycle_msgs.msg import State
 import rclpy
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
+
+
+# from https://stackoverflow.com/a/287944
+class bcolors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
 
 def first_match(iterable, predicate):

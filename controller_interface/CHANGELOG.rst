@@ -2,89 +2,39 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.16.0 (2024-08-22)
--------------------
-* Fix params_file typo in spawner and update release notes for use_global_arguments (`#1701 <https://github.com/ros-controls/ros2_control/issues/1701>`_)
-* Avoid using the global arguments for internal controller nodes (`#1694 <https://github.com/ros-controls/ros2_control/issues/1694>`_)
-* Contributors: Sai Kishor Kothakota
-
-4.15.0 (2024-08-05)
+3.28.0 (2024-08-22)
 -------------------
 
-4.14.0 (2024-07-23)
+3.27.0 (2024-07-23)
 -------------------
-* Unused header cleanup (`#1627 <https://github.com/ros-controls/ros2_control/issues/1627>`_)
-* move critical variables to the private context (`#1623 <https://github.com/ros-controls/ros2_control/issues/1623>`_)
-* Contributors: Henry Moore, Sai Kishor Kothakota
+* [ControllerInterface] Avoid warning about conversion from `int64_t` to `unsigned int` (`#1173 <https://github.com/ros-controls/ros2_control/issues/1173>`_) (`#1630 <https://github.com/ros-controls/ros2_control/issues/1630>`_)
+* Contributors: mergify[bot]
 
-4.13.0 (2024-07-08)
+3.26.0 (2024-07-09)
 -------------------
-* [ControllerChaining] Export state interfaces from chainable controllers (`#1021 <https://github.com/ros-controls/ros2_control/issues/1021>`_)
-* Contributors: Sai Kishor Kothakota
+* Fix dependencies for source build (`#1533 <https://github.com/ros-controls/ros2_control/issues/1533>`_) (`#1536 <https://github.com/ros-controls/ros2_control/issues/1536>`_)
+* Contributors: mergify[bot]
 
-4.12.0 (2024-07-01)
+3.25.0 (2024-04-30)
 -------------------
 
-4.11.0 (2024-05-14)
+3.24.0 (2024-03-02)
 -------------------
-* Fix dependencies for source build (`#1533 <https://github.com/ros-controls/ros2_control/issues/1533>`_)
-* Add find_package for ament_cmake_gen_version_h (`#1534 <https://github.com/ros-controls/ros2_control/issues/1534>`_)
-* Contributors: Christoph Fröhlich
 
-4.10.0 (2024-05-08)
+3.23.0 (2024-02-01)
 -------------------
-* Working async controllers and components [not synchronized] (`#1041 <https://github.com/ros-controls/ros2_control/issues/1041>`_)
-* Contributors: Márk Szitanics
 
-4.9.0 (2024-04-30)
-------------------
-* return the proper const object of the pointer in the const method (`#1494 <https://github.com/ros-controls/ros2_control/issues/1494>`_)
-* Contributors: Sai Kishor Kothakota
+3.22.1 (2024-01-25)
+-------------------
 
-4.8.0 (2024-03-27)
-------------------
-* generate version.h file per package using the ament_generate_version_header  (`#1449 <https://github.com/ros-controls/ros2_control/issues/1449>`_)
-* Use ament_cmake generated rclcpp version header (`#1448 <https://github.com/ros-controls/ros2_control/issues/1448>`_)
-* Contributors: Sai Kishor Kothakota
+3.22.0 (2024-01-20)
+-------------------
 
-4.7.0 (2024-03-22)
-------------------
-* add missing compiler definitions of RCLCPP_VERSION_MAJOR (`#1440 <https://github.com/ros-controls/ros2_control/issues/1440>`_)
-* Contributors: Sai Kishor Kothakota
+3.21.2 (2023-12-05)
+-------------------
 
-4.6.0 (2024-03-02)
-------------------
-* Add -Werror=missing-braces to compile options (`#1423 <https://github.com/ros-controls/ros2_control/issues/1423>`_)
-* added conditioning to have rolling tags compilable in older versions (`#1422 <https://github.com/ros-controls/ros2_control/issues/1422>`_)
-* Contributors: Sai Kishor Kothakota
-
-4.5.0 (2024-02-12)
-------------------
-* A method to get node options to setup the controller node #api-breaking (`#1169 <https://github.com/ros-controls/ros2_control/issues/1169>`_)
-* Contributors: Sai Kishor Kothakota
-
-4.4.0 (2024-01-31)
-------------------
-
-4.3.0 (2024-01-20)
-------------------
-* Issue 695: Changing 'namespace\_' variables to 'node_namespace' to make it more explicit (`#1239 <https://github.com/ros-controls/ros2_control/issues/1239>`_)
-* Contributors: bailaC
-
-4.2.0 (2023-12-12)
-------------------
-
-4.1.0 (2023-11-30)
-------------------
-* Add few warning compiler options to error (`#1181 <https://github.com/ros-controls/ros2_control/issues/1181>`_)
-* [ControllerInterface] Avoid warning about conversion from `int64_t` to `unsigned int` (`#1173 <https://github.com/ros-controls/ros2_control/issues/1173>`_)
-* Contributors: Dr. Denis, Sai Kishor Kothakota
-
-4.0.0 (2023-11-21)
-------------------
-* Pass controller manager update rate on the init of the controller interface  (`#1141 <https://github.com/ros-controls/ros2_control/issues/1141>`_)
-* Pass URDF to controllers on init (`#1088 <https://github.com/ros-controls/ros2_control/issues/1088>`_)
-* Contributors: Bence Magyar, Sai Kishor Kothakota
+3.21.1 (2023-11-14)
+-------------------
 
 3.21.0 (2023-11-06)
 -------------------

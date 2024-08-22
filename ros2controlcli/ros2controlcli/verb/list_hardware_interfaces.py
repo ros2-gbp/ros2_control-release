@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from controller_manager import list_hardware_interfaces, bcolors
+from controller_manager import list_hardware_interfaces
+from controller_manager.spawner import bcolors
 
 from ros2cli.node.direct import add_arguments
 from ros2cli.node.strategy import NodeStrategy
