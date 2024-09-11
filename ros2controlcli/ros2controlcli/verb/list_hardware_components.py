@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from controller_manager import list_hardware_components, bcolors
+from controller_manager import list_hardware_components
+from controller_manager.spawner import bcolors
 
 from lifecycle_msgs.msg import State
 
@@ -54,6 +55,9 @@ class ListHardwareComponentsVerb(VerbExtension):
                 )
                 if hasattr(component, "plugin_name"):
                     plugin_name = f"{component.plugin_name}"
+                # Keep compatibility to the obsolete filed name in Humble
+                elif hasattr(component, "class_type"):
+                    plugin_name = f"{component.class_type}"
                 else:
                     plugin_name = f"{bcolors.WARNING}plugin name missing!{bcolors.ENDC}"
 
@@ -63,6 +67,7 @@ class ListHardwareComponentsVerb(VerbExtension):
                     f"\tcommand interfaces"
                 )
                 for cmd_interface in component.command_interfaces:
+
                     if cmd_interface.is_available:
                         available_str = f"{bcolors.OKBLUE}[available]{bcolors.ENDC}"
                     else:
