@@ -33,9 +33,9 @@ from controller_manager.controller_manager_services import ServiceNotFoundError
 import rclpy
 from rcl_interfaces.msg import Parameter
 from rclpy.node import Node
+from rclpy.parameter import get_parameter_value
 from rclpy.signals import SignalHandlerOptions
 from ros2param.api import call_set_parameters
-from ros2param.api import get_parameter_value
 
 # from https://stackoverflow.com/a/287944
 
@@ -100,7 +100,6 @@ def get_parameter_from_param_file(controller_name, namespace, parameter_file, pa
 
 
 def main(args=None):
-
     rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     parser = argparse.ArgumentParser()
     parser.add_argument("controller_names", help="List of controllers", nargs="+")
@@ -123,12 +122,6 @@ def main(args=None):
     parser.add_argument(
         "--load-only",
         help="Only load the controller and leave unconfigured.",
-        action="store_true",
-        required=False,
-    )
-    parser.add_argument(
-        "--stopped",
-        help="Load and configure the controller, however do not activate them",
         action="store_true",
         required=False,
     )
@@ -299,7 +292,7 @@ def main(args=None):
                     )
                     return 1
 
-                if not args.stopped and not args.inactive and not args.activate_as_group:
+                if not args.inactive and not args.activate_as_group:
                     ret = switch_controllers(
                         node, controller_manager_name, [], [controller_name], True, True, 5.0
                     )
@@ -317,7 +310,7 @@ def main(args=None):
                         + bcolors.ENDC
                     )
 
-        if not args.stopped and not args.inactive and args.activate_as_group:
+        if not args.inactive and args.activate_as_group:
             ret = switch_controllers(
                 node, controller_manager_name, [], controller_names, True, True, 5.0
             )
@@ -332,8 +325,6 @@ def main(args=None):
                 + "Configured and activated all the parsed controllers list!"
                 + bcolors.ENDC
             )
-        if args.stopped:
-            node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
 
         if not args.unload_on_kill:
             return 0
@@ -343,24 +334,25 @@ def main(args=None):
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            if not args.stopped and not args.inactive:
+            if not args.inactive:
                 node.get_logger().info("Interrupt captured, deactivating and unloading controller")
                 # TODO(saikishor) we might have an issue in future, if any of these controllers is in chained mode
                 ret = switch_controllers(
                     node, controller_manager_name, controller_names, [], True, True, 5.0
                 )
                 if not ret.ok:
-                    node.get_logger().error("Failed to deactivate controller")
+                    node.get_logger().error(
+                        bcolors.FAIL + "Failed to deactivate controller" + bcolors.ENDC
+                    )
                     return 1
 
                 node.get_logger().info("Deactivated controller")
 
-            elif args.stopped:
-                node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
-
             ret = unload_controller(node, controller_manager_name, controller_name)
             if not ret.ok:
-                node.get_logger().error("Failed to unload controller")
+                node.get_logger().error(
+                    bcolors.FAIL + "Failed to unload controller" + bcolors.ENDC
+                )
                 return 1
 
             node.get_logger().info("Unloaded controller")
