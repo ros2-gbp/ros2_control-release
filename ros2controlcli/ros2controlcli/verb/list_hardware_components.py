@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from controller_manager import list_hardware_components
-from controller_manager.spawner import bcolors
+from controller_manager import list_hardware_components, bcolors
 
 from lifecycle_msgs.msg import State
 
@@ -37,7 +36,7 @@ class ListHardwareComponentsVerb(VerbExtension):
         add_controller_mgr_parsers(parser)
 
     def main(self, *, args):
-        with NodeStrategy(args) as node:
+        with NodeStrategy(args).direct_node as node:
             hardware_components = list_hardware_components(node, args.controller_manager)
 
             for idx, component in enumerate(hardware_components.component):

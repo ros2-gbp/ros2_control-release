@@ -2,46 +2,86 @@
 Changelog for package joint_limits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.28.1 (2024-09-11)
+4.18.0 (2024-10-07)
 -------------------
 
-3.28.0 (2024-08-22)
+4.17.0 (2024-09-11)
 -------------------
 
-3.27.0 (2024-07-23)
+4.16.1 (2024-08-24)
 -------------------
 
-3.26.0 (2024-07-09)
--------------------
-* Bump version of pre-commit hooks (backport `#1556 <https://github.com/ros-controls/ros2_control/issues/1556>`_) (`#1558 <https://github.com/ros-controls/ros2_control/issues/1558>`_)
-* Fix dependencies for source build (`#1533 <https://github.com/ros-controls/ros2_control/issues/1533>`_) (`#1536 <https://github.com/ros-controls/ros2_control/issues/1536>`_)
-* Contributors: mergify[bot]
-
-3.25.0 (2024-04-30)
--------------------
-* Bump version of pre-commit hooks (backport `#1430 <https://github.com/ros-controls/ros2_control/issues/1430>`_) (`#1435 <https://github.com/ros-controls/ros2_control/issues/1435>`_)
-* Contributors: mergify[bot]
-
-3.24.0 (2024-03-02)
--------------------
-* [CI] Code coverage + pre-commit (backport `#1413 <https://github.com/ros-controls/ros2_control/issues/1413>`_) (`#1415 <https://github.com/ros-controls/ros2_control/issues/1415>`_)
-* Add header to import limits from standard URDF definition (`#1298 <https://github.com/ros-controls/ros2_control/issues/1298>`_) (`#1418 <https://github.com/ros-controls/ros2_control/issues/1418>`_)
-* Contributors: mergify[bot]
-
-3.23.0 (2024-02-01)
+4.16.0 (2024-08-22)
 -------------------
 
-3.22.1 (2024-01-25)
+4.15.0 (2024-08-05)
 -------------------
 
-3.22.0 (2024-01-20)
+4.14.0 (2024-07-23)
+-------------------
+* Unused header cleanup (`#1627 <https://github.com/ros-controls/ros2_control/issues/1627>`_)
+* Contributors: Henry Moore
+
+4.13.0 (2024-07-08)
+-------------------
+* [JointLimits] Add Saturation Joint Limiter that uses clamping method (`#971 <https://github.com/ros-controls/ros2_control/issues/971>`_)
+* Contributors: Dr. Denis
+
+4.12.0 (2024-07-01)
+-------------------
+* Reactivate generate_version_header (`#1544 <https://github.com/ros-controls/ros2_control/issues/1544>`_)
+* Bump version of pre-commit hooks (`#1556 <https://github.com/ros-controls/ros2_control/issues/1556>`_)
+* Contributors: Christoph Fröhlich, github-actions[bot]
+
+4.11.0 (2024-05-14)
+-------------------
+* Fix dependencies for source build (`#1533 <https://github.com/ros-controls/ros2_control/issues/1533>`_)
+* Add find_package for ament_cmake_gen_version_h (`#1534 <https://github.com/ros-controls/ros2_control/issues/1534>`_)
+* Contributors: Christoph Fröhlich
+
+4.10.0 (2024-05-08)
 -------------------
 
-3.21.2 (2023-12-05)
--------------------
+4.9.0 (2024-04-30)
+------------------
 
-3.21.1 (2023-11-14)
--------------------
+4.8.0 (2024-03-27)
+------------------
+* generate version.h file per package using the ament_generate_version_header  (`#1449 <https://github.com/ros-controls/ros2_control/issues/1449>`_)
+* Contributors: Sai Kishor Kothakota
+
+4.7.0 (2024-03-22)
+------------------
+* Codeformat from new pre-commit config (`#1433 <https://github.com/ros-controls/ros2_control/issues/1433>`_)
+* Contributors: Christoph Fröhlich
+
+4.6.0 (2024-03-02)
+------------------
+* Add -Werror=missing-braces to compile options (`#1423 <https://github.com/ros-controls/ros2_control/issues/1423>`_)
+* Contributors: Sai Kishor Kothakota
+
+4.5.0 (2024-02-12)
+------------------
+
+4.4.0 (2024-01-31)
+------------------
+* [Format] Correct formatting of JointLimits URDF file. (`#1339 <https://github.com/ros-controls/ros2_control/issues/1339>`_)
+* Add header to import limits from standard URDF definition (`#1298 <https://github.com/ros-controls/ros2_control/issues/1298>`_)
+* Contributors: Dr. Denis, Sai Kishor Kothakota
+
+4.3.0 (2024-01-20)
+------------------
+
+4.2.0 (2023-12-12)
+------------------
+
+4.1.0 (2023-11-30)
+------------------
+* Add few warning compiler options to error (`#1181 <https://github.com/ros-controls/ros2_control/issues/1181>`_)
+* Contributors: Sai Kishor Kothakota
+
+4.0.0 (2023-11-21)
+------------------
 
 3.21.0 (2023-11-06)
 -------------------

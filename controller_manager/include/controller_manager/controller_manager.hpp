@@ -18,11 +18,11 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "controller_interface/async_controller.hpp"
 #include "controller_interface/chainable_controller_interface.hpp"
 #include "controller_interface/controller_interface.hpp"
 #include "controller_interface/controller_interface_base.hpp"
@@ -41,17 +41,12 @@
 #include "controller_manager_msgs/srv/unload_controller.hpp"
 
 #include "diagnostic_updater/diagnostic_updater.hpp"
-#include "hardware_interface/handle.hpp"
 #include "hardware_interface/resource_manager.hpp"
 
 #include "pluginlib/class_loader.hpp"
 
 #include "rclcpp/executor.hpp"
 #include "rclcpp/node.hpp"
-#include "rclcpp/node_interfaces/node_logging_interface.hpp"
-#include "rclcpp/node_interfaces/node_parameters_interface.hpp"
-#include "rclcpp/parameter.hpp"
-#include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
 namespace controller_manager
@@ -71,14 +66,21 @@ public:
     std::unique_ptr<hardware_interface::ResourceManager> resource_manager,
     std::shared_ptr<rclcpp::Executor> executor,
     const std::string & manager_node_name = "controller_manager",
-    const std::string & namespace_ = "",
+    const std::string & node_namespace = "",
     const rclcpp::NodeOptions & options = get_cm_node_options());
 
   CONTROLLER_MANAGER_PUBLIC
   ControllerManager(
     std::shared_ptr<rclcpp::Executor> executor,
     const std::string & manager_node_name = "controller_manager",
-    const std::string & namespace_ = "",
+    const std::string & node_namespace = "",
+    const rclcpp::NodeOptions & options = get_cm_node_options());
+
+  CONTROLLER_MANAGER_PUBLIC
+  ControllerManager(
+    std::shared_ptr<rclcpp::Executor> executor, const std::string & urdf,
+    bool activate_all_hw_components, const std::string & manager_node_name = "controller_manager",
+    const std::string & node_namespace = "",
     const rclcpp::NodeOptions & options = get_cm_node_options());
 
   CONTROLLER_MANAGER_PUBLIC
@@ -192,9 +194,35 @@ public:
   // the executor (see issue #260).
   // rclcpp::CallbackGroup::SharedPtr deterministic_callback_group_;
 
-  // Per controller update rate support
+  /// Interface for external components to check if Resource Manager is initialized.
+  /**
+   * Checks if components in Resource Manager are loaded and initialized.
+   * \returns true if they are initialized, false otherwise.
+   */
+  CONTROLLER_MANAGER_PUBLIC
+  bool is_resource_manager_initialized() const
+  {
+    return resource_manager_ && resource_manager_->are_components_initialized();
+  }
+
+  /// Update rate of the main control loop in the controller manager.
+  /**
+   * Update rate of the main control loop in the controller manager.
+   * The method is used for per-controller update rate support.
+   *
+   * \returns update rate of the controller manager.
+   */
   CONTROLLER_MANAGER_PUBLIC
   unsigned int get_update_rate() const;
+
+  /// Deletes all async controllers and components.
+  /**
+   * Needed to join the threads immediately after the control loop is ended
+   * to avoid unnecessary iterations. Otherwise
+   * the threads will be joined only when the controller manager gets destroyed.
+   */
+  CONTROLLER_MANAGER_PUBLIC
+  void shutdown_async_controllers_and_components();
 
 protected:
   CONTROLLER_MANAGER_PUBLIC
@@ -322,7 +350,7 @@ private:
   std::vector<std::string> get_controller_names();
   std::pair<std::string, std::string> split_command_interface(
     const std::string & command_interface);
-  void subscribe_to_robot_description_topic();
+  void init_controller_manager();
 
   /**
    * Clear request lists used when switching controllers. The lists are shared between "callback"
@@ -390,28 +418,28 @@ private:
     const std::vector<ControllerSpec> & controllers, int strictness,
     const ControllersListIterator controller_it);
 
-  /// A method to be used in the std::sort method to sort the controllers to be able to
-  /// execute them in a proper order
   /**
-   * Compares the controllers ctrl_a and ctrl_b and then returns which comes first in the sequence
+   * @brief Inserts a controller into an ordered list based on dependencies to compute the
+   * controller chain.
    *
-   *  @note The following conditions needs to be handled while ordering the controller list
-   *  1. The controllers that do not use any state or command interfaces are updated first
-   *  2. The controllers that use only the state system interfaces only are updated next
-   *  3. The controllers that use any of an another controller's reference interface are updated
-   * before the preceding controller
-   *  4. The controllers that use the controller's estimated interfaces are updated after the
-   * preceding controller
-   *  5. The controllers that only use the hardware command interfaces are updated last
-   *  6. All inactive controllers go at the end of the list
+   * This method computes the controller chain by inserting the provided controller name into an
+   * ordered list of controllers based on dependencies. It ensures that controllers are inserted in
+   * the correct order so that dependencies are satisfied.
    *
-   * \param[in] controllers list of controllers to compare their names to interface's prefix.
-   *
-   * @return true, if ctrl_a needs to execute first, else false
+   * @param ctrl_name The name of the controller to be inserted into the chain.
+   * @param controller_iterator An iterator pointing to the position in the ordered list where the
+   * controller should be inserted.
+   * @param append_to_controller Flag indicating whether the controller should be appended or
+   * prepended to the parsed iterator.
+   * @note The specification of controller dependencies is in the ControllerChainSpec,
+   * containing information about following and preceding controllers. This struct should include
+   * the neighboring controllers with their relationships to the provided controller.
+   * `following_controllers` specify controllers that come after the provided controller.
+   * `preceding_controllers` specify controllers that come before the provided controller.
    */
-  bool controller_sorting(
-    const ControllerSpec & ctrl_a, const ControllerSpec & ctrl_b,
-    const std::vector<controller_manager::ControllerSpec> & controllers);
+  void update_list_with_controller_chain(
+    const std::string & ctrl_name, std::vector<std::string>::iterator controller_iterator,
+    bool append_to_controller);
 
   void controller_activity_diagnostic_callback(diagnostic_updater::DiagnosticStatusWrapper & stat);
 
@@ -515,6 +543,8 @@ private:
   };
 
   RTControllerListWrapper rt_controllers_wrapper_;
+  std::unordered_map<std::string, ControllerChainSpec> controller_chain_spec_;
+  std::vector<std::string> ordered_controllers_names_;
   /// mutex copied from ROS1 Control, protects service callbacks
   /// not needed if we're guaranteed that the callbacks don't come from multiple threads
   std::mutex services_lock_;
@@ -544,7 +574,13 @@ private:
   std::vector<std::string> activate_command_interface_request_,
     deactivate_command_interface_request_;
 
+  std::map<std::string, std::vector<std::string>> controller_chained_reference_interfaces_cache_;
+  std::map<std::string, std::vector<std::string>> controller_chained_state_interfaces_cache_;
+
+  rclcpp::NodeOptions cm_node_options_;
+  std::string robot_description_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscription_;
+  rclcpp::TimerBase::SharedPtr robot_description_notification_timer_;
 
   struct SwitchParams
   {
@@ -571,65 +607,7 @@ private:
 
   SwitchParams switch_params_;
 
-  class ControllerThreadWrapper
-  {
-  public:
-    ControllerThreadWrapper(
-      std::shared_ptr<controller_interface::ControllerInterfaceBase> & controller,
-      int cm_update_rate)
-    : terminated_(false), controller_(controller), thread_{}, cm_update_rate_(cm_update_rate)
-    {
-    }
-
-    ControllerThreadWrapper(const ControllerThreadWrapper & t) = delete;
-    ControllerThreadWrapper(ControllerThreadWrapper && t) = default;
-    ~ControllerThreadWrapper()
-    {
-      terminated_.store(true, std::memory_order_seq_cst);
-      if (thread_.joinable())
-      {
-        thread_.join();
-      }
-    }
-
-    void activate()
-    {
-      thread_ = std::thread(&ControllerThreadWrapper::call_controller_update, this);
-    }
-
-    void call_controller_update()
-    {
-      using TimePoint = std::chrono::system_clock::time_point;
-      unsigned int used_update_rate =
-        controller_->get_update_rate() == 0
-          ? cm_update_rate_
-          : controller_
-              ->get_update_rate();  // determines if the controller's or CM's update rate is used
-
-      while (!terminated_.load(std::memory_order_relaxed))
-      {
-        auto const period = std::chrono::nanoseconds(1'000'000'000 / used_update_rate);
-        TimePoint next_iteration_time =
-          TimePoint(std::chrono::nanoseconds(controller_->get_node()->now().nanoseconds()));
-
-        if (controller_->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
-        {
-          // critical section, not implemented yet
-        }
-
-        next_iteration_time += period;
-        std::this_thread::sleep_until(next_iteration_time);
-      }
-    }
-
-  private:
-    std::atomic<bool> terminated_;
-    std::shared_ptr<controller_interface::ControllerInterfaceBase> controller_;
-    std::thread thread_;
-    unsigned int cm_update_rate_;
-  };
-
-  std::unordered_map<std::string, std::unique_ptr<ControllerThreadWrapper>>
+  std::unordered_map<std::string, std::unique_ptr<controller_interface::AsyncControllerThread>>
     async_controller_threads_;
 };
 

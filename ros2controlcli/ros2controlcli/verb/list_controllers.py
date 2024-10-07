@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from controller_manager import list_controllers
-from controller_manager.spawner import bcolors
+from controller_manager import list_controllers, bcolors
 
 from ros2cli.node.direct import add_arguments
 from ros2cli.node.strategy import NodeStrategy
@@ -96,7 +95,7 @@ class ListControllersVerb(VerbExtension):
         add_controller_mgr_parsers(parser)
 
     def main(self, *, args):
-        with NodeStrategy(args) as node:
+        with NodeStrategy(args).direct_node as node:
             response = list_controllers(node, args.controller_manager)
 
             if not response.controller:

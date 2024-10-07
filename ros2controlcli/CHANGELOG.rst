@@ -2,49 +2,81 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.28.1 (2024-09-11)
+4.18.0 (2024-10-07)
 -------------------
-* [ros2controlcli] fix list_controllers when no controllers are loaded (`#1721 <https://github.com/ros-controls/ros2_control/issues/1721>`_) (`#1723 <https://github.com/ros-controls/ros2_control/issues/1723>`_)
-* Contributors: mergify[bot]
+* [ros2controlcli] add params file parsing to load_controller verb and add namespacing support  (`#1703 <https://github.com/ros-controls/ros2_control/issues/1703>`_)
+* Contributors: Sai Kishor Kothakota
 
-3.28.0 (2024-08-22)
+4.17.0 (2024-09-11)
 -------------------
-* Make list controller and list hardware components immediately visualize the state. (`#1606 <https://github.com/ros-controls/ros2_control/issues/1606>`_) (`#1691 <https://github.com/ros-controls/ros2_control/issues/1691>`_)
-* Contributors: mergify[bot]
+* [ros2controlcli] fix list_controllers when no controllers are loaded (`#1721 <https://github.com/ros-controls/ros2_control/issues/1721>`_)
+* Contributors: Sai Kishor Kothakota
 
-3.27.0 (2024-07-23)
--------------------
-
-3.26.0 (2024-07-09)
+4.16.1 (2024-08-24)
 -------------------
 
-3.25.0 (2024-04-30)
+4.16.0 (2024-08-22)
 -------------------
-* [CI] Specify runner/container images and codecov for joint_limits  (`#1504 <https://github.com/ros-controls/ros2_control/issues/1504>`_) (`#1520 <https://github.com/ros-controls/ros2_control/issues/1520>`_)
-* [CLI] Add `set_hardware_component_state` verb (`#1248 <https://github.com/ros-controls/ros2_control/issues/1248>`_) (`#1471 <https://github.com/ros-controls/ros2_control/issues/1471>`_)
+* Refactor spawner to be able to reuse code for ros2controlcli (`#1661 <https://github.com/ros-controls/ros2_control/issues/1661>`_)
+* Make list controller and list hardware components immediately visualize the state. (`#1606 <https://github.com/ros-controls/ros2_control/issues/1606>`_)
+* Contributors: Dr. Denis, Sai Kishor Kothakota
+
+4.15.0 (2024-08-05)
+-------------------
+
+4.14.0 (2024-07-23)
+-------------------
+
+4.13.0 (2024-07-08)
+-------------------
+* Remove ament linters (`#1601 <https://github.com/ros-controls/ros2_control/issues/1601>`_)
+* Contributors: Bence Magyar
+
+4.12.0 (2024-07-01)
+-------------------
+
+4.11.0 (2024-05-14)
+-------------------
+
+4.10.0 (2024-05-08)
+-------------------
+
+4.9.0 (2024-04-30)
+------------------
+* [CI] Specify runner/container images and codecov for joint_limits  (`#1504 <https://github.com/ros-controls/ros2_control/issues/1504>`_)
+* [CLI] Add `set_hardware_component_state` verb (`#1248 <https://github.com/ros-controls/ros2_control/issues/1248>`_)
 * Contributors: Christoph Fröhlich
 
-3.24.0 (2024-03-02)
--------------------
-* Added spawner colours to `list_controllers` depending upon active or inactive (`#1409 <https://github.com/ros-controls/ros2_control/issues/1409>`_) (`#1425 <https://github.com/ros-controls/ros2_control/issues/1425>`_)
-* Contributors: mergify[bot]
+4.8.0 (2024-03-27)
+------------------
 
-3.23.0 (2024-02-01)
--------------------
+4.7.0 (2024-03-22)
+------------------
 
-3.22.1 (2024-01-25)
--------------------
+4.6.0 (2024-03-02)
+------------------
+* Added spawner colours to `list_controllers` depending upon active or inactive (`#1409 <https://github.com/ros-controls/ros2_control/issues/1409>`_)
+* Contributors: Soham Patil
 
-3.22.0 (2024-01-20)
--------------------
-* [docs] Remove joint_state_controller (`#1263 <https://github.com/ros-controls/ros2_control/issues/1263>`_) (`#1265 <https://github.com/ros-controls/ros2_control/issues/1265>`_)
-* Contributors: mergify[bot]
+4.5.0 (2024-02-12)
+------------------
 
-3.21.2 (2023-12-05)
--------------------
+4.4.0 (2024-01-31)
+------------------
 
-3.21.1 (2023-11-14)
--------------------
+4.3.0 (2024-01-20)
+------------------
+* [docs] Remove joint_state_controller (`#1263 <https://github.com/ros-controls/ros2_control/issues/1263>`_)
+* Contributors: Christoph Fröhlich
+
+4.2.0 (2023-12-12)
+------------------
+
+4.1.0 (2023-11-30)
+------------------
+
+4.0.0 (2023-11-21)
+------------------
 
 3.21.0 (2023-11-06)
 -------------------
