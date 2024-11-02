@@ -14,9 +14,12 @@
 
 /// \author Adolfo Rodriguez Tsouroukdissian
 
-#include <gtest/gtest.h>
+#include <memory>
+
+#include "gtest/gtest.h"
 
 #include "joint_limits/joint_limits_rosparam.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 class JointLimitsRosParamTest : public ::testing::Test

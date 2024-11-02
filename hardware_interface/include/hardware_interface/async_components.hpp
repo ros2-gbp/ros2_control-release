@@ -23,6 +23,8 @@
 #include "hardware_interface/sensor.hpp"
 #include "hardware_interface/system.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "rclcpp/duration.hpp"
+#include "rclcpp/node.hpp"
 #include "rclcpp/time.hpp"
 
 namespace hardware_interface
@@ -32,23 +34,29 @@ class AsyncComponentThread
 {
 public:
   explicit AsyncComponentThread(
-    unsigned int update_rate,
+    Actuator * component, unsigned int update_rate,
     rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
-  : cm_update_rate_(update_rate), clock_interface_(clock_interface)
+  : hardware_component_(component), cm_update_rate_(update_rate), clock_interface_(clock_interface)
   {
   }
 
-  // Fills the internal variant with the desired component.
-  template <typename T>
-  void register_component(T * component)
+  explicit AsyncComponentThread(
+    System * component, unsigned int update_rate,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+  : hardware_component_(component), cm_update_rate_(update_rate), clock_interface_(clock_interface)
   {
-    hardware_component_ = component;
+  }
+
+  explicit AsyncComponentThread(
+    Sensor * component, unsigned int update_rate,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+  : hardware_component_(component), cm_update_rate_(update_rate), clock_interface_(clock_interface)
+  {
   }
 
   AsyncComponentThread(const AsyncComponentThread & t) = delete;
-  AsyncComponentThread(AsyncComponentThread && t) = delete;
+  AsyncComponentThread(AsyncComponentThread && t) = default;
 
-  // Destructor, called when the component is erased from its map.
   ~AsyncComponentThread()
   {
     terminated_.store(true, std::memory_order_seq_cst);
@@ -57,19 +65,9 @@ public:
       write_and_read_.join();
     }
   }
-  /// Creates the component's thread.
-  /**
-   * Called when the component is activated.
-   *
-   */
+
   void activate() { write_and_read_ = std::thread(&AsyncComponentThread::write_and_read, this); }
 
-  /// Periodically execute the component's write and read methods.
-  /**
-   * Callback of the async component's thread.
-   * **Not synchronized with the controller manager's update currently**
-   *
-   */
   void write_and_read()
   {
     using TimePoint = std::chrono::system_clock::time_point;
@@ -84,20 +82,14 @@ public:
           TimePoint next_iteration_time =
             TimePoint(std::chrono::nanoseconds(clock_interface_->get_clock()->now().nanoseconds()));
 
-          if (
-            component->get_lifecycle_state().id() ==
-            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+          if (component->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
           {
             auto current_time = clock_interface_->get_clock()->now();
             auto measured_period = current_time - previous_time;
             previous_time = current_time;
 
-            if (!first_iteration)
-            {
-              component->write(clock_interface_->get_clock()->now(), measured_period);
-            }
-            component->read(clock_interface_->get_clock()->now(), measured_period);
-            first_iteration = false;
+            // write
+            // read
           }
           next_iteration_time += period;
           std::this_thread::sleep_until(next_iteration_time);
@@ -112,7 +104,6 @@ private:
   std::thread write_and_read_{};
 
   unsigned int cm_update_rate_;
-  bool first_iteration = true;
   rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface_;
 };
 
