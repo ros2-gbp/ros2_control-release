@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 project(controller_manager LANGUAGES CXX)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
-  add_compile_options(-Wall -Wextra -Wconversion)
+  add_compile_options(-Wall -Wextra -Werror=conversion -Werror=unused-but-set-variable -Werror=return-type -Werror=shadow
+          -Werror=missing-braces)
 endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -20,6 +21,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(ament_cmake_core REQUIRED)
+find_package(ament_cmake_gen_version_h REQUIRED)
 find_package(backward_ros REQUIRED)
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
@@ -85,10 +87,12 @@ if(BUILD_TESTING)
 
   ament_add_gmock(test_controller_manager
     test/test_controller_manager.cpp
+    TIMEOUT 180
   )
   target_link_libraries(test_controller_manager
     controller_manager
     test_controller
+    test_chainable_controller
     ros2_control_test_assets::ros2_control_test_assets
   )
 
@@ -150,6 +154,7 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_controller_manager_urdf_passing
     controller_manager
+    test_controller
     ros2_control_test_assets::ros2_control_test_assets
   )
   ament_target_dependencies(test_controller_manager_urdf_passing
@@ -189,6 +194,18 @@ if(BUILD_TESTING)
     test_controller
     ros2_control_test_assets::ros2_control_test_assets
   )
+
+  ament_add_gmock(test_hardware_spawner
+    test/test_hardware_spawner.cpp
+    TIMEOUT 120
+  )
+  target_link_libraries(test_hardware_spawner
+    controller_manager
+    ros2_control_test_assets::ros2_control_test_assets
+  )
+
+  install(FILES test/test_controller_spawner_with_fallback_controllers.yaml
+    DESTINATION test)
 
   install(FILES test/test_controller_spawner_with_type.yaml
   DESTINATION test)
@@ -233,3 +250,4 @@ ament_python_install_package(controller_manager
 ament_export_targets(export_controller_manager HAS_LIBRARY_TARGET)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 ament_package()
+ament_generate_version_header(${PROJECT_NAME})
