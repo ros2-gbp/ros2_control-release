@@ -112,6 +112,60 @@ There are two scripts to interact with controller manager from launch files:
                             Time to wait for the controller manager
 
 
+The parsed controller config file can follow the same conventions as the typical ROS 2 parameter file format. Now, the spawner can handle config files with wildcard entries and also the controller name in the absolute namespace. See the following examples on the config files:
+
+ .. code-block:: yaml
+
+    /**/position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
+ .. code-block:: yaml
+
+    /position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
+ .. code-block:: yaml
+
+    position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
+ .. code-block:: yaml
+
+    /rrbot_1/position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
 ``unspawner``
 ^^^^^^^^^^^^^^^^
 
@@ -146,6 +200,22 @@ There are two scripts to interact with controller manager from launch files:
                             Name of the controller manager ROS node
       --activate            Activates the given components. Note: Components are by default configured before activated.
       --configure           Configures the given components.
+
+
+rqt_controller_manager
+----------------------
+A GUI tool to interact with the controller manager services to be able to switch the lifecycle states of the controllers as well as the hardware components.
+
+.. image:: images/rqt_controller_manager.png
+
+It can be launched independently using the following command or as rqt plugin.
+
+.. code-block:: console
+
+    ros2 run rqt_controller_manager rqt_controller_manager
+
+   * Double-click on a controller or hardware component to show the additional info.
+   * Right-click on a controller or hardware component to show a context menu with options for lifecycle management.
 
 
 Using the Controller Manager in a Process
