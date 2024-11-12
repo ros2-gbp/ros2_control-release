@@ -206,6 +206,7 @@ def set_hardware_component_state(
         f"{controller_manager_name}/set_hardware_component_state",
         SetHardwareComponentState,
         request,
+        service_timeout,
     )
 
 

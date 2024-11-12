@@ -46,6 +46,13 @@ int main(int argc, char ** argv)
 
   const bool use_sim_time = cm->get_parameter_or("use_sim_time", false);
 
+  const bool lock_memory = cm->get_parameter_or<bool>("lock_memory", true);
+  std::string message;
+  if (lock_memory && !realtime_tools::lock_memory(message))
+  {
+    RCLCPP_WARN(cm->get_logger(), "Unable to lock the memory : '%s'", message.c_str());
+  }
+
   const int cpu_affinity = cm->get_parameter_or<int>("cpu_affinity", -1);
   if (cpu_affinity >= 0)
   {
@@ -55,12 +62,6 @@ int main(int argc, char ** argv)
       RCLCPP_WARN(
         cm->get_logger(), "Unable to set the CPU affinity : '%s'", affinity_result.second.c_str());
     }
-  }
-  const bool lock_memory = cm->get_parameter_or<bool>("lock_memory", true);
-  std::string message;
-  if (lock_memory && !realtime_tools::lock_memory(message))
-  {
-    RCLCPP_WARN(cm->get_logger(), "Unable to lock the memory : '%s'", message.c_str());
   }
 
   RCLCPP_INFO(cm->get_logger(), "update rate is %d Hz", cm->get_update_rate());

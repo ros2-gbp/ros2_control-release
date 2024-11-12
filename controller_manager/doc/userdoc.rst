@@ -65,7 +65,7 @@ robot_description (mandatory; string)
   String with the URDF string as robot description.
   This is usually result of the parsed description files by ``xacro`` command.
 
-update_rate (mandatory; double)
+update_rate (mandatory; integer)
   The frequency of controller manager's real-time update loop.
   This loop reads states from hardware, updates controller and writes commands to hardware.
 
@@ -90,21 +90,23 @@ There are two scripts to interact with controller manager from launch files:
 .. code-block:: console
 
     $ ros2 run controller_manager spawner -h
-    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--stopped] [-t CONTROLLER_TYPE] [-u]
+    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [-n NAMESPACE] [--load-only] [--inactive] [-t CONTROLLER_TYPE] [-u]
                       [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT]
                       controller_name
 
     positional arguments:
       controller_name       Name of the controller
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -c CONTROLLER_MANAGER, --controller-manager CONTROLLER_MANAGER
                             Name of the controller manager ROS node
       -p PARAM_FILE, --param-file PARAM_FILE
                             Controller param file to be loaded into controller node before configure
+      -n NAMESPACE, --namespace NAMESPACE
+                            Namespace for the controller
       --load-only           Only load the controller and leave unconfigured.
-      --stopped             Load and configure the controller, however do not start them
+      --inactive            Load and configure the controller, however do not activate them
       -t CONTROLLER_TYPE, --controller-type CONTROLLER_TYPE
                             If not provided it should exist in the controller manager namespace
       -u, --unload-on-kill  Wait until this application is interrupted and unload controller
@@ -188,19 +190,22 @@ The parsed controller config file can follow the same conventions as the typical
 .. code-block:: console
 
     $ ros2 run controller_manager hardware_spawner -h
-    usage: hardware_spawner [-h] [-c CONTROLLER_MANAGER] (--activate | --configure) hardware_component_name
+    usage: hardware_spawner [-h] [-c CONTROLLER_MANAGER] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT]
+                            (--activate | --configure)
+                            hardware_component_names [hardware_component_names ...]
 
     positional arguments:
-      hardware_component_name
-                            The name of the hardware component which should be activated.
+      hardware_component_names
+                            The name of the hardware components which should be activated.
 
     options:
       -h, --help            show this help message and exit
       -c CONTROLLER_MANAGER, --controller-manager CONTROLLER_MANAGER
                             Name of the controller manager ROS node
+      --controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT
+                            Time to wait for the controller manager
       --activate            Activates the given components. Note: Components are by default configured before activated.
       --configure           Configures the given components.
-
 
 rqt_controller_manager
 ----------------------
@@ -216,7 +221,6 @@ It can be launched independently using the following command or as rqt plugin.
 
    * Double-click on a controller or hardware component to show the additional info.
    * Right-click on a controller or hardware component to show a context menu with options for lifecycle management.
-
 
 Using the Controller Manager in a Process
 -----------------------------------------
