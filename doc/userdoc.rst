@@ -114,6 +114,60 @@ There are two scripts to interact with controller manager from launch files:
                             Time to wait for the controller manager
 
 
+The parsed controller config file can follow the same conventions as the typical ROS 2 parameter file format. Now, the spawner can handle config files with wildcard entries and also the controller name in the absolute namespace. See the following examples on the config files:
+
+ .. code-block:: yaml
+
+    /**/position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
+ .. code-block:: yaml
+
+    /position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
+ .. code-block:: yaml
+
+    position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
+ .. code-block:: yaml
+
+    /rrbot_1/position_trajectory_controller:
+    ros__parameters:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - joint1
+        - joint2
+
+      command_interfaces:
+        - position
+        .....
+
 ``unspawner``
 ^^^^^^^^^^^^^^^^
 
@@ -136,16 +190,20 @@ There are two scripts to interact with controller manager from launch files:
 .. code-block:: console
 
     $ ros2 run controller_manager hardware_spawner -h
-    usage: hardware_spawner [-h] [-c CONTROLLER_MANAGER] (--activate | --configure) hardware_component_name
+    usage: hardware_spawner [-h] [-c CONTROLLER_MANAGER] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT]
+                            (--activate | --configure)
+                            hardware_component_names [hardware_component_names ...]
 
     positional arguments:
-      hardware_component_name
-                            The name of the hardware component which should be activated.
+      hardware_component_names
+                            The name of the hardware components which should be activated.
 
     options:
       -h, --help            show this help message and exit
       -c CONTROLLER_MANAGER, --controller-manager CONTROLLER_MANAGER
                             Name of the controller manager ROS node
+      --controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT
+                            Time to wait for the controller manager
       --activate            Activates the given components. Note: Components are by default configured before activated.
       --configure           Configures the given components.
 
