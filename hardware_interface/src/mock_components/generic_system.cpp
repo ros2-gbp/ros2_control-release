@@ -17,7 +17,6 @@
 #include "mock_components/generic_system.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -32,7 +31,6 @@
 
 namespace mock_components
 {
-
 CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & info)
 {
   if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS)
@@ -146,7 +144,7 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
       custom_interface_with_following_offset_ = it->second;
     }
   }
-  // it's extremely improbable that std::distance results int this value - therefore default
+  // its extremlly improbably that std::distance results int this value - therefore default
   index_custom_interface_with_following_offset_ = std::numeric_limits<size_t>::max();
 
   // Initialize storage for standard interfaces
@@ -596,12 +594,12 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
     }
     else
     {
-      for (size_t j = 0; j < joint_states_[POSITION_INTERFACE_INDEX].size(); ++j)
+      for (size_t k = 0; k < joint_states_[POSITION_INTERFACE_INDEX].size(); ++k)
       {
-        if (!std::isnan(joint_commands_[POSITION_INTERFACE_INDEX][j]))
+        if (!std::isnan(joint_commands_[POSITION_INTERFACE_INDEX][k]))
         {
-          joint_states_[POSITION_INTERFACE_INDEX][j] =  // apply offset to positions only
-            joint_commands_[POSITION_INTERFACE_INDEX][j] +
+          joint_states_[POSITION_INTERFACE_INDEX][k] =  // apply offset to positions only
+            joint_commands_[POSITION_INTERFACE_INDEX][k] +
             (custom_interface_with_following_offset_.empty() ? position_state_following_offset_
                                                              : 0.0);
         }
