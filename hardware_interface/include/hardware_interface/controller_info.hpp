@@ -34,10 +34,13 @@ struct ControllerInfo
   std::string type;
 
   /// Controller param file
-  std::optional<std::string> parameters_file;
+  std::vector<std::string> parameters_files;
 
   /// List of claimed interfaces by the controller.
   std::vector<std::string> claimed_interfaces;
+
+  /// List of fallback controller names to be activated if this controller fails.
+  std::vector<std::string> fallback_controllers_names;
 };
 
 }  // namespace hardware_interface

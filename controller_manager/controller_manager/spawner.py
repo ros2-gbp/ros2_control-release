@@ -26,8 +26,7 @@ from controller_manager import (
     load_controller,
     switch_controllers,
     unload_controller,
-    set_controller_parameters,
-    set_controller_parameters_from_param_file,
+    set_controller_parameters_from_param_files,
     bcolors,
 )
 from controller_manager.controller_manager_services import ServiceNotFoundError
@@ -61,13 +60,16 @@ def has_service_names(node, node_name, node_namespace, service_names):
     return all(service in client_names for service in service_names)
 
 
-def is_controller_loaded(node, controller_manager, controller_name, service_timeout=0.0):
-    controllers = list_controllers(node, controller_manager, service_timeout).controller
+def is_controller_loaded(
+    node, controller_manager, controller_name, service_timeout=0.0, call_timeout=10.0
+):
+    controllers = list_controllers(
+        node, controller_manager, service_timeout, call_timeout
+    ).controller
     return any(c.name == controller_name for c in controllers)
 
 
 def main(args=None):
-
     rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     parser = argparse.ArgumentParser()
     parser.add_argument("controller_names", help="List of controllers", nargs="+")
@@ -81,21 +83,23 @@ def main(args=None):
     parser.add_argument(
         "-p",
         "--param-file",
-        help="Controller param file to be loaded into controller node before configure",
+        help="Controller param file to be loaded into controller node before configure. "
+        "Pass multiple times to load different files for different controllers or to "
+        "override the parameters of the same controller.",
+        default=None,
+        action="append",
         required=False,
     )
     parser.add_argument(
-        "-n", "--namespace", help="Namespace for the controller", default="", required=False
+        "-n",
+        "--namespace",
+        help="DEPRECATED Namespace for the controller_manager and the controller(s)",
+        default=None,
+        required=False,
     )
     parser.add_argument(
         "--load-only",
         help="Only load the controller and leave unconfigured.",
-        action="store_true",
-        required=False,
-    )
-    parser.add_argument(
-        "--stopped",
-        help="Load and configure the controller, however do not activate them",
         action="store_true",
         required=False,
     )
@@ -106,13 +110,6 @@ def main(args=None):
         required=False,
     )
     parser.add_argument(
-        "-t",
-        "--controller-type",
-        help="If not provided it should exist in the controller manager namespace",
-        default=None,
-        required=False,
-    )
-    parser.add_argument(
         "-u",
         "--unload-on-kill",
         help="Wait until this application is interrupted and unload controller",
@@ -120,7 +117,7 @@ def main(args=None):
     )
     parser.add_argument(
         "--controller-manager-timeout",
-        help="Time to wait for the controller manager",
+        help="Time to wait for the controller manager service to be available",
         required=False,
         default=0.0,
         type=float,
@@ -135,6 +132,13 @@ def main(args=None):
         type=float,
     )
     parser.add_argument(
+        "--service-call-timeout",
+        help="Time to wait for the service response from the controller manager",
+        required=False,
+        default=10.0,
+        type=float,
+    )
+    parser.add_argument(
         "--activate-as-group",
         help="Activates all the parsed controllers list together instead of one by one."
         " Useful for activating all chainable controllers altogether",
@@ -146,12 +150,15 @@ def main(args=None):
     args = parser.parse_args(command_line_args)
     controller_names = args.controller_names
     controller_manager_name = args.controller_manager
-    param_file = args.param_file
+    param_files = args.param_file
     controller_manager_timeout = args.controller_manager_timeout
+    service_call_timeout = args.service_call_timeout
     switch_timeout = args.switch_timeout
 
-    if param_file and not os.path.isfile(param_file):
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
+    if param_files:
+        for param_file in param_files:
+            if not os.path.isfile(param_file):
+                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
 
     node = Node("spawner_" + controller_names[0])
 
@@ -159,6 +166,14 @@ def main(args=None):
         raise RuntimeError(
             f"Setting namespace through both '--namespace {args.namespace}' arg and the ROS 2 standard way "
             f"'--ros-args -r __ns:={node.get_namespace()}' is not allowed!"
+        )
+
+    if args.namespace:
+        warnings.filterwarnings("always")
+        warnings.warn(
+            "The '--namespace' argument is deprecated and will be removed in future releases."
+            " Use the ROS 2 standard way of setting the node namespacing using --ros-args -r __ns:=<namespace>",
+            DeprecationWarning,
         )
 
     spawner_namespace = args.namespace if args.namespace else node.get_namespace()
@@ -174,8 +189,13 @@ def main(args=None):
 
     try:
         for controller_name in controller_names:
+
             if is_controller_loaded(
-                node, controller_manager_name, controller_name, controller_manager_timeout
+                node,
+                controller_manager_name,
+                controller_name,
+                controller_manager_timeout,
+                service_call_timeout,
             ):
                 node.get_logger().warn(
                     bcolors.WARNING
@@ -183,21 +203,12 @@ def main(args=None):
                     + bcolors.ENDC
                 )
             else:
-                if args.controller_type:
-                    if not set_controller_parameters(
+                if param_files:
+                    if not set_controller_parameters_from_param_files(
                         node,
                         controller_manager_name,
                         controller_name,
-                        "type",
-                        args.controller_type,
-                    ):
-                        return 1
-                if param_file:
-                    if not set_controller_parameters_from_param_file(
-                        node,
-                        controller_manager_name,
-                        controller_name,
-                        param_file,
+                        param_files,
                         spawner_namespace,
                     ):
                         return 1
@@ -217,14 +228,20 @@ def main(args=None):
                 )
 
             if not args.load_only:
-                ret = configure_controller(node, controller_manager_name, controller_name)
+                ret = configure_controller(
+                    node,
+                    controller_manager_name,
+                    controller_name,
+                    controller_manager_timeout,
+                    service_call_timeout,
+                )
                 if not ret.ok:
                     node.get_logger().error(
                         bcolors.FAIL + "Failed to configure controller" + bcolors.ENDC
                     )
                     return 1
 
-                if not args.stopped and not args.inactive and not args.activate_as_group:
+                if not args.inactive and not args.activate_as_group:
                     ret = switch_controllers(
                         node,
                         controller_manager_name,
@@ -233,6 +250,7 @@ def main(args=None):
                         True,
                         True,
                         switch_timeout,
+                        service_call_timeout,
                     )
                     if not ret.ok:
                         node.get_logger().error(
@@ -248,7 +266,7 @@ def main(args=None):
                         + bcolors.ENDC
                     )
 
-        if not args.stopped and not args.inactive and args.activate_as_group:
+        if not args.inactive and args.activate_as_group:
             ret = switch_controllers(
                 node,
                 controller_manager_name,
@@ -257,6 +275,7 @@ def main(args=None):
                 True,
                 True,
                 switch_timeout,
+                service_call_timeout,
             )
             if not ret.ok:
                 node.get_logger().error(
@@ -269,8 +288,6 @@ def main(args=None):
                 + f"Configured and activated all the parsed controllers list : {controller_names}!"
                 + bcolors.ENDC
             )
-        if args.stopped:
-            node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
 
         if not args.unload_on_kill:
             return 0
@@ -280,7 +297,7 @@ def main(args=None):
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            if not args.stopped and not args.inactive:
+            if not args.inactive:
                 node.get_logger().info("Interrupt captured, deactivating and unloading controller")
                 # TODO(saikishor) we might have an issue in future, if any of these controllers is in chained mode
                 ret = switch_controllers(
@@ -291,6 +308,7 @@ def main(args=None):
                     True,
                     True,
                     switch_timeout,
+                    service_call_timeout,
                 )
                 if not ret.ok:
                     node.get_logger().error(
@@ -301,9 +319,6 @@ def main(args=None):
                 node.get_logger().info(
                     f"Successfully deactivated controllers : {controller_names}"
                 )
-
-            elif args.stopped:
-                node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
 
             unload_status = True
             for controller_name in controller_names:
