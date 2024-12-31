@@ -1,4 +1,4 @@
-// Copyright 2024 ros2_control Development Team
+// Copyright (c) 2021 PickNik, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,18 +11,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Author: Jafar Abdi, Denis Stogl
 
-#ifndef HARDWARE_INTERFACE__TYPES__TRIGGER_TYPE_HPP_
-#define HARDWARE_INTERFACE__TYPES__TRIGGER_TYPE_HPP_
+#ifndef FAKE_COMPONENTS__GENERIC_SYSTEM_HPP_
+#define FAKE_COMPONENTS__GENERIC_SYSTEM_HPP_
 
-namespace hardware_interface
+#include "mock_components/generic_system.hpp"
+
+namespace fake_components
 {
-enum class TriggerType
-{
-  READ,
-  WRITE
-};
+using GenericSystem [[deprecated]] = mock_components::GenericSystem;
 
-}  // namespace hardware_interface
+using GenericSystem [[deprecated]] = mock_components::GenericRobot;
+}  // namespace fake_components
 
-#endif  // HARDWARE_INTERFACE__TYPES__TRIGGER_TYPE_HPP_
+#endif  // FAKE_COMPONENTS__GENERIC_SYSTEM_HPP_

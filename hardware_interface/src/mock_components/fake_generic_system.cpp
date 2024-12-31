@@ -1,4 +1,4 @@
-// Copyright (c) 2024, Stogl Robotics Consulting UG (haftungsbeschränkt)
+// Copyright (c) 2022 PickNik, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,11 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Author: Jafar Abdi, Denis Stogl
 
-/// \author Dr. Denis Stogl
-
-#include "joint_limits/joint_limiter_interface.hpp"
-
-namespace joint_limits
-{
-}  // namespace joint_limits
+#include "fake_components/generic_system.hpp"
+#include "pluginlib/class_list_macros.hpp"
+PLUGINLIB_EXPORT_CLASS(fake_components::GenericSystem, hardware_interface::SystemInterface)
