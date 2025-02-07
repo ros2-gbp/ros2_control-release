@@ -14,10 +14,12 @@
 
 /// \author Adolfo Rodriguez Tsouroukdissian
 
-#include <gtest/gtest.h>
+#include <memory>
+
+#include "gtest/gtest.h"
 
 #include "joint_limits/joint_limits_rosparam.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 class JointLimitsRosParamTest : public ::testing::Test
@@ -52,8 +54,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(std::isnan(limits.max_velocity));
     EXPECT_FALSE(limits.has_acceleration_limits);
     EXPECT_TRUE(std::isnan(limits.max_acceleration));
-    EXPECT_FALSE(limits.has_deceleration_limits);
-    EXPECT_TRUE(std::isnan(limits.max_deceleration));
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_TRUE(std::isnan(limits.max_jerk));
     EXPECT_FALSE(limits.has_effort_limits);
@@ -76,8 +76,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(std::isnan(limits.max_velocity));
     EXPECT_FALSE(limits.has_acceleration_limits);
     EXPECT_TRUE(std::isnan(limits.max_acceleration));
-    EXPECT_FALSE(limits.has_deceleration_limits);
-    EXPECT_TRUE(std::isnan(limits.max_deceleration));
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_TRUE(std::isnan(limits.max_jerk));
     EXPECT_FALSE(limits.has_effort_limits);
@@ -102,9 +100,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(limits.has_acceleration_limits);
     EXPECT_EQ(5.0, limits.max_acceleration);
 
-    EXPECT_TRUE(limits.has_deceleration_limits);
-    EXPECT_EQ(7.5, limits.max_deceleration);
-
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_EQ(100.0, limits.max_jerk);
 
@@ -125,7 +120,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_FALSE(limits.has_position_limits);
     EXPECT_FALSE(limits.has_velocity_limits);
     EXPECT_FALSE(limits.has_acceleration_limits);
-    EXPECT_FALSE(limits.has_deceleration_limits);
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_FALSE(limits.has_effort_limits);
   }
@@ -140,7 +134,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_FALSE(limits.has_position_limits);
     EXPECT_FALSE(limits.has_velocity_limits);
     EXPECT_FALSE(limits.has_acceleration_limits);
-    EXPECT_FALSE(limits.has_deceleration_limits);
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_FALSE(limits.has_effort_limits);
   }
@@ -154,7 +147,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(limits.has_position_limits);
     EXPECT_TRUE(limits.has_velocity_limits);
     EXPECT_TRUE(limits.has_acceleration_limits);
-    EXPECT_TRUE(limits.has_deceleration_limits);
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_TRUE(limits.has_effort_limits);
 
@@ -164,7 +156,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_FALSE(limits.has_position_limits);
     EXPECT_FALSE(limits.has_velocity_limits);
     EXPECT_FALSE(limits.has_acceleration_limits);
-    EXPECT_FALSE(limits.has_deceleration_limits);
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_FALSE(limits.has_effort_limits);
     EXPECT_TRUE(limits.angle_wraparound);
@@ -199,9 +190,6 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
 
     EXPECT_FALSE(limits.has_acceleration_limits);
     EXPECT_TRUE(std::isnan(limits.max_acceleration));
-
-    EXPECT_FALSE(limits.has_deceleration_limits);
-    EXPECT_TRUE(std::isnan(limits.max_deceleration));
 
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_TRUE(std::isnan(limits.max_jerk));
@@ -295,17 +283,7 @@ public:
     lifecycle_node_ = rclcpp_lifecycle::LifecycleNode::make_shared("JointLimitsRosparamTestNode");
   }
 
-  void TearDown()
-  {
-    if (
-      lifecycle_node_->get_current_state().id() !=
-        lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED &&
-      rclcpp::ok())
-    {
-      lifecycle_node_->shutdown();
-    }
-    lifecycle_node_.reset();
-  }
+  void TearDown() { lifecycle_node_.reset(); }
 
 protected:
   rclcpp_lifecycle::LifecycleNode::SharedPtr lifecycle_node_;
@@ -338,9 +316,6 @@ TEST_F(JointLimitsUndeclaredRosParamTest, parse_declared_joint_limits_node)
 
     EXPECT_TRUE(limits.has_acceleration_limits);
     EXPECT_EQ(5.0, limits.max_acceleration);
-
-    EXPECT_TRUE(limits.has_deceleration_limits);
-    EXPECT_EQ(7.5, limits.max_deceleration);
 
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_EQ(100.0, limits.max_jerk);
@@ -380,9 +355,6 @@ TEST_F(JointLimitsLifecycleNodeUndeclaredRosParamTest, parse_declared_joint_limi
 
     EXPECT_TRUE(limits.has_acceleration_limits);
     EXPECT_EQ(5.0, limits.max_acceleration);
-
-    EXPECT_TRUE(limits.has_deceleration_limits);
-    EXPECT_EQ(7.5, limits.max_deceleration);
 
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_EQ(100.0, limits.max_jerk);

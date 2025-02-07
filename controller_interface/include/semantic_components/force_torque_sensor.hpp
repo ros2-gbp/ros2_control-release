@@ -25,23 +25,26 @@
 
 namespace semantic_components
 {
-constexpr std::size_t FORCES_SIZE = 3;
 class ForceTorqueSensor : public SemanticComponentInterface<geometry_msgs::msg::Wrench>
 {
 public:
   /// Constructor for "standard" 6D FTS
-  explicit ForceTorqueSensor(const std::string & name)
-  : SemanticComponentInterface(
-      name,
-      // If 6D FTS use standard names
-      {{name + "/" + "force.x"},
-       {name + "/" + "force.y"},
-       {name + "/" + "force.z"},
-       {name + "/" + "torque.x"},
-       {name + "/" + "torque.y"},
-       {name + "/" + "torque.z"}}),
-    existing_axes_({{true, true, true, true, true, true}})
+  explicit ForceTorqueSensor(const std::string & name) : SemanticComponentInterface(name, 6)
   {
+    // If 6D FTS use standard names
+    interface_names_.emplace_back(name_ + "/" + "force.x");
+    interface_names_.emplace_back(name_ + "/" + "force.y");
+    interface_names_.emplace_back(name_ + "/" + "force.z");
+    interface_names_.emplace_back(name_ + "/" + "torque.x");
+    interface_names_.emplace_back(name_ + "/" + "torque.y");
+    interface_names_.emplace_back(name_ + "/" + "torque.z");
+
+    // Set all interfaces existing
+    std::fill(existing_axes_.begin(), existing_axes_.end(), true);
+
+    // Set default force and torque values to NaN
+    std::fill(forces_.begin(), forces_.end(), std::numeric_limits<double>::quiet_NaN());
+    std::fill(torques_.begin(), torques_.end(), std::numeric_limits<double>::quiet_NaN());
   }
 
   /// Constructor for 6D FTS with custom interface names.
@@ -59,8 +62,7 @@ public:
     const std::string & interface_torque_y, const std::string & interface_torque_z)
   : SemanticComponentInterface("", 6)
   {
-    auto check_and_add_interface =
-      [this](const std::string & interface_name, const std::size_t index)
+    auto check_and_add_interface = [this](const std::string & interface_name, const size_t index)
     {
       if (!interface_name.empty())
       {
@@ -79,55 +81,56 @@ public:
     check_and_add_interface(interface_torque_x, 3);
     check_and_add_interface(interface_torque_y, 4);
     check_and_add_interface(interface_torque_z, 5);
+
+    // Set default force and torque values to NaN
+    std::fill(forces_.begin(), forces_.end(), std::numeric_limits<double>::quiet_NaN());
+    std::fill(torques_.begin(), torques_.end(), std::numeric_limits<double>::quiet_NaN());
   }
+
+  virtual ~ForceTorqueSensor() = default;
 
   /// Return forces.
   /**
    * Return forces of a FTS.
    *
-   * \return array of size 3 with force values (x, y, z).
+   * \return array of size 3 with force values.
    */
-  std::array<double, 3> get_forces() const
+  std::array<double, 3> get_forces()
   {
-    std::array<double, 3> forces;
-    forces.fill(std::numeric_limits<double>::quiet_NaN());
-    std::size_t interface_counter{0};
-    for (auto i = 0u; i < forces.size(); ++i)
+    size_t interface_counter = 0;
+    for (size_t i = 0; i < 3; ++i)
     {
       if (existing_axes_[i])
       {
-        forces[i] = state_interfaces_[interface_counter].get().get_value();
+        forces_[i] = state_interfaces_[interface_counter].get().get_value();
         ++interface_counter;
       }
     }
-    return forces;
+    return forces_;
   }
 
   /// Return torque.
   /**
    * Return torques of a FTS.
    *
-   * \return array of size 3 with torque values (x, y, z).
+   * \return array of size 3 with torque values.
    */
-  std::array<double, 3> get_torques() const
+  std::array<double, 3> get_torques()
   {
-    std::array<double, 3> torques;
-    torques.fill(std::numeric_limits<double>::quiet_NaN());
-
     // find out how many force interfaces are being used
     // torque interfaces will be found from the next index onward
-    auto torque_interface_counter = static_cast<std::size_t>(
-      std::count(existing_axes_.begin(), existing_axes_.begin() + FORCES_SIZE, true));
+    auto torque_interface_counter =
+      static_cast<size_t>(std::count(existing_axes_.begin(), existing_axes_.begin() + 3, true));
 
-    for (auto i = 0u; i < torques.size(); ++i)
+    for (size_t i = 3; i < 6; ++i)
     {
-      if (existing_axes_[i + FORCES_SIZE])
+      if (existing_axes_[i])
       {
-        torques[i] = state_interfaces_[torque_interface_counter].get().get_value();
+        torques_[i - 3] = state_interfaces_[torque_interface_counter].get().get_value();
         ++torque_interface_counter;
       }
     }
-    return torques;
+    return torques_;
   }
 
   /// Return Wrench message with forces and torques.
@@ -138,24 +141,29 @@ public:
    *
    * \return wrench message from values;
    */
-  bool get_values_as_message(geometry_msgs::msg::Wrench & message) const
+  bool get_values_as_message(geometry_msgs::msg::Wrench & message)
   {
-    const auto [force_x, force_y, force_z] = get_forces();
-    const auto [torque_x, torque_y, torque_z] = get_torques();
+    // call get_forces() and get_troque() to update with the latest values
+    get_forces();
+    get_torques();
 
-    message.force.x = force_x;
-    message.force.y = force_y;
-    message.force.z = force_z;
-    message.torque.x = torque_x;
-    message.torque.y = torque_y;
-    message.torque.z = torque_z;
+    // update the message values
+    message.force.x = forces_[0];
+    message.force.y = forces_[1];
+    message.force.z = forces_[2];
+    message.torque.x = torques_[0];
+    message.torque.y = torques_[1];
+    message.torque.z = torques_[2];
 
     return true;
   }
 
 protected:
   /// Vector with existing axes for sensors with less then 6D axes.
+  // Order is: force X, force Y, force Z, torque X, torque Y, torque Z.
   std::array<bool, 6> existing_axes_;
+  std::array<double, 3> forces_;
+  std::array<double, 3> torques_;
 };
 
 }  // namespace semantic_components
