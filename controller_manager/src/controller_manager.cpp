@@ -22,6 +22,7 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
+#include "hardware_interface/introspection.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rcl/arguments.h"
@@ -214,6 +215,44 @@ void get_active_controllers_using_command_interfaces_of_controller(
   }
 }
 
+void extract_command_interfaces_for_controller(
+  const controller_manager::ControllerSpec & ctrl,
+  const std::unique_ptr<hardware_interface::ResourceManager> & resource_manager,
+  std::vector<std::string> & request_interface_list)
+{
+  auto command_interface_config = ctrl.c->command_interface_configuration();
+  std::vector<std::string> command_interface_names = {};
+  if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
+  {
+    command_interface_names = resource_manager->available_command_interfaces();
+  }
+  if (
+    command_interface_config.type == controller_interface::interface_configuration_type::INDIVIDUAL)
+  {
+    command_interface_names = command_interface_config.names;
+  }
+  request_interface_list.insert(
+    request_interface_list.end(), command_interface_names.begin(), command_interface_names.end());
+}
+
+void get_controller_list_command_interfaces(
+  const std::vector<std::string> & controllers_list,
+  const std::vector<controller_manager::ControllerSpec> & controllers_spec,
+  const std::unique_ptr<hardware_interface::ResourceManager> & resource_manager,
+  std::vector<std::string> & request_interface_list)
+{
+  for (const auto & controller_name : controllers_list)
+  {
+    auto found_it = std::find_if(
+      controllers_spec.begin(), controllers_spec.end(),
+      std::bind(controller_name_compare, std::placeholders::_1, controller_name));
+    if (found_it != controllers_spec.end())
+    {
+      extract_command_interfaces_for_controller(
+        *found_it, resource_manager, request_interface_list);
+    }
+  }
+}
 }  // namespace
 
 namespace controller_manager
@@ -293,6 +332,7 @@ ControllerManager::ControllerManager(
 
 ControllerManager::~ControllerManager()
 {
+  CLEAR_ALL_ROS2_CONTROL_INTROSPECTION_REGISTRIES();
   if (preshutdown_cb_handle_)
   {
     rclcpp::Context::SharedPtr context = this->get_node_base_interface()->get_context();
@@ -369,6 +409,11 @@ void ControllerManager::init_controller_manager()
   diagnostics_updater_.add(
     "Controller Manager Activity", this,
     &ControllerManager::controller_manager_diagnostic_callback);
+
+  INITIALIZE_ROS2_CONTROL_INTROSPECTION_REGISTRY(
+    this, hardware_interface::DEFAULT_INTROSPECTION_TOPIC,
+    hardware_interface::DEFAULT_REGISTRY_KEY);
+  START_ROS2_CONTROL_INTROSPECTION_PUBLISHER_THREAD(hardware_interface::DEFAULT_REGISTRY_KEY);
 
   // Add on_shutdown callback to stop the controller manager
   rclcpp::Context::SharedPtr context = this->get_node_base_interface()->get_context();
@@ -767,14 +812,11 @@ controller_interface::return_type ControllerManager::unload_controller(
 
   RCLCPP_DEBUG(get_logger(), "Shutdown controller");
   controller_chain_spec_cleanup(controller_chain_spec_, controller_name);
-  // TODO(destogl): remove reference interface if chainable; i.e., add a separate method for
-  // cleaning-up controllers?
+  cleanup_controller_exported_interfaces(controller);
   if (is_controller_inactive(*controller.c) || is_controller_unconfigured(*controller.c))
   {
     RCLCPP_DEBUG(
       get_logger(), "Controller '%s' is shutdown before unloading!", controller_name.c_str());
-    // TODO(destogl): remove reference interface if chainable; i.e., add a separate method for
-    // cleaning-up controllers?
     shutdown_controller(controller);
   }
   executor_->remove_node(controller.c->get_node()->get_node_base_interface());
@@ -863,10 +905,9 @@ controller_interface::return_type ControllerManager::configure_controller(
   {
     RCLCPP_DEBUG(
       get_logger(), "Controller '%s' is cleaned-up before configuring", controller_name.c_str());
-    // TODO(destogl): remove reference interface if chainable; i.e., add a separate method for
-    // cleaning-up controllers?
     try
     {
+      cleanup_controller_exported_interfaces(*found_it);
       new_state = controller->get_node()->cleanup();
       if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED)
       {
@@ -1146,6 +1187,7 @@ controller_interface::return_type ControllerManager::switch_controller(
   {
     // lock controllers
     std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
+    auto result = controller_interface::return_type::OK;
 
     // list all controllers to (de)activate
     for (const auto & controller : controller_list)
@@ -1162,6 +1204,10 @@ controller_interface::return_type ControllerManager::switch_controller(
           get_logger(),
           "Could not '%s' controller with name '%s' because no controller with this name exists",
           action.c_str(), controller.c_str());
+        // For the BEST_EFFORT switch, if there are more controllers that are in the list, this is
+        // not a critical error
+        result = request_list.empty() ? controller_interface::return_type::ERROR
+                                      : controller_interface::return_type::OK;
         if (strictness == controller_manager_msgs::srv::SwitchController::Request::STRICT)
         {
           RCLCPP_ERROR(get_logger(), "Aborting, no controller is switched! ('STRICT' switch)");
@@ -1170,6 +1216,7 @@ controller_interface::return_type ControllerManager::switch_controller(
       }
       else
       {
+        result = controller_interface::return_type::OK;
         RCLCPP_DEBUG(
           get_logger(), "Found controller '%s' that needs to be %sed in list of controllers",
           controller.c_str(), action.c_str());
@@ -1179,7 +1226,7 @@ controller_interface::return_type ControllerManager::switch_controller(
     RCLCPP_DEBUG(
       get_logger(), "'%s' request vector has size %i", action.c_str(), (int)request_list.size());
 
-    return controller_interface::return_type::OK;
+    return result;
   };
 
   // list all controllers to deactivate (check if all controllers exist)
@@ -1411,33 +1458,15 @@ controller_interface::return_type ControllerManager::switch_controller(
       activate_request_.erase(activate_list_it);
     }
 
-    const auto extract_interfaces_for_controller =
-      [this](const ControllerSpec ctrl, std::vector<std::string> & request_interface_list)
-    {
-      auto command_interface_config = ctrl.c->command_interface_configuration();
-      std::vector<std::string> command_interface_names = {};
-      if (command_interface_config.type == controller_interface::interface_configuration_type::ALL)
-      {
-        command_interface_names = resource_manager_->available_command_interfaces();
-      }
-      if (
-        command_interface_config.type ==
-        controller_interface::interface_configuration_type::INDIVIDUAL)
-      {
-        command_interface_names = command_interface_config.names;
-      }
-      request_interface_list.insert(
-        request_interface_list.end(), command_interface_names.begin(),
-        command_interface_names.end());
-    };
-
     if (in_activate_list)
     {
-      extract_interfaces_for_controller(controller, activate_command_interface_request_);
+      extract_command_interfaces_for_controller(
+        controller, resource_manager_, activate_command_interface_request_);
     }
     if (in_deactivate_list)
     {
-      extract_interfaces_for_controller(controller, deactivate_command_interface_request_);
+      extract_command_interfaces_for_controller(
+        controller, resource_manager_, deactivate_command_interface_request_);
     }
 
     // cache mapping between hardware and controllers for stopping when read/write error happens
@@ -2403,36 +2432,26 @@ void ControllerManager::read(const rclcpp::Time & time, const rclcpp::Duration &
 
   if (!ok)
   {
-    std::vector<std::string> stop_request = {};
-    std::string failed_hardware_string;
-    failed_hardware_string.reserve(500);
+    rt_buffer_.deactivate_controllers_list.clear();
     // Determine controllers to stop
     for (const auto & hardware_name : failed_hardware_names)
     {
-      failed_hardware_string.append(hardware_name);
-      failed_hardware_string.append(" ");
       auto controllers = resource_manager_->get_cached_controllers_to_hardware(hardware_name);
-      stop_request.insert(stop_request.end(), controllers.begin(), controllers.end());
-    }
-    std::string stop_request_string;
-    stop_request_string.reserve(500);
-    for (const auto & controller : stop_request)
-    {
-      stop_request_string.append(controller);
-      stop_request_string.append(" ");
+      rt_buffer_.deactivate_controllers_list.insert(
+        rt_buffer_.deactivate_controllers_list.end(), controllers.begin(), controllers.end());
     }
     RCLCPP_ERROR(
       get_logger(),
       "Deactivating following hardware components as their read cycle resulted in an error: [ %s]",
-      failed_hardware_string.c_str());
+      rt_buffer_.get_concatenated_string(failed_hardware_names).c_str());
     RCLCPP_ERROR_EXPRESSION(
-      get_logger(), !stop_request_string.empty(),
+      get_logger(), !rt_buffer_.deactivate_controllers_list.empty(),
       "Deactivating following controllers as their hardware components read cycle resulted in an "
       "error: [ %s]",
-      stop_request_string.c_str());
+      rt_buffer_.get_concatenated_string(rt_buffer_.deactivate_controllers_list).c_str());
     std::vector<ControllerSpec> & rt_controller_list =
       rt_controllers_wrapper_.update_and_get_used_by_rt_list();
-    deactivate_controllers(rt_controller_list, stop_request);
+    deactivate_controllers(rt_controller_list, rt_buffer_.deactivate_controllers_list);
     // TODO(destogl): do auto-start of broadcasters
   }
 }
@@ -2505,7 +2524,7 @@ controller_interface::return_type ControllerManager::update(
       "configuration (use_sim_time parameter) and if a valid clock source is available");
   }
 
-  std::vector<std::string> failed_controllers_list;
+  rt_buffer_.deactivate_controllers_list.clear();
   for (const auto & loaded_controller : rt_controller_list)
   {
     // TODO(v-lopez) we could cache this information
@@ -2603,21 +2622,18 @@ controller_interface::return_type ControllerManager::update(
 
         if (controller_ret != controller_interface::return_type::OK)
         {
-          failed_controllers_list.push_back(loaded_controller.info.name);
+          rt_buffer_.deactivate_controllers_list.push_back(loaded_controller.info.name);
           ret = controller_ret;
         }
       }
     }
   }
-  if (!failed_controllers_list.empty())
+  if (!rt_buffer_.deactivate_controllers_list.empty())
   {
-    const auto FALLBACK_STACK_MAX_SIZE = 500;
-    std::vector<std::string> active_controllers_using_interfaces(failed_controllers_list);
-    active_controllers_using_interfaces.reserve(FALLBACK_STACK_MAX_SIZE);
-    std::vector<std::string> cumulative_fallback_controllers;
-    cumulative_fallback_controllers.reserve(FALLBACK_STACK_MAX_SIZE);
+    rt_buffer_.fallback_controllers_list.clear();
+    rt_buffer_.activate_controllers_using_interfaces_list.clear();
 
-    for (const auto & failed_ctrl : failed_controllers_list)
+    for (const auto & failed_ctrl : rt_buffer_.deactivate_controllers_list)
     {
       auto ctrl_it = std::find_if(
         rt_controller_list.begin(), rt_controller_list.end(),
@@ -2626,52 +2642,58 @@ controller_interface::return_type ControllerManager::update(
       {
         for (const auto & fallback_controller : ctrl_it->info.fallback_controllers_names)
         {
-          cumulative_fallback_controllers.push_back(fallback_controller);
+          rt_buffer_.fallback_controllers_list.push_back(fallback_controller);
           get_active_controllers_using_command_interfaces_of_controller(
-            fallback_controller, rt_controller_list, active_controllers_using_interfaces);
+            fallback_controller, rt_controller_list,
+            rt_buffer_.activate_controllers_using_interfaces_list);
         }
       }
     }
-    std::string controllers_string;
-    controllers_string.reserve(500);
-    for (const auto & controller : failed_controllers_list)
-    {
-      controllers_string.append(controller);
-      controllers_string.append(" ");
-    }
+
     RCLCPP_ERROR(
       get_logger(), "Deactivating controllers : [ %s] as their update resulted in an error!",
-      controllers_string.c_str());
-    if (active_controllers_using_interfaces.size() > failed_controllers_list.size())
+      rt_buffer_.get_concatenated_string(rt_buffer_.deactivate_controllers_list).c_str());
+    RCLCPP_ERROR_EXPRESSION(
+      get_logger(), !rt_buffer_.activate_controllers_using_interfaces_list.empty(),
+      "Deactivating controllers : [ %s] using the command interfaces needed for the fallback "
+      "controllers to activate.",
+      rt_buffer_.get_concatenated_string(rt_buffer_.activate_controllers_using_interfaces_list)
+        .c_str());
+    RCLCPP_ERROR_EXPRESSION(
+      get_logger(), !rt_buffer_.fallback_controllers_list.empty(),
+      "Activating fallback controllers : [ %s]",
+      rt_buffer_.get_concatenated_string(rt_buffer_.fallback_controllers_list).c_str());
+    std::for_each(
+      rt_buffer_.activate_controllers_using_interfaces_list.begin(),
+      rt_buffer_.activate_controllers_using_interfaces_list.end(),
+      [this](const std::string & controller)
+      { add_element_to_list(rt_buffer_.deactivate_controllers_list, controller); });
+
+    // Retrieve the interfaces to start and stop from the hardware end
+    rt_buffer_.interfaces_to_start.clear();
+    rt_buffer_.interfaces_to_stop.clear();
+    get_controller_list_command_interfaces(
+      rt_buffer_.deactivate_controllers_list, rt_controller_list, resource_manager_,
+      rt_buffer_.interfaces_to_stop);
+    get_controller_list_command_interfaces(
+      rt_buffer_.fallback_controllers_list, rt_controller_list, resource_manager_,
+      rt_buffer_.interfaces_to_start);
+    if (!rt_buffer_.interfaces_to_stop.empty() || !rt_buffer_.interfaces_to_start.empty())
     {
-      controllers_string.clear();
-      for (size_t i = failed_controllers_list.size();
-           i < active_controllers_using_interfaces.size(); i++)
+      if (!(resource_manager_->prepare_command_mode_switch(
+              rt_buffer_.interfaces_to_start, rt_buffer_.interfaces_to_stop) &&
+            resource_manager_->perform_command_mode_switch(
+              rt_buffer_.interfaces_to_start, rt_buffer_.interfaces_to_stop)))
       {
-        controllers_string.append(active_controllers_using_interfaces[i]);
-        controllers_string.append(" ");
+        RCLCPP_ERROR(
+          get_logger(),
+          "Error while attempting mode switch when deactivating controllers in update cycle!");
       }
-      RCLCPP_ERROR_EXPRESSION(
-        get_logger(), !controllers_string.empty(),
-        "Deactivating controllers : [ %s] using the command interfaces needed for the fallback "
-        "controllers to activate.",
-        controllers_string.c_str());
     }
-    if (!cumulative_fallback_controllers.empty())
+    deactivate_controllers(rt_controller_list, rt_buffer_.deactivate_controllers_list);
+    if (!rt_buffer_.fallback_controllers_list.empty())
     {
-      controllers_string.clear();
-      for (const auto & controller : cumulative_fallback_controllers)
-      {
-        controllers_string.append(controller);
-        controllers_string.append(" ");
-      }
-      RCLCPP_ERROR(
-        get_logger(), "Activating fallback controllers : [ %s]", controllers_string.c_str());
-    }
-    deactivate_controllers(rt_controller_list, active_controllers_using_interfaces);
-    if (!cumulative_fallback_controllers.empty())
-    {
-      activate_controllers(rt_controller_list, cumulative_fallback_controllers);
+      activate_controllers(rt_controller_list, rt_buffer_.fallback_controllers_list);
     }
   }
 
@@ -2680,6 +2702,8 @@ controller_interface::return_type ControllerManager::update(
   {
     manage_switch();
   }
+
+  PUBLISH_ROS2_CONTROL_INTROSPECTION_DATA_ASYNC(hardware_interface::DEFAULT_REGISTRY_KEY);
 
   return ret;
 }
@@ -2690,37 +2714,27 @@ void ControllerManager::write(const rclcpp::Time & time, const rclcpp::Duration 
 
   if (!ok)
   {
-    std::vector<std::string> stop_request = {};
-    std::string failed_hardware_string;
-    failed_hardware_string.reserve(500);
+    rt_buffer_.deactivate_controllers_list.clear();
     // Determine controllers to stop
     for (const auto & hardware_name : failed_hardware_names)
     {
-      failed_hardware_string.append(hardware_name);
-      failed_hardware_string.append(" ");
       auto controllers = resource_manager_->get_cached_controllers_to_hardware(hardware_name);
-      stop_request.insert(stop_request.end(), controllers.begin(), controllers.end());
-    }
-    std::string stop_request_string;
-    stop_request_string.reserve(500);
-    for (const auto & controller : stop_request)
-    {
-      stop_request_string.append(controller);
-      stop_request_string.append(" ");
+      rt_buffer_.deactivate_controllers_list.insert(
+        rt_buffer_.deactivate_controllers_list.end(), controllers.begin(), controllers.end());
     }
     RCLCPP_ERROR(
       get_logger(),
       "Deactivating following hardware components as their write cycle resulted in an error: [ "
       "%s]",
-      failed_hardware_string.c_str());
+      rt_buffer_.get_concatenated_string(failed_hardware_names).c_str());
     RCLCPP_ERROR_EXPRESSION(
-      get_logger(), !stop_request_string.empty(),
+      get_logger(), !rt_buffer_.deactivate_controllers_list.empty(),
       "Deactivating following controllers as their hardware components write cycle resulted in an "
       "error: [ %s]",
-      stop_request_string.c_str());
+      rt_buffer_.get_concatenated_string(rt_buffer_.deactivate_controllers_list).c_str());
     std::vector<ControllerSpec> & rt_controller_list =
       rt_controllers_wrapper_.update_and_get_used_by_rt_list();
-    deactivate_controllers(rt_controller_list, stop_request);
+    deactivate_controllers(rt_controller_list, rt_buffer_.deactivate_controllers_list);
     // TODO(destogl): do auto-start of broadcasters
   }
 }
@@ -3221,7 +3235,7 @@ void ControllerManager::controller_activity_diagnostic_callback(
   diagnostic_updater::DiagnosticStatusWrapper & stat)
 {
   bool atleast_one_hw_active = false;
-  const auto hw_components_info = resource_manager_->get_components_status();
+  const auto & hw_components_info = resource_manager_->get_components_status();
   for (const auto & [component_name, component_info] : hw_components_info)
   {
     if (component_info.state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
@@ -3376,7 +3390,7 @@ void ControllerManager::hardware_components_diagnostic_callback(
 {
   bool all_active = true;
   bool atleast_one_hw_active = false;
-  const auto hw_components_info = resource_manager_->get_components_status();
+  const auto & hw_components_info = resource_manager_->get_components_status();
   for (const auto & [component_name, component_info] : hw_components_info)
   {
     stat.add(component_name, component_info.state.label());
@@ -3554,7 +3568,9 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
 
   for (const std::string & arg : cm_node_options_.arguments())
   {
-    if (arg.find("__ns") != std::string::npos || arg.find("__node") != std::string::npos)
+    if (
+      arg.find("__ns") != std::string::npos || arg.find("__node") != std::string::npos ||
+      arg.find("robot_description") != std::string::npos)
     {
       if (
         node_options_arguments.back() == RCL_REMAP_FLAG ||
@@ -3628,6 +3644,18 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   controller_node_options = controller_node_options.arguments(node_options_arguments);
   controller_node_options.use_global_arguments(false);
   return controller_node_options;
+}
+
+void ControllerManager::cleanup_controller_exported_interfaces(const ControllerSpec & controller)
+{
+  if (is_controller_inactive(controller.c) && controller.c->is_chainable())
+  {
+    RCLCPP_DEBUG(
+      get_logger(), "Removing controller '%s' exported interfaces from resource manager.",
+      controller.info.name.c_str());
+    resource_manager_->remove_controller_exported_state_interfaces(controller.info.name);
+    resource_manager_->remove_controller_reference_interfaces(controller.info.name);
+  }
 }
 
 }  // namespace controller_manager
