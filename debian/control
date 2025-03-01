@@ -1,0 +1,12 @@
+Source: ros-rolling-controller-manager
+Section: misc
+Priority: optional
+Maintainer: Bence Magyar <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), python3-coverage <!nocheck>, ros-rolling-ament-cmake, ros-rolling-ament-cmake-gen-version-h, ros-rolling-ament-cmake-gmock <!nocheck>, ros-rolling-ament-cmake-pytest <!nocheck>, ros-rolling-ament-cmake-python, ros-rolling-backward-ros, ros-rolling-controller-interface, ros-rolling-controller-manager-msgs, ros-rolling-diagnostic-updater, ros-rolling-example-interfaces <!nocheck>, ros-rolling-generate-parameter-library, ros-rolling-hardware-interface, ros-rolling-hardware-interface-testing <!nocheck>, ros-rolling-launch, ros-rolling-launch <!nocheck>, ros-rolling-launch-ros, ros-rolling-launch-testing <!nocheck>, ros-rolling-launch-testing-ros <!nocheck>, ros-rolling-libstatistics-collector, ros-rolling-pluginlib, ros-rolling-rclcpp, ros-rolling-rclpy <!nocheck>, ros-rolling-rcpputils, ros-rolling-realtime-tools, ros-rolling-robot-state-publisher <!nocheck>, ros-rolling-ros2-control-test-assets, ros-rolling-ros2-control-test-assets <!nocheck>, ros-rolling-ros2param, ros-rolling-ros2run, ros-rolling-sensor-msgs <!nocheck>, ros-rolling-std-msgs, ros-rolling-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-rolling-controller-manager
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-rolling-backward-ros, ros-rolling-controller-interface, ros-rolling-controller-manager-msgs, ros-rolling-diagnostic-updater, ros-rolling-generate-parameter-library, ros-rolling-hardware-interface, ros-rolling-launch, ros-rolling-launch-ros, ros-rolling-libstatistics-collector, ros-rolling-pluginlib, ros-rolling-rclcpp, ros-rolling-rcpputils, ros-rolling-realtime-tools, ros-rolling-ros2-control-test-assets, ros-rolling-ros2param, ros-rolling-ros2run, ros-rolling-std-msgs, ros-rolling-ros-workspace
+Description: Description of controller_manager
