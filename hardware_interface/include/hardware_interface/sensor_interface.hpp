@@ -25,6 +25,7 @@
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/introspection.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
@@ -92,7 +93,7 @@ public:
    */
   SensorInterface(const SensorInterface & other) = delete;
 
-  SensorInterface(SensorInterface && other) = default;
+  SensorInterface(SensorInterface && other) = delete;
 
   virtual ~SensorInterface() = default;
 
@@ -235,28 +236,41 @@ public:
    * \param[in] period The measured time taken by the last control loop iteration
    * \return return_type::OK if the read was successful, return_type::ERROR otherwise.
    */
-  return_type trigger_read(const rclcpp::Time & time, const rclcpp::Duration & period)
+  HardwareComponentCycleStatus trigger_read(
+    const rclcpp::Time & time, const rclcpp::Duration & period)
   {
-    return_type result = return_type::ERROR;
+    HardwareComponentCycleStatus status;
+    status.result = return_type::ERROR;
     if (info_.is_async)
     {
-      bool trigger_status = true;
-      std::tie(trigger_status, result) = read_async_handler_->trigger_async_callback(time, period);
-      if (!trigger_status)
+      const auto result = read_async_handler_->trigger_async_callback(time, period);
+      status.successful = result.first;
+      status.result = result.second;
+      const auto execution_time = read_async_handler_->get_last_execution_time();
+      if (execution_time.count() > 0)
+      {
+        status.execution_time = execution_time;
+      }
+      if (!status.successful)
       {
         RCLCPP_WARN(
           get_logger(),
           "Trigger read called while read async handler is still in progress for hardware "
           "interface : '%s'. Failed to trigger read cycle!",
           info_.name.c_str());
-        return return_type::OK;
+        status.result = return_type::OK;
+        return status;
       }
     }
     else
     {
-      result = read(time, period);
+      const auto start_time = std::chrono::steady_clock::now();
+      status.successful = true;
+      status.result = read(time, period);
+      status.execution_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now() - start_time);
     }
-    return result;
+    return status;
   }
 
   /// Read the current state values from the actuator.
@@ -326,6 +340,22 @@ public:
    */
   const HardwareInfo & get_hardware_info() const { return info_; }
 
+  /// Enable or disable introspection of the sensor hardware.
+  /**
+   * \param[in] enable Enable introspection if true, disable otherwise.
+   */
+  void enable_introspection(bool enable)
+  {
+    if (enable)
+    {
+      stats_registrations_.enableAll();
+    }
+    else
+    {
+      stats_registrations_.disableAll();
+    }
+  }
+
 protected:
   HardwareInfo info_;
   // interface names to InterfaceDescription
@@ -346,6 +376,9 @@ private:
   rclcpp::Logger sensor_logger_;
   // interface names to Handle accessed through getters/setters
   std::unordered_map<std::string, StateInterface::SharedPtr> sensor_states_map_;
+
+protected:
+  pal_statistics::RegistrationsRAII stats_registrations_;
 };
 
 }  // namespace hardware_interface
