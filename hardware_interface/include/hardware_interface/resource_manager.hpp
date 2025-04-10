@@ -52,6 +52,9 @@ public:
     rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface,
     rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr logger_interface);
 
+  /// Default constructor for the Resource Manager.
+  explicit ResourceManager(rclcpp::Clock::SharedPtr clock, rclcpp::Logger logger);
+
   /// Constructor for the Resource Manager.
   /**
    * The implementation loads the specified urdf and initializes the
@@ -64,12 +67,32 @@ public:
    * \param[in] update_rate Update rate of the controller manager to calculate calling frequency
    * of async components.
    * \param[in] clock_interface reference to the clock interface of the CM node for getting time
-   * used for triggering async components.
+   * used for triggering async components and different read/write component rates.
+   * \param[in] logger_interface reference to the logger interface of the CM node for logging.
    */
   explicit ResourceManager(
     const std::string & urdf,
     rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface,
     rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr logger_interface,
+    bool activate_all = false, const unsigned int update_rate = 100);
+
+  /// Constructor for the Resource Manager.
+  /**
+   * The implementation loads the specified urdf and initializes the
+   * hardware components listed within as well as populate their respective
+   * state and command interfaces.
+   *
+   * \param[in] urdf string containing the URDF.
+   * \param[in] activate_all boolean argument indicating if all resources should be immediately
+   * activated. Currently used only in tests.
+   * \param[in] update_rate Update rate of the controller manager to calculate calling frequency
+   * of async components.
+   * \param[in] clock reference to the clock of the CM node for getting time used for triggering
+   * async components and different read/write component rates.
+   * \param[in] logger logger of the CM node for logging.
+   */
+  explicit ResourceManager(
+    const std::string & urdf, rclcpp::Clock::SharedPtr clock, rclcpp::Logger logger,
     bool activate_all = false, const unsigned int update_rate = 100);
 
   ResourceManager(const ResourceManager &) = delete;
@@ -95,6 +118,12 @@ public:
    */
   virtual bool load_and_initialize_components(
     const std::string & urdf, const unsigned int update_rate = 100);
+
+  /**
+   * @brief Import joint limiters from the URDF.
+   * @param urdf string containing the URDF.
+   */
+  void import_joint_limiters(const std::string & urdf);
 
   /**
    * @brief if the resource manager load_and_initialize_components(...) function has been called
@@ -433,6 +462,14 @@ public:
   return_type set_component_state(
     const std::string & component_name, rclcpp_lifecycle::State & target_state);
 
+  /**
+   * Enforce the command limits for the position, velocity, effort, and acceleration interfaces.
+   * @note This method is RT-safe
+   * @return true if the command interfaces are out of limits and the limits are enforced
+   * @return false if the command interfaces values are within limits
+   */
+  bool enforce_command_limits(const rclcpp::Duration & period);
+
   /// Reads all loaded hardware components.
   /**
    * Reads from all active hardware components.
@@ -463,6 +500,14 @@ public:
    * \return true if interface exist, false otherwise.
    */
   bool state_interface_exists(const std::string & key) const;
+
+  /// A method to register a callback to be called when the component state changes.
+  /**
+   * \param[in] callback function to be called when the component state changes.
+   */
+  void set_on_component_state_switch_callback(std::function<void()> callback);
+
+  const std::string & get_robot_description() const;
 
 protected:
   /// Gets the logger for the resource manager
