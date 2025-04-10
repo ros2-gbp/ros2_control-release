@@ -40,6 +40,9 @@
 
 namespace hardware_interface
 {
+
+using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+
 /// Virtual Class to implement when integrating a 1 DoF actuator into ros2_control.
 /**
  * The typical examples are conveyors or motors.
@@ -61,9 +64,10 @@ namespace hardware_interface
  *
  * INACTIVE (on_configure, on_deactivate):
  *   Communication with the hardware is started and it is configured.
- *   States can be read and non-movement hardware interfaces commanded.
- *   Hardware interfaces for movement will NOT be available.
- *   Those interfaces are: HW_IF_POSITION, HW_IF_VELOCITY, HW_IF_ACCELERATION, and HW_IF_EFFORT.
+ *   States can be read and command interfaces are available.
+ *
+ *    As of now, it is left to the hardware component implementation to continue using the command
+ * received from the ``CommandInterfaces`` or to skip them completely.
  *
  * FINALIZED (on_shutdown):
  *   Hardware interface is ready for unloading/destruction.
@@ -71,18 +75,26 @@ namespace hardware_interface
  *
  * ACTIVE (on_activate):
  *   Power circuits of hardware are active and hardware can be moved, e.g., brakes are disabled.
- *   Command interfaces for movement are available and have to be accepted.
- *   Those interfaces are: HW_IF_POSITION, HW_IF_VELOCITY, HW_IF_ACCELERATION, and HW_IF_EFFORT.
+ *   Command interfaces available.
+ *
+ * \todo
+ * Implement
+ *  * https://github.com/ros-controls/ros2_control/issues/931
+ *  * https://github.com/ros-controls/roadmap/pull/51/files
+ *  * this means in INACTIVE state:
+ *      * States can be read and non-movement hardware interfaces commanded.
+ *      * Hardware interfaces for movement will NOT be available.
+ *      * Those interfaces are: HW_IF_POSITION, HW_IF_VELOCITY, HW_IF_ACCELERATION, and
+ * HW_IF_EFFORT.
  */
-
-using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 class ActuatorInterface : public rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 {
 public:
   ActuatorInterface()
-  : lifecycle_state_(rclcpp_lifecycle::State(
-      lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN, lifecycle_state_names::UNKNOWN)),
+  : lifecycle_state_(
+      rclcpp_lifecycle::State(
+        lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN, lifecycle_state_names::UNKNOWN)),
     actuator_logger_(rclcpp::get_logger("actuator_interface"))
   {
   }
@@ -102,16 +114,32 @@ public:
   /// clock and logger interfaces.
   /**
    * \param[in] hardware_info structure with data from URDF.
+   * \param[in] logger Logger for the hardware component.
    * \param[in] clock_interface pointer to the clock interface.
-   * \param[in] logger_interface pointer to the logger interface.
    * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
    * \returns CallbackReturn::ERROR if any error happens or data are missing.
    */
+  [[deprecated("Use init(HardwareInfo, rclcpp::Logger, rclcpp::Clock::SharedPtr) instead.")]]
   CallbackReturn init(
     const HardwareInfo & hardware_info, rclcpp::Logger logger,
     rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
   {
-    clock_interface_ = clock_interface;
+    return this->init(hardware_info, logger, clock_interface->get_clock());
+  }
+
+  /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
+  /// clock and logger interfaces.
+  /**
+   * \param[in] hardware_info structure with data from URDF.
+   * \param[in] clock pointer to the resource manager clock.
+   * \param[in] logger Logger for the hardware component.
+   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
+   * \returns CallbackReturn::ERROR if any error happens or data are missing.
+   */
+  CallbackReturn init(
+    const HardwareInfo & hardware_info, rclcpp::Logger logger, rclcpp::Clock::SharedPtr clock)
+  {
+    actuator_clock_ = clock;
     actuator_logger_ = logger.get_child("hardware_component.actuator." + hardware_info.name);
     info_ = hardware_info;
     if (info_.is_async)
@@ -489,24 +517,77 @@ public:
     lifecycle_state_ = new_state;
   }
 
-  void set_state(const std::string & interface_name, const double & value)
+  template <typename T>
+  void set_state(const std::string & interface_name, const T & value)
   {
-    actuator_states_.at(interface_name)->set_value(value);
+    auto it = actuator_states_.find(interface_name);
+    if (it == actuator_states_.end())
+    {
+      throw std::runtime_error(
+        "State interface not found: " + interface_name +
+        " in actuator hardware component: " + info_.name + ". This should not happen.");
+    }
+    auto & handle = it->second;
+    std::unique_lock<std::shared_mutex> lock(handle->get_mutex());
+    std::ignore = handle->set_value(lock, value);
   }
 
-  double get_state(const std::string & interface_name) const
+  template <typename T = double>
+  T get_state(const std::string & interface_name) const
   {
-    return actuator_states_.at(interface_name)->get_value();
+    auto it = actuator_states_.find(interface_name);
+    if (it == actuator_states_.end())
+    {
+      throw std::runtime_error(
+        "State interface not found: " + interface_name +
+        " in actuator hardware component: " + info_.name + ". This should not happen.");
+    }
+    auto & handle = it->second;
+    std::shared_lock<std::shared_mutex> lock(handle->get_mutex());
+    const auto opt_value = handle->get_optional<T>(lock);
+    if (!opt_value)
+    {
+      throw std::runtime_error(
+        "Failed to get state value from interface: " + interface_name +
+        ". This should not happen.");
+    }
+    return opt_value.value();
   }
 
   void set_command(const std::string & interface_name, const double & value)
   {
-    actuator_commands_.at(interface_name)->set_value(value);
+    auto it = actuator_commands_.find(interface_name);
+    if (it == actuator_commands_.end())
+    {
+      throw std::runtime_error(
+        "Command interface not found: " + interface_name +
+        " in actuator hardware component: " + info_.name + ". This should not happen.");
+    }
+    auto & handle = it->second;
+    std::unique_lock<std::shared_mutex> lock(handle->get_mutex());
+    std::ignore = handle->set_value(lock, value);
   }
 
-  double get_command(const std::string & interface_name) const
+  template <typename T = double>
+  T get_command(const std::string & interface_name) const
   {
-    return actuator_commands_.at(interface_name)->get_value();
+    auto it = actuator_commands_.find(interface_name);
+    if (it == actuator_commands_.end())
+    {
+      throw std::runtime_error(
+        "Command interface not found: " + interface_name +
+        " in actuator hardware component: " + info_.name + ". This should not happen.");
+    }
+    auto & handle = it->second;
+    std::shared_lock<std::shared_mutex> lock(handle->get_mutex());
+    const auto opt_value = handle->get_optional<double>(lock);
+    if (!opt_value)
+    {
+      throw std::runtime_error(
+        "Failed to get command value from interface: " + interface_name +
+        ". This should not happen.");
+    }
+    return opt_value.value();
   }
 
   /// Get the logger of the ActuatorInterface.
@@ -519,7 +600,7 @@ public:
   /**
    * \return clock of the ActuatorInterface.
    */
-  rclcpp::Clock::SharedPtr get_clock() const { return clock_interface_->get_clock(); }
+  rclcpp::Clock::SharedPtr get_clock() const { return actuator_clock_; }
 
   /// Get the hardware info of the ActuatorInterface.
   /**
@@ -575,7 +656,7 @@ protected:
   std::unique_ptr<realtime_tools::AsyncFunctionHandler<return_type>> async_handler_;
 
 private:
-  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface_;
+  rclcpp::Clock::SharedPtr actuator_clock_;
   rclcpp::Logger actuator_logger_;
   // interface names to Handle accessed through getters/setters
   std::unordered_map<std::string, StateInterface::SharedPtr> actuator_states_;
