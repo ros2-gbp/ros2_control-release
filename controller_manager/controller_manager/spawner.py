@@ -71,6 +71,7 @@ def is_controller_loaded(
 
 
 def main(args=None):
+
     rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     parser = argparse.ArgumentParser()
     parser.add_argument("controller_names", help="List of controllers", nargs="+")
@@ -92,11 +93,7 @@ def main(args=None):
         required=False,
     )
     parser.add_argument(
-        "-n",
-        "--namespace",
-        help="DEPRECATED Namespace for the controller_manager and the controller(s)",
-        default=None,
-        required=False,
+        "-n", "--namespace", help="Namespace for the controller", default="", required=False
     )
     parser.add_argument(
         "--load-only",
@@ -105,9 +102,22 @@ def main(args=None):
         required=False,
     )
     parser.add_argument(
+        "--stopped",
+        help="Load and configure the controller, however do not activate them",
+        action="store_true",
+        required=False,
+    )
+    parser.add_argument(
         "--inactive",
         help="Load and configure the controller, however do not activate them",
         action="store_true",
+        required=False,
+    )
+    parser.add_argument(
+        "-t",
+        "--controller-type",
+        help="If not provided it should exist in the controller manager namespace",
+        default=None,
         required=False,
     )
     parser.add_argument(
@@ -146,14 +156,6 @@ def main(args=None):
         action="store_true",
         required=False,
     )
-    parser.add_argument(
-        "--controller-ros-args",
-        help="The --ros-args to be passed to the controller node, e.g., for remapping topics. "
-        "Pass multiple times for every argument.",
-        default=None,
-        action="append",
-        required=False,
-    )
 
     command_line_args = rclpy.utilities.remove_ros_args(args=sys.argv)[1:]
     args = parser.parse_args(command_line_args)
@@ -177,14 +179,6 @@ def main(args=None):
             f"'--ros-args -r __ns:={node.get_namespace()}' is not allowed!"
         )
 
-    if args.namespace:
-        warnings.filterwarnings("always")
-        warnings.warn(
-            "The '--namespace' argument is deprecated and will be removed in future releases."
-            " Use the ROS 2 standard way of setting the node namespacing using --ros-args -r __ns:=<namespace>",
-            DeprecationWarning,
-        )
-
     spawner_namespace = args.namespace if args.namespace else node.get_namespace()
 
     if not spawner_namespace.startswith("/"):
@@ -198,7 +192,6 @@ def main(args=None):
 
     try:
         for controller_name in controller_names:
-
             if is_controller_loaded(
                 node,
                 controller_manager_name,
@@ -212,13 +205,13 @@ def main(args=None):
                     + bcolors.ENDC
                 )
             else:
-                if controller_ros_args := args.controller_ros_args:
+                if args.controller_type:
                     if not set_controller_parameters(
                         node,
                         controller_manager_name,
                         controller_name,
-                        "node_options_args",
-                        [arg for args in controller_ros_args for arg in args.split()],
+                        "type",
+                        args.controller_type,
                     ):
                         return 1
                 if param_files:
@@ -231,13 +224,7 @@ def main(args=None):
                     ):
                         return 1
 
-                ret = load_controller(
-                    node,
-                    controller_manager_name,
-                    controller_name,
-                    controller_manager_timeout,
-                    service_call_timeout,
-                )
+                ret = load_controller(node, controller_manager_name, controller_name)
                 if not ret.ok:
                     node.get_logger().fatal(
                         bcolors.FAIL
@@ -265,7 +252,7 @@ def main(args=None):
                     )
                     return 1
 
-                if not args.inactive and not args.activate_as_group:
+                if not args.stopped and not args.inactive and not args.activate_as_group:
                     ret = switch_controllers(
                         node,
                         controller_manager_name,
@@ -290,7 +277,7 @@ def main(args=None):
                         + bcolors.ENDC
                     )
 
-        if not args.inactive and args.activate_as_group:
+        if not args.stopped and not args.inactive and args.activate_as_group:
             ret = switch_controllers(
                 node,
                 controller_manager_name,
@@ -312,6 +299,8 @@ def main(args=None):
                 + f"Configured and activated all the parsed controllers list : {controller_names}!"
                 + bcolors.ENDC
             )
+        if args.stopped:
+            node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
 
         if not args.unload_on_kill:
             return 0
@@ -321,9 +310,8 @@ def main(args=None):
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            node.get_logger().info("KeyboardInterrupt successfully captured!")
-            if not args.inactive:
-                node.get_logger().info("Deactivating and unloading controllers...")
+            if not args.stopped and not args.inactive:
+                node.get_logger().info("Interrupt captured, deactivating and unloading controller")
                 # TODO(saikishor) we might have an issue in future, if any of these controllers is in chained mode
                 ret = switch_controllers(
                     node,
@@ -345,15 +333,12 @@ def main(args=None):
                     f"Successfully deactivated controllers : {controller_names}"
                 )
 
+            elif args.stopped:
+                node.get_logger().warn('"--stopped" flag is deprecated use "--inactive" instead')
+
             unload_status = True
             for controller_name in controller_names:
-                ret = unload_controller(
-                    node,
-                    controller_manager_name,
-                    controller_name,
-                    controller_manager_timeout,
-                    service_call_timeout,
-                )
+                ret = unload_controller(node, controller_manager_name, controller_name)
                 if not ret.ok:
                     unload_status = False
                     node.get_logger().error(
@@ -368,7 +353,6 @@ def main(args=None):
                 return 1
         return 0
     except KeyboardInterrupt:
-        node.get_logger().info("KeyboardInterrupt received! Exiting....")
         pass
     except ServiceNotFoundError as err:
         node.get_logger().fatal(str(err))

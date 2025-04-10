@@ -14,8 +14,9 @@
 
 #include <vector>
 
-#include "gmock/gmock.h"
 #include "hardware_interface/macros.hpp"
+
+#include "gmock/gmock.h"
 
 class TestMacros : public ::testing::Test
 {
