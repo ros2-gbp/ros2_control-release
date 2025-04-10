@@ -1,0 +1,12 @@
+Source: ros-rolling-hardware-interface
+Section: misc
+Priority: optional
+Maintainer: Bence Magyar <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ros-rolling-ament-cmake, ros-rolling-ament-cmake-gen-version-h, ros-rolling-ament-cmake-gmock <!nocheck>, ros-rolling-backward-ros, ros-rolling-control-msgs, ros-rolling-joint-limits, ros-rolling-lifecycle-msgs, ros-rolling-pal-statistics, ros-rolling-pluginlib, ros-rolling-rclcpp-lifecycle, ros-rolling-rcpputils, ros-rolling-rcutils, ros-rolling-realtime-tools, ros-rolling-ros2-control-cmake, ros-rolling-ros2-control-test-assets <!nocheck>, ros-rolling-sdformat-urdf, ros-rolling-tinyxml2-vendor, ros-rolling-urdf, ros-rolling-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-rolling-hardware-interface
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-rolling-backward-ros, ros-rolling-control-msgs, ros-rolling-joint-limits, ros-rolling-lifecycle-msgs, ros-rolling-pal-statistics, ros-rolling-pluginlib, ros-rolling-rclcpp-lifecycle, ros-rolling-rcpputils, ros-rolling-rcutils, ros-rolling-realtime-tools, ros-rolling-sdformat-urdf, ros-rolling-tinyxml2-vendor, ros-rolling-urdf, ros-rolling-ros-workspace
+Description: Base classes for hardware abstraction and tooling for them
