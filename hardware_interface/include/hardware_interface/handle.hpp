@@ -16,6 +16,8 @@
 #define HARDWARE_INTERFACE__HANDLE_HPP_
 
 #include <algorithm>
+#include <atomic>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -29,10 +31,22 @@
 #include "hardware_interface/introspection.hpp"
 #include "hardware_interface/macros.hpp"
 
+namespace
+{
+template <typename T>
+std::string get_type_name()
+{
+  int status = 0;
+  std::unique_ptr<char[], void (*)(void *)> res{
+    abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, &status), std::free};
+  return (status == 0) ? res.get() : typeid(T).name();
+}
+}  // namespace
+
 namespace hardware_interface
 {
 
-using HANDLE_DATATYPE = std::variant<std::monostate, double>;
+using HANDLE_DATATYPE = std::variant<std::monostate, double, bool>;
 
 /// A handle used to get and set a value on a given interface.
 class Handle
@@ -55,10 +69,25 @@ public:
     interface_name_(interface_description.get_interface_name()),
     handle_name_(interface_description.get_name())
   {
+    data_type_ = interface_description.get_data_type();
     // As soon as multiple datatypes are used in HANDLE_DATATYPE
     // we need to initialize according the type passed in interface description
-    value_ = std::numeric_limits<double>::quiet_NaN();
-    value_ptr_ = std::get_if<double>(&value_);
+    if (data_type_ == hardware_interface::HandleDataType::DOUBLE)
+    {
+      value_ = std::numeric_limits<double>::quiet_NaN();
+      value_ptr_ = std::get_if<double>(&value_);
+    }
+    else if (data_type_ == hardware_interface::HandleDataType::BOOL)
+    {
+      value_ptr_ = nullptr;
+      value_ = false;
+    }
+    else
+    {
+      throw std::runtime_error(
+        "Invalid data type : '" + interface_description.interface_info.data_type +
+        "' for interface : " + interface_description.get_name());
+    }
   }
 
   [[deprecated("Use InterfaceDescription for initializing the Interface")]]
@@ -143,14 +172,44 @@ public:
   [[nodiscard]] std::optional<T> get_optional() const
   {
     std::shared_lock<std::shared_mutex> lock(handle_mutex_, std::try_to_lock);
+    return get_optional<T>(lock);
+  }
+  /**
+   * @brief Get the value of the handle.
+   * @tparam T The type of the value to be retrieved.
+   * @param lock The lock to access the value.
+   * @return The value of the handle if it accessed successfully, std::nullopt otherwise.
+   *
+   * @note The method is thread-safe and non-blocking.
+   * @note When different threads access the same handle at same instance, and if they are unable to
+   * lock the handle to access the value, the handle returns std::nullopt. If the operation is
+   * successful, the value is returned.
+   */
+  template <typename T = double>
+  [[nodiscard]] std::optional<T> get_optional(std::shared_lock<std::shared_mutex> & lock) const
+  {
     if (!lock.owns_lock())
     {
       return std::nullopt;
     }
-    THROW_ON_NULLPTR(this->value_ptr_);
     // BEGIN (Handle export change): for backward compatibility
     // TODO(saikishor) return value_ if old functionality is removed
-    return value_ptr_ != nullptr ? *value_ptr_ : std::get<T>(value_);
+    if constexpr (std::is_same_v<T, double>)
+    {
+      // If the template is of type double, check if the value_ptr_ is not nullptr
+      THROW_ON_NULLPTR(value_ptr_);
+      return *value_ptr_;
+    }
+    try
+    {
+      return std::get<T>(value_);
+    }
+    catch (const std::bad_variant_access & err)
+    {
+      throw std::runtime_error(
+        "Invalid data type : '" + get_type_name<T>() + "' access for interface : " + get_name() +
+        " expected : '" + data_type_.to_string() + "'");
+    }
     // END
   }
 
@@ -178,7 +237,25 @@ public:
     }
     // BEGIN (Handle export change): for backward compatibility
     // TODO(Manuel) return value_ if old functionality is removed
-    value = value_ptr_ != nullptr ? *value_ptr_ : std::get<T>(value_);
+    if constexpr (std::is_same_v<T, double>)
+    {
+      // If the template is of type double, check if the value_ptr_ is not nullptr
+      THROW_ON_NULLPTR(value_ptr_);
+      value = *value_ptr_;
+    }
+    else
+    {
+      try
+      {
+        value = std::get<T>(value_);
+      }
+      catch (const std::bad_variant_access & err)
+      {
+        throw std::runtime_error(
+          "Invalid data type : '" + get_type_name<T>() + "' access for interface : " + get_name() +
+          " expected : '" + data_type_.to_string() + "'");
+      }
+    }
     return true;
     // END
   }
@@ -198,17 +275,53 @@ public:
   [[nodiscard]] bool set_value(const T & value)
   {
     std::unique_lock<std::shared_mutex> lock(handle_mutex_, std::try_to_lock);
+    return set_value(lock, value);
+  }
+
+  /**
+   * @brief Set the value of the handle.
+   * @tparam T The type of the value to be set.
+   * @param lock The lock to set the value.
+   * @param value The value to be set.
+   * @return true if the value is set successfully, false otherwise.
+   *
+   * @note The method is thread-safe and non-blocking.
+   * @note When different threads access the same handle at same instance, and if they are unable to
+   * lock the handle to set the value, the handle returns false. If the operation is successful, the
+   * handle is updated and returns true.
+   */
+  template <typename T>
+  [[nodiscard]] bool set_value(std::unique_lock<std::shared_mutex> & lock, const T & value)
+  {
     if (!lock.owns_lock())
     {
       return false;
     }
     // BEGIN (Handle export change): for backward compatibility
     // TODO(Manuel) set value_ directly if old functionality is removed
-    THROW_ON_NULLPTR(this->value_ptr_);
-    *this->value_ptr_ = value;
+    if constexpr (std::is_same_v<T, double>)
+    {
+      // If the template is of type double, check if the value_ptr_ is not nullptr
+      THROW_ON_NULLPTR(value_ptr_);
+      *value_ptr_ = value;
+    }
+    else
+    {
+      if (!std::holds_alternative<T>(value_))
+      {
+        throw std::runtime_error(
+          "Invalid data type : '" + get_type_name<T>() + "' access for interface : " + get_name() +
+          " expected : '" + data_type_.to_string() + "'");
+      }
+      value_ = value;
+    }
     return true;
     // END
   }
+
+  std::shared_mutex & get_mutex() { return handle_mutex_; }
+
+  HandleDataType get_data_type() const { return data_type_; }
 
 private:
   void copy(const Handle & other) noexcept
@@ -243,6 +356,7 @@ protected:
   std::string interface_name_;
   std::string handle_name_;
   HANDLE_DATATYPE value_ = std::monostate{};
+  HandleDataType data_type_ = HandleDataType::DOUBLE;
   // BEGIN (Handle export change): for backward compatibility
   // TODO(Manuel) redeclare as HANDLE_DATATYPE * value_ptr_ if old functionality is removed
   double * value_ptr_;
@@ -303,6 +417,31 @@ public:
 
   CommandInterface(CommandInterface && other) = default;
 
+  void set_on_set_command_limiter(std::function<double(double, bool &)> on_set_command_limiter)
+  {
+    on_set_command_limiter_ = on_set_command_limiter;
+  }
+
+  /// A setter for the value of the command interface that triggers the limiter.
+  /**
+   * @param value The value to be set.
+   * @return True if the value was set successfully, false otherwise.
+   */
+  template <typename T>
+  [[nodiscard]] bool set_limited_value(const T & value)
+  {
+    if constexpr (std::is_same_v<T, double>)
+    {
+      return set_value(on_set_command_limiter_(value, is_command_limited_));
+    }
+    else
+    {
+      return set_value(value);
+    }
+  }
+
+  const bool & is_limited() const { return is_command_limited_; }
+
   void registerIntrospection() const
   {
     if (value_ptr_ || std::holds_alternative<double>(value_))
@@ -310,6 +449,8 @@ public:
       std::function<double()> f = [this]()
       { return value_ptr_ ? *value_ptr_ : std::get<double>(value_); };
       DEFAULT_REGISTER_ROS2_CONTROL_INTROSPECTION("command_interface." + get_name(), f);
+      DEFAULT_REGISTER_ROS2_CONTROL_INTROSPECTION(
+        "command_interface." + get_name() + ".is_limited", &is_command_limited_);
     }
   }
 
@@ -318,12 +459,23 @@ public:
     if (value_ptr_ || std::holds_alternative<double>(value_))
     {
       DEFAULT_UNREGISTER_ROS2_CONTROL_INTROSPECTION("command_interface." + get_name());
+      DEFAULT_UNREGISTER_ROS2_CONTROL_INTROSPECTION(
+        "command_interface." + get_name() + ".is_limited");
     }
   }
 
   using Handle::Handle;
 
   using SharedPtr = std::shared_ptr<CommandInterface>;
+
+private:
+  bool is_command_limited_ = false;
+  std::function<double(double, bool &)> on_set_command_limiter_ =
+    [](double value, bool & is_limited)
+  {
+    is_limited = false;
+    return value;
+  };
 };
 
 }  // namespace hardware_interface
