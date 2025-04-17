@@ -93,9 +93,9 @@ class ControllerManager(Plugin):
         path = get_package_share_directory("rqt_controller_manager")
         self._icons = {
             "active": QIcon(f"{path}/resource/led_green.png"),
-            "finalized": QIcon(f"{path}/resource/led_off.png"),
-            "inactive": QIcon(f"{path}/resource/led_red.png"),
-            "unconfigured": QIcon(f"{path}/resource/led_off.png"),
+            "inactive": QIcon(f"{path}/resource/led_cyan.png"),
+            "unconfigured": QIcon(f"{path}/resource/led_yellow.png"),
+            "unloaded": QIcon(f"{path}/resource/led_off.png"),
         }
 
         # Controllers display
@@ -173,7 +173,6 @@ class ControllerManager(Plugin):
             self._update_hw_components()
 
     def _update_controllers(self):
-
         if not self._cm_name:
             return
 
@@ -230,10 +229,10 @@ class ControllerManager(Plugin):
         menu = QMenu(self._widget.ctrl_table_view)
         if ctrl.state == "active":
             action_deactivate = menu.addAction(self._icons["inactive"], "Deactivate")
-            action_kill = menu.addAction(self._icons["finalized"], "Deactivate and Unload")
+            action_kill = menu.addAction(self._icons["unloaded"], "Deactivate and Unload")
         elif ctrl.state == "inactive":
             action_activate = menu.addAction(self._icons["active"], "Activate")
-            action_unload = menu.addAction(self._icons["unconfigured"], "Unload")
+            action_cleanup = menu.addAction(self._icons["unconfigured"], "Cleanup")
         elif ctrl.state == "unconfigured":
             action_configure = menu.addAction(self._icons["inactive"], "Configure")
             action_spawn = menu.addAction(self._icons["active"], "Configure and Activate")
@@ -252,11 +251,13 @@ class ControllerManager(Plugin):
             elif action is action_kill:
                 self._deactivate_controller(ctrl.name)
                 unload_controller(self._node, self._cm_name, ctrl.name)
-        elif ctrl.state in ("finalized", "inactive"):
+        elif ctrl.state == "inactive":
             if action is action_activate:
                 self._activate_controller(ctrl.name)
-            elif action is action_unload:
+            elif action is action_cleanup:
+                # TODO: use cleanup service once available
                 unload_controller(self._node, self._cm_name, ctrl.name)
+                load_controller(self._node, self._cm_name, ctrl.name)
         elif ctrl.state == "unconfigured":
             if action is action_configure:
                 configure_controller(self._node, self._cm_name, ctrl.name)
@@ -359,7 +360,7 @@ class ControllerManager(Plugin):
         menu = QMenu(self._widget.hw_table_view)
         if hw_component.state.label == "active":
             action_deactivate = menu.addAction(self._icons["inactive"], "Deactivate")
-            action_cleanup = menu.addAction(self._icons["finalized"], "Deactivate and Cleanup")
+            action_cleanup = menu.addAction(self._icons["unconfigured"], "Deactivate and Cleanup")
         elif hw_component.state.label == "inactive":
             action_activate = menu.addAction(self._icons["active"], "Activate")
             action_cleanup = menu.addAction(self._icons["unconfigured"], "Cleanup")
@@ -515,10 +516,11 @@ class ControllerTable(QAbstractTableModel):
             if index.column() == 0:
                 return ctrl.name
             elif index.column() == 1:
-                return ctrl.state or "not loaded"
+                return ctrl.state or "unloaded"
 
         if role == Qt.DecorationRole and index.column() == 0:
-            return self._icons.get(ctrl.state)
+            state_key = ctrl.state if ctrl.state else "unloaded"
+            return self._icons.get(state_key)
 
         if role == Qt.FontRole and index.column() == 0:
             bf = QFont()
@@ -566,7 +568,7 @@ class HwComponentTable(QAbstractTableModel):
             if index.column() == 0:
                 return hw_component.name
             elif index.column() == 1:
-                return hw_component.state.label or "not loaded"
+                return hw_component.state.label or "unloaded"
 
         if role == Qt.DecorationRole and index.column() == 0:
             return self._icons.get(hw_component.state.label)
@@ -634,4 +636,11 @@ def _get_parameter_controller_names(node, node_name):
     """Get list of ROS parameter names that potentially represent a controller configuration."""
     parameter_names = call_list_parameters(node=node, node_name=node_name)
     suffix = ".type"
-    return [n[: -len(suffix)] for n in parameter_names if n.endswith(suffix)]
+    # @note: The versions conditioning is added here to support the source-compatibility with Humble
+    if os.environ.get("ROS_DISTRO") == "humble":
+        # for humble, ros2param < 0.20.0
+        return [n[: -len(suffix)] for n in parameter_names if n.endswith(suffix)]
+    else:
+        return [
+            n[: -len(suffix)] for n in parameter_names.result().result.names if n.endswith(suffix)
+        ]
