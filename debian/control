@@ -1,0 +1,12 @@
+Source: ros-kilted-rqt-controller-manager
+Section: misc
+Priority: optional
+Maintainer: Bence Magyar <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ros-kilted-ros-workspace, python3-all, python3-setuptools, dh-python
+Homepage: http://ros.org/wiki/rqt_controller_manager
+Standards-Version: 3.9.2
+
+Package: ros-kilted-rqt-controller-manager
+Architecture: any
+Depends: ${python3:Depends}, ${misc:Depends}, ros-kilted-controller-manager, ros-kilted-controller-manager-msgs, ros-kilted-rclpy, ros-kilted-rqt-gui, ros-kilted-rqt-gui-py, ros-kilted-ros-workspace
+Description: Graphical frontend for interacting with the controller manager.
