@@ -14,6 +14,8 @@
 
 #include "controller_manager/controller_manager.hpp"
 
+#include <fmt/compile.h>
+
 #include <memory>
 #include <set>
 #include <string>
@@ -22,6 +24,7 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
+#include "hardware_interface/helpers.hpp"
 #include "hardware_interface/introspection.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
@@ -144,26 +147,6 @@ bool is_interface_a_chained_interface(
   return true;
 }
 
-template <typename T>
-void add_element_to_list(std::vector<T> & list, const T & element)
-{
-  if (std::find(list.begin(), list.end(), element) == list.end())
-  {
-    // Only add to the list if it doesn't exist
-    list.push_back(element);
-  }
-}
-
-template <typename T>
-void remove_element_from_list(std::vector<T> & list, const T & element)
-{
-  auto itr = std::find(list.begin(), list.end(), element);
-  if (itr != list.end())
-  {
-    list.erase(itr);
-  }
-}
-
 void controller_chain_spec_cleanup(
   std::unordered_map<std::string, controller_manager::ControllerChainSpec> & ctrl_chain_spec,
   const std::string & controller)
@@ -172,11 +155,23 @@ void controller_chain_spec_cleanup(
   const auto preceding_controllers = ctrl_chain_spec[controller].preceding_controllers;
   for (const auto & flwg_ctrl : following_controllers)
   {
-    remove_element_from_list(ctrl_chain_spec[flwg_ctrl].preceding_controllers, controller);
+    if (!ros2_control::remove_item(ctrl_chain_spec[flwg_ctrl].preceding_controllers, controller))
+    {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("ControllerManager::utils"),
+        "Controller '%s' is not in the list of preceding controllers of '%s'.", controller.c_str(),
+        flwg_ctrl.c_str());
+    }
   }
   for (const auto & preced_ctrl : preceding_controllers)
   {
-    remove_element_from_list(ctrl_chain_spec[preced_ctrl].following_controllers, controller);
+    if (ros2_control::remove_item(ctrl_chain_spec[preced_ctrl].following_controllers, controller))
+    {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("ControllerManager::utils"),
+        "Controller '%s' is not in the list of following controllers of '%s'.", controller.c_str(),
+        preced_ctrl.c_str());
+    }
   }
   ctrl_chain_spec.erase(controller);
 }
@@ -209,7 +204,7 @@ void get_active_controllers_using_command_interfaces_of_controller(
         is_controller_active(controller.c) &&
         std::find(ctrl_cmd_itfs.begin(), ctrl_cmd_itfs.end(), cmd_itf) != ctrl_cmd_itfs.end())
       {
-        add_element_to_list(controllers_using_command_interfaces, controller.info.name);
+        ros2_control::add_item(controllers_using_command_interfaces, controller.info.name);
       }
     }
   }
@@ -299,15 +294,15 @@ controller_interface::return_type evaluate_switch_result(
     RCLCPP_ERROR(logger, "%s", message.c_str());
     if (!unable_to_activate_controllers.empty())
     {
-      const std::string error_msg =
-        "Unable to activate controllers: [ " + unable_to_activate_controllers + "]";
+      const std::string error_msg = fmt::format(
+        FMT_COMPILE("Unable to activate controllers: [ {} ]"), unable_to_activate_controllers);
       message += "\n" + error_msg;
       RCLCPP_ERROR(logger, "%s", error_msg.c_str());
     }
     if (!unable_to_deactivate_controllers.empty())
     {
-      const std::string error_msg =
-        "Unable to deactivate controllers: [ " + unable_to_deactivate_controllers + "]";
+      const std::string error_msg = fmt::format(
+        FMT_COMPILE("Unable to deactivate controllers: [ {} ]"), unable_to_deactivate_controllers);
       message += "\n" + error_msg;
       RCLCPP_ERROR(logger, "%s", error_msg.c_str());
     }
@@ -322,7 +317,8 @@ controller_interface::return_type evaluate_switch_result(
         std::string list = std::accumulate(
           std::next(deactivate_list.begin()), deactivate_list.end(), deactivate_list.front(),
           [](std::string a, std::string b) { return a + " " + b; });
-        const std::string info_msg = "Deactivated controllers: [ " + list + " ]";
+        const std::string info_msg =
+          fmt::format(FMT_COMPILE("Deactivated controllers: [ {} ]"), list);
         message += "\n" + info_msg;
         RCLCPP_INFO(logger, "%s", info_msg.c_str());
       }
@@ -331,7 +327,8 @@ controller_interface::return_type evaluate_switch_result(
         std::string list = std::accumulate(
           std::next(activate_list.begin()), activate_list.end(), activate_list.front(),
           [](std::string a, std::string b) { return a + " " + b; });
-        const std::string info_msg = "Activated controllers: [ " + list + " ]";
+        const std::string info_msg =
+          fmt::format(FMT_COMPILE("Activated controllers: [ {} ]"), list);
         message += "\n" + info_msg;
         RCLCPP_INFO(logger, "%s", info_msg.c_str());
       }
@@ -358,12 +355,6 @@ void get_controller_list_command_interfaces(
         *found_it, resource_manager, request_interface_list);
     }
   }
-}
-template <typename Collection>
-[[nodiscard]] bool is_unique(Collection collection)
-{
-  std::sort(collection.begin(), collection.end());
-  return std::adjacent_find(collection.cbegin(), collection.cend()) == collection.cend();
 }
 }  // namespace
 
@@ -666,9 +657,19 @@ void ControllerManager::init_resource_manager(const std::string & robot_descript
           resource_manager_->set_component_state(component, state) ==
           hardware_interface::return_type::ERROR)
         {
-          throw std::runtime_error(
-            "Failed to set the initial state of the component : " + component + " to " +
-            state.label());
+          if (params_->hardware_components_initial_state.shutdown_on_initial_state_failure)
+          {
+            throw std::runtime_error(
+              fmt::format(
+                FMT_COMPILE("Failed to set the initial state of the component : {} to {}"),
+                component.c_str(), state.label()));
+          }
+          else
+          {
+            RCLCPP_ERROR(
+              get_logger(), "Failed to set the initial state of the component : '%s' to '%s'",
+              component.c_str(), state.label().c_str());
+          }
         }
         components_to_activate.erase(component);
       }
@@ -701,9 +702,19 @@ void ControllerManager::init_resource_manager(const std::string & robot_descript
       resource_manager_->set_component_state(component, active_state) ==
       hardware_interface::return_type::ERROR)
     {
-      throw std::runtime_error(
-        "Failed to set the initial state of the component : " + component + " to " +
-        active_state.label());
+      if (params_->hardware_components_initial_state.shutdown_on_initial_state_failure)
+      {
+        throw std::runtime_error(
+          fmt::format(
+            FMT_COMPILE("Failed to set the initial state of the component : {} to {}"),
+            component.c_str(), active_state.label()));
+      }
+      else
+      {
+        RCLCPP_ERROR(
+          get_logger(), "Failed to set the initial state of the component : '%s' to '%s'",
+          component.c_str(), active_state.label().c_str());
+      }
     }
   }
   robot_description_notification_timer_->cancel();
@@ -831,7 +842,7 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
   // can load them at the creation of the LifeCycleNode and this helps in using the features such as
   // read_only params, dynamic maps lists etc
   // Now check if the parameters_file parameter exist
-  const std::string param_name = controller_name + ".params_file";
+  const std::string param_name = fmt::format(FMT_COMPILE("{}.params_file"), controller_name);
   controller_spec.info.parameters_files.clear();
 
   // get_parameter checks if parameter has been declared/set
@@ -856,7 +867,8 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
     }
   }
 
-  const std::string fallback_ctrl_param = controller_name + ".fallback_controllers";
+  const std::string fallback_ctrl_param =
+    fmt::format(FMT_COMPILE("{}.fallback_controllers"), controller_name);
   std::vector<std::string> fallback_controllers;
   if (!has_parameter(fallback_ctrl_param))
   {
@@ -876,7 +888,8 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
     controller_spec.info.fallback_controllers_names = fallback_controllers;
   }
 
-  const std::string node_options_args_param = controller_name + ".node_options_args";
+  const std::string node_options_args_param =
+    fmt::format(FMT_COMPILE("{}.node_options_args"), controller_name);
   std::vector<std::string> node_options_args;
   if (!has_parameter(node_options_args_param))
   {
@@ -893,7 +906,7 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
 controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
   const std::string & controller_name)
 {
-  const std::string param_name = controller_name + ".type";
+  const std::string param_name = fmt::format(FMT_COMPILE("{}.type"), controller_name);
   std::string controller_type;
 
   // We cannot declare the parameters for the controllers that will be loaded in the future,
@@ -1170,7 +1183,7 @@ controller_interface::return_type ControllerManager::configure_controller(
   const auto state_itfs = controller->state_interface_configuration().names;
 
   // Check if the cmd_itfs and the state_itfs are unique
-  if (!is_unique(cmd_itfs))
+  if (!ros2_control::is_unique(cmd_itfs))
   {
     std::string cmd_itfs_str = std::accumulate(
       std::next(cmd_itfs.begin()), cmd_itfs.end(), cmd_itfs.front(),
@@ -1184,7 +1197,7 @@ controller_interface::return_type ControllerManager::configure_controller(
     return controller_interface::return_type::ERROR;
   }
 
-  if (!is_unique(state_itfs))
+  if (!ros2_control::is_unique(state_itfs))
   {
     std::string state_itfs_str = std::accumulate(
       std::next(state_itfs.begin()), state_itfs.end(), state_itfs.front(),
@@ -1203,11 +1216,11 @@ controller_interface::return_type ControllerManager::configure_controller(
     controller_manager::ControllersListIterator ctrl_it;
     if (is_interface_a_chained_interface(cmd_itf, controllers, ctrl_it))
     {
-      add_element_to_list(
+      ros2_control::add_item(
         controller_chain_spec_[controller_name].following_controllers, ctrl_it->info.name);
-      add_element_to_list(
+      ros2_control::add_item(
         controller_chain_spec_[ctrl_it->info.name].preceding_controllers, controller_name);
-      add_element_to_list(
+      ros2_control::add_item(
         controller_chained_reference_interfaces_cache_[ctrl_it->info.name], controller_name);
     }
   }
@@ -1217,11 +1230,11 @@ controller_interface::return_type ControllerManager::configure_controller(
     controller_manager::ControllersListIterator ctrl_it;
     if (is_interface_a_chained_interface(state_itf, controllers, ctrl_it))
     {
-      add_element_to_list(
+      ros2_control::add_item(
         controller_chain_spec_[controller_name].preceding_controllers, ctrl_it->info.name);
-      add_element_to_list(
+      ros2_control::add_item(
         controller_chain_spec_[ctrl_it->info.name].following_controllers, controller_name);
-      add_element_to_list(
+      ros2_control::add_item(
         controller_chained_state_interfaces_cache_[ctrl_it->info.name], controller_name);
     }
   }
@@ -1346,13 +1359,37 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
   }
   if (strictness == 0)
   {
-    RCLCPP_WARN(
+    std::string default_strictness = params_->defaults.switch_controller.strictness;
+    // Convert to uppercase
+    std::transform(
+      default_strictness.begin(), default_strictness.end(), default_strictness.begin(),
+      [](unsigned char c) { return std::toupper(c); });
+    RCLCPP_WARN_ONCE(
       get_logger(),
       "Controller Manager: to switch controllers you need to specify a "
       "strictness level of controller_manager_msgs::SwitchController::STRICT "
-      "(%d) or ::BEST_EFFORT (%d). Defaulting to ::BEST_EFFORT",
+      "(%d) or ::BEST_EFFORT (%d). When unspecified, the default is %s",
       controller_manager_msgs::srv::SwitchController::Request::STRICT,
-      controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT);
+      controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT,
+      default_strictness.c_str());
+    strictness = params_->defaults.switch_controller.strictness == "strict"
+                   ? controller_manager_msgs::srv::SwitchController::Request::STRICT
+                   : controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
+  }
+  else if (strictness == controller_manager_msgs::srv::SwitchController::Request::AUTO)
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "Controller Manager: AUTO is not currently implemented. "
+      "Defaulting to BEST_EFFORT");
+    strictness = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
+  }
+  else if (strictness == controller_manager_msgs::srv::SwitchController::Request::FORCE_AUTO)
+  {
+    RCLCPP_DEBUG(
+      get_logger(),
+      "Controller Manager: FORCE_AUTO is not currently implemented. "
+      "Defaulting to BEST_EFFORT");
     strictness = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
   }
 
@@ -1395,8 +1432,10 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
 
       if (found_it == updated_controllers.end())
       {
-        const std::string error_msg = "Could not " + action + " controller with name '" +
-                                      controller + "' because no controller with this name exists";
+        const std::string error_msg = fmt::format(
+          FMT_COMPILE(
+            "Could not {} controller with name '{}' because no controller with this name exists"),
+          action, controller);
         msg += error_msg + "\n";
         RCLCPP_WARN(get_logger(), "%s", error_msg.c_str());
         // For the BEST_EFFORT switch, if there are more controllers that are in the list, this is
@@ -1464,9 +1503,11 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
     // if controller is not inactive then do not do any following-controllers checks
     if (is_controller_unconfigured(*controller_it->c))
     {
-      message = "Controller with name '" + controller_it->info.name +
-                "' is in 'unconfigured' state. The controller needs to be configured to be in "
-                "'inactive' state before it can be checked and activated.";
+      message = fmt::format(
+        FMT_COMPILE(
+          "Controller with name '{}' is in 'unconfigured' state. The controller needs to be "
+          "configured to be in 'inactive' state before it can be checked and activated."),
+        controller_it->info.name);
       RCLCPP_WARN(get_logger(), "%s", message.c_str());
       status = controller_interface::return_type::ERROR;
     }
@@ -1477,16 +1518,20 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
           deactivate_request_.begin(), deactivate_request_.end(), controller_it->info.name) ==
         deactivate_request_.end())
       {
-        message = "Controller with name '" + controller_it->info.name + "' is already active.";
+        message = fmt::format(
+          FMT_COMPILE("Controller with name '{}' is already active."), controller_it->info.name);
+        RCLCPP_WARN(get_logger(), "%s", message.c_str());
         RCLCPP_WARN(get_logger(), "%s", message.c_str());
         status = controller_interface::return_type::ERROR;
       }
     }
     else if (!is_controller_inactive(controller_it->c))
     {
-      message = "Controller with name '" + controller_it->info.name +
-                "' is not in 'inactive' state. The controller needs to be in 'inactive' state "
-                "before it can be checked and activated.";
+      message = fmt::format(
+        FMT_COMPILE(
+          "Controller with name '{}' is not in 'inactive' state. The controller needs to be in "
+          "'inactive' state before it can be checked and activated."),
+        controller_it->info.name);
       RCLCPP_WARN(get_logger(), "%s", message.c_str());
       status = controller_interface::return_type::ERROR;
     }
@@ -1541,15 +1586,16 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
     // if controller is not active then skip preceding-controllers checks
     if (!is_controller_active(controller_it->c))
     {
-      message = "Controller with name '" + controller_it->info.name +
-                "' can not be deactivated since it is not active.";
+      message = fmt::format(
+        FMT_COMPILE("Controller with name '{}' can not be deactivated since it is not active."),
+        controller_it->info.name);
       RCLCPP_WARN(get_logger(), "%s", message.c_str());
       status = controller_interface::return_type::ERROR;
     }
     else
     {
-      status = check_preceeding_controllers_for_deactivate(
-        controllers, strictness, controller_it, message);
+      status =
+        check_preceding_controllers_for_deactivate(controllers, strictness, controller_it, message);
     }
 
     if (status != controller_interface::return_type::OK)
@@ -1804,9 +1850,9 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
   if (!switch_params_.cv.wait_for(
         switch_params_guard, switch_params_.timeout, [this] { return !switch_params_.do_switch; }))
   {
-    message = "Switch controller timed out after " +
-              std::to_string(static_cast<double>(switch_params_.timeout.count()) / 1e9) +
-              " seconds!";
+    message = fmt::format(
+      FMT_COMPILE("Switch controller timed out after {} seconds!"),
+      static_cast<double>(switch_params_.timeout.count()) / 1e9);
     RCLCPP_ERROR(get_logger(), "%s", message.c_str());
     clear_requests();
     return controller_interface::return_type::ERROR;
@@ -2502,6 +2548,7 @@ void ControllerManager::list_hardware_components_srv_cb(
     {
       controller_manager_msgs::msg::HardwareInterface hwi;
       hwi.name = interface;
+      hwi.data_type = resource_manager_->get_command_interface_data_type(interface);
       hwi.is_available = resource_manager_->command_interface_is_available(interface);
       hwi.is_claimed = resource_manager_->command_interface_is_claimed(interface);
       // TODO(destogl): Add here mapping to controller that has claimed or
@@ -2526,6 +2573,7 @@ void ControllerManager::list_hardware_components_srv_cb(
     {
       controller_manager_msgs::msg::HardwareInterface hwi;
       hwi.name = interface;
+      hwi.data_type = resource_manager_->get_state_interface_data_type(interface);
       hwi.is_available = resource_manager_->state_interface_is_available(interface);
       hwi.is_claimed = false;
       component.state_interfaces.push_back(hwi);
@@ -2551,6 +2599,7 @@ void ControllerManager::list_hardware_interfaces_srv_cb(
     controller_manager_msgs::msg::HardwareInterface hwi;
     hwi.name = state_interface_name;
     hwi.is_available = resource_manager_->state_interface_is_available(state_interface_name);
+    hwi.data_type = resource_manager_->get_state_interface_data_type(state_interface_name);
     hwi.is_claimed = false;
     response->state_interfaces.push_back(hwi);
   }
@@ -2561,6 +2610,7 @@ void ControllerManager::list_hardware_interfaces_srv_cb(
     hwi.name = command_interface_name;
     hwi.is_available = resource_manager_->command_interface_is_available(command_interface_name);
     hwi.is_claimed = resource_manager_->command_interface_is_claimed(command_interface_name);
+    hwi.data_type = resource_manager_->get_command_interface_data_type(command_interface_name);
     response->command_interfaces.push_back(hwi);
   }
 
@@ -2640,6 +2690,8 @@ void ControllerManager::read(const rclcpp::Time & time, const rclcpp::Duration &
       rt_buffer_.get_concatenated_string(rt_buffer_.deactivate_controllers_list).c_str());
     std::vector<ControllerSpec> & rt_controller_list =
       rt_controllers_wrapper_.update_and_get_used_by_rt_list();
+    perform_hardware_command_mode_change(
+      rt_controller_list, {}, rt_buffer_.deactivate_controllers_list, "read");
     deactivate_controllers(rt_controller_list, rt_buffer_.deactivate_controllers_list);
     // TODO(destogl): do auto-start of broadcasters
   }
@@ -2855,29 +2907,12 @@ controller_interface::return_type ControllerManager::update(
       rt_buffer_.activate_controllers_using_interfaces_list.begin(),
       rt_buffer_.activate_controllers_using_interfaces_list.end(),
       [this](const std::string & controller)
-      { add_element_to_list(rt_buffer_.deactivate_controllers_list, controller); });
+      { ros2_control::add_item(rt_buffer_.deactivate_controllers_list, controller); });
 
     // Retrieve the interfaces to start and stop from the hardware end
-    rt_buffer_.interfaces_to_start.clear();
-    rt_buffer_.interfaces_to_stop.clear();
-    get_controller_list_command_interfaces(
-      rt_buffer_.deactivate_controllers_list, rt_controller_list, resource_manager_,
-      rt_buffer_.interfaces_to_stop);
-    get_controller_list_command_interfaces(
-      rt_buffer_.fallback_controllers_list, rt_controller_list, resource_manager_,
-      rt_buffer_.interfaces_to_start);
-    if (!rt_buffer_.interfaces_to_stop.empty() || !rt_buffer_.interfaces_to_start.empty())
-    {
-      if (!(resource_manager_->prepare_command_mode_switch(
-              rt_buffer_.interfaces_to_start, rt_buffer_.interfaces_to_stop) &&
-            resource_manager_->perform_command_mode_switch(
-              rt_buffer_.interfaces_to_start, rt_buffer_.interfaces_to_stop)))
-      {
-        RCLCPP_ERROR(
-          get_logger(),
-          "Error while attempting mode switch when deactivating controllers in update cycle!");
-      }
-    }
+    perform_hardware_command_mode_change(
+      rt_controller_list, rt_buffer_.fallback_controllers_list,
+      rt_buffer_.deactivate_controllers_list, "update");
     deactivate_controllers(rt_controller_list, rt_buffer_.deactivate_controllers_list);
     if (!rt_buffer_.fallback_controllers_list.empty())
     {
@@ -2925,6 +2960,9 @@ void ControllerManager::write(const rclcpp::Time & time, const rclcpp::Duration 
       rt_buffer_.get_concatenated_string(rt_buffer_.deactivate_controllers_list).c_str());
     std::vector<ControllerSpec> & rt_controller_list =
       rt_controllers_wrapper_.update_and_get_used_by_rt_list();
+
+    perform_hardware_command_mode_change(
+      rt_controller_list, {}, rt_buffer_.deactivate_controllers_list, "write");
     deactivate_controllers(rt_controller_list, rt_buffer_.deactivate_controllers_list);
     // TODO(destogl): do auto-start of broadcasters
   }
@@ -3018,6 +3056,34 @@ std::pair<std::string, std::string> ControllerManager::split_command_interface(
 unsigned int ControllerManager::get_update_rate() const { return update_rate_; }
 
 rclcpp::Clock::SharedPtr ControllerManager::get_trigger_clock() const { return trigger_clock_; }
+
+void ControllerManager::perform_hardware_command_mode_change(
+  const std::vector<ControllerSpec> & rt_controller_list,
+  const std::vector<std::string> & activate_controllers_list,
+  const std::vector<std::string> & deactivate_controllers_list, const std::string & rt_cycle_name)
+{
+  rt_buffer_.interfaces_to_start.clear();
+  rt_buffer_.interfaces_to_stop.clear();
+  get_controller_list_command_interfaces(
+    deactivate_controllers_list, rt_controller_list, resource_manager_,
+    rt_buffer_.interfaces_to_stop);
+  get_controller_list_command_interfaces(
+    activate_controllers_list, rt_controller_list, resource_manager_,
+    rt_buffer_.interfaces_to_start);
+  if (!rt_buffer_.interfaces_to_stop.empty() || !rt_buffer_.interfaces_to_start.empty())
+  {
+    if (!(resource_manager_->prepare_command_mode_switch(
+            rt_buffer_.interfaces_to_start, rt_buffer_.interfaces_to_stop) &&
+          resource_manager_->perform_command_mode_switch(
+            rt_buffer_.interfaces_to_start, rt_buffer_.interfaces_to_stop)))
+    {
+      RCLCPP_ERROR(
+        get_logger(),
+        "Error while attempting mode switch when deactivating controllers in %s cycle!",
+        rt_cycle_name.c_str());
+    }
+  }
+}
 
 void ControllerManager::propagate_deactivation_of_chained_mode(
   const std::vector<ControllerSpec> & controllers)
@@ -3113,10 +3179,11 @@ controller_interface::return_type ControllerManager::check_following_controllers
     // check if following controller is chainable
     if (!following_ctrl_it->c->is_chainable())
     {
-      message = "No state/reference interface from controller : '" + ctrl_itf_name +
-                "' exist, since the following "
-                "controller with name '" +
-                following_ctrl_it->info.name + "' is not chainable.";
+      message = fmt::format(
+        FMT_COMPILE(
+          "No state/reference interface from controller : '{}' exist, since the following "
+          "controller with name '{}' is not chainable."),
+        ctrl_itf_name, following_ctrl_it->info.name);
       RCLCPP_WARN(get_logger(), "%s", message.c_str());
       return controller_interface::return_type::ERROR;
     }
@@ -3129,8 +3196,11 @@ controller_interface::return_type ControllerManager::check_following_controllers
           deactivate_request_.begin(), deactivate_request_.end(), following_ctrl_it->info.name) !=
         deactivate_request_.end())
       {
-        message = "The following controller with name '" + following_ctrl_it->info.name +
-                  "' is currently active but it is requested to be deactivated.";
+        message = fmt::format(
+          FMT_COMPILE(
+            "The following controller with name '{}' is currently active but it is requested to "
+            "be deactivated."),
+          following_ctrl_it->info.name);
         RCLCPP_WARN(get_logger(), "%s", message.c_str());
         return controller_interface::return_type::ERROR;
       }
@@ -3140,8 +3210,11 @@ controller_interface::return_type ControllerManager::check_following_controllers
       std::find(activate_request_.begin(), activate_request_.end(), following_ctrl_it->info.name) ==
       activate_request_.end())
     {
-      message = "The following controller with name '" + following_ctrl_it->info.name +
-                "' is currently inactive and it is not requested to be activated.";
+      message = fmt::format(
+        FMT_COMPILE(
+          "The following controller with name '{}' is currently inactive and it is not requested "
+          "to be activated."),
+        following_ctrl_it->info.name);
       RCLCPP_WARN(get_logger(), "%s", message.c_str());
       return controller_interface::return_type::ERROR;
     }
@@ -3209,7 +3282,7 @@ controller_interface::return_type ControllerManager::check_following_controllers
   return controller_interface::return_type::OK;
 };
 
-controller_interface::return_type ControllerManager::check_preceeding_controllers_for_deactivate(
+controller_interface::return_type ControllerManager::check_preceding_controllers_for_deactivate(
   const std::vector<ControllerSpec> & controllers, int /*strictness*/,
   const ControllersListIterator controller_it, std::string & message)
 {
@@ -3223,41 +3296,45 @@ controller_interface::return_type ControllerManager::check_preceeding_controller
     get_logger(), "Checking preceding controller of following controller with name '%s'.",
     controller_it->info.name.c_str());
 
-  auto preceeding_controllers_list =
+  auto preceding_controllers_list =
     controller_chained_state_interfaces_cache_[controller_it->info.name];
-  preceeding_controllers_list.insert(
-    preceeding_controllers_list.end(),
+  preceding_controllers_list.insert(
+    preceding_controllers_list.end(),
     controller_chained_reference_interfaces_cache_[controller_it->info.name].cbegin(),
     controller_chained_reference_interfaces_cache_[controller_it->info.name].cend());
 
-  for (const auto & preceeding_controller : preceeding_controllers_list)
+  for (const auto & preceding_controller : preceding_controllers_list)
   {
-    RCLCPP_DEBUG(get_logger(), "\t Preceding controller : '%s'.", preceeding_controller.c_str());
+    RCLCPP_DEBUG(get_logger(), "\t Preceding controller : '%s'.", preceding_controller.c_str());
     auto found_it = std::find_if(
       controllers.begin(), controllers.end(),
-      std::bind(controller_name_compare, std::placeholders::_1, preceeding_controller));
+      std::bind(controller_name_compare, std::placeholders::_1, preceding_controller));
 
     if (found_it != controllers.end())
     {
       if (
         is_controller_inactive(found_it->c) &&
-        std::find(activate_request_.begin(), activate_request_.end(), preceeding_controller) !=
+        std::find(activate_request_.begin(), activate_request_.end(), preceding_controller) !=
           activate_request_.end())
       {
-        message = "Unable to deactivate controller with name '" + controller_it->info.name +
-                  "' because preceding controller with name '" + preceeding_controller +
-                  "' is inactive and will be activated.";
+        message = fmt::format(
+          FMT_COMPILE(
+            "Unable to deactivate controller with name '{}' because preceding controller with "
+            "name '{}' is inactive and will be activated."),
+          controller_it->info.name, preceding_controller);
         RCLCPP_WARN(get_logger(), "%s", message.c_str());
         return controller_interface::return_type::ERROR;
       }
       if (
         is_controller_active(found_it->c) &&
-        std::find(deactivate_request_.begin(), deactivate_request_.end(), preceeding_controller) ==
+        std::find(deactivate_request_.begin(), deactivate_request_.end(), preceding_controller) ==
           deactivate_request_.end())
       {
-        message = "Unable to deactivate controller with name '" + controller_it->info.name +
-                  "' because preceding controller with name '" + preceeding_controller +
-                  "' is currently active and will not be deactivated.";
+        message = fmt::format(
+          FMT_COMPILE(
+            "Unable to deactivate controller with name '{}' because preceding controller with "
+            "name '{}' is currently active and will not be deactivated."),
+          controller_it->info.name, preceding_controller);
         RCLCPP_WARN(get_logger(), "%s", message.c_str());
         return controller_interface::return_type::ERROR;
       }
@@ -3289,8 +3366,11 @@ ControllerManager::check_fallback_controllers_state_pre_activation(
       std::bind(controller_name_compare, std::placeholders::_1, fb_ctrl));
     if (fb_ctrl_it == controllers.end())
     {
-      message = "Unable to find the fallback controller : '" + fb_ctrl + "' of the controller : '" +
-                controller_it->info.name + "' within the controller list";
+      message = fmt::format(
+        FMT_COMPILE(
+          "Unable to find the fallback controller : '{}' of the controller : '{}' within the "
+          "controller list"),
+        fb_ctrl, controller_it->info.name);
       RCLCPP_ERROR(get_logger(), "%s", message.c_str());
       return controller_interface::return_type::ERROR;
     }
@@ -3298,9 +3378,11 @@ ControllerManager::check_fallback_controllers_state_pre_activation(
     {
       if (!(is_controller_inactive(fb_ctrl_it->c) || is_controller_active(fb_ctrl_it->c)))
       {
-        message = "Controller with name '" + controller_it->info.name +
-                  "' cannot be activated, as its fallback controller : '" + fb_ctrl +
-                  "' need to be configured and be in inactive/active state!";
+        message = fmt::format(
+          FMT_COMPILE(
+            "Controller with name '{}' cannot be activated, as its fallback controller : '{}' need "
+            "to be configured and be in inactive/active state!"),
+          controller_it->info.name, fb_ctrl);
         RCLCPP_ERROR(get_logger(), "%s", message.c_str());
         return controller_interface::return_type::ERROR;
       }
@@ -3330,24 +3412,25 @@ ControllerManager::check_fallback_controllers_state_pre_activation(
                   std::find(exported_ref_itfs.begin(), exported_ref_itfs.end(), fb_cmd_itf) ==
                   exported_ref_itfs.end())
                 {
-                  message = "Controller with name '" + controller_it->info.name +
-                            "' cannot be activated, as the command interface : '" + fb_cmd_itf +
-                            "' required by its fallback controller : '" + fb_ctrl +
-                            "' is not exported by the controller : '" +
-                            following_ctrl_it->info.name + "' in the current fallback list!";
+                  message = fmt::format(
+                    FMT_COMPILE(
+                      "Controller with name '{}' cannot be activated, as the command interface : "
+                      "'{}' required by its fallback controller : '{}' is not exported by the "
+                      "controller : '{}' in the current fallback list!"),
+                    controller_it->info.name, fb_cmd_itf, fb_ctrl, following_ctrl_it->info.name);
                   RCLCPP_ERROR(get_logger(), "%s", message.c_str());
                   return controller_interface::return_type::ERROR;
                 }
               }
               else
               {
-                message =
-                  "Controller with name '" + controller_it->info.name +
-                  "' cannot be activated, as the command interface : '" + fb_cmd_itf +
-                  "' required by its fallback controller : '" + fb_ctrl +
-                  "' is not available as the controller is not in active state!. May be "
-                  "consider adding this controller to the fallback list of the controller : '" +
-                  following_ctrl_it->info.name + "' or already have it activated.";
+                message = fmt::format(
+                  FMT_COMPILE(
+                    "Controller with name '{}' cannot be activated, as the command interface : "
+                    "'{}' required by its fallback controller : '{}' is not available as the "
+                    "controller is not in active state!. May be consider adding this controller to "
+                    "the fallback list of the controller : '{}' or already have it activated."),
+                  controller_it->info.name, fb_cmd_itf, fb_ctrl, following_ctrl_it->info.name);
                 RCLCPP_ERROR(get_logger(), "%s", message.c_str());
                 return controller_interface::return_type::ERROR;
               }
@@ -3355,9 +3438,11 @@ ControllerManager::check_fallback_controllers_state_pre_activation(
           }
           else
           {
-            message = "Controller with name '" + controller_it->info.name +
-                      "' cannot be activated, as not all of its fallback controller's : '" +
-                      fb_ctrl + "' command interfaces are currently available!";
+            message = fmt::format(
+              FMT_COMPILE(
+                "Controller with name '{}' cannot be activated, as not all of its fallback "
+                "controller's : '{}' command interfaces are currently available!"),
+              controller_it->info.name, fb_ctrl);
             RCLCPP_ERROR(get_logger(), "%s", message.c_str());
             return controller_interface::return_type::ERROR;
           }
@@ -3389,24 +3474,25 @@ ControllerManager::check_fallback_controllers_state_pre_activation(
                   std::find(exported_state_itfs.begin(), exported_state_itfs.end(), fb_state_itf) ==
                   exported_state_itfs.end())
                 {
-                  message = "Controller with name '" + controller_it->info.name +
-                            "' cannot be activated, as the state interface : '" + fb_state_itf +
-                            "' required by its fallback controller : '" + fb_ctrl +
-                            "' is not exported by the controller : '" +
-                            following_ctrl_it->info.name + "' in the current fallback list!";
+                  message = fmt::format(
+                    FMT_COMPILE(
+                      "Controller with name '{}' cannot be activated, as the state interface : "
+                      "'{}' required by its fallback controller : '{}' is not exported by the "
+                      "controller : '{}' in the current fallback list!"),
+                    controller_it->info.name, fb_state_itf, fb_ctrl, following_ctrl_it->info.name);
                   RCLCPP_ERROR(get_logger(), "%s", message.c_str());
                   return controller_interface::return_type::ERROR;
                 }
               }
               else
               {
-                message =
-                  "Controller with name '" + controller_it->info.name +
-                  "' cannot be activated, as the state interface : '" + fb_state_itf +
-                  "' required by its fallback controller : '" + fb_ctrl +
-                  "' is not available as the controller is not in active state!. May be "
-                  "consider adding this controller to the fallback list of the controller : '" +
-                  following_ctrl_it->info.name + "' or already have it activated.";
+                message = fmt::format(
+                  FMT_COMPILE(
+                    "Controller with name '{}' cannot be activated, as the state interface : '{}' "
+                    "required by its fallback controller : '{}' is not available as the "
+                    "controller is not in active state!. May be consider adding this controller to "
+                    "the fallback list of the controller : '{}' or already have it activated."),
+                  controller_it->info.name, fb_state_itf, fb_ctrl, following_ctrl_it->info.name);
                 RCLCPP_ERROR(get_logger(), "%s", message.c_str());
                 return controller_interface::return_type::ERROR;
               }
@@ -3414,9 +3500,11 @@ ControllerManager::check_fallback_controllers_state_pre_activation(
           }
           else
           {
-            message = "Controller with name '" + controller_it->info.name +
-                      "' cannot be activated, as not all of its fallback controller's : '" +
-                      fb_ctrl + "' state interfaces are currently available!";
+            message = fmt::format(
+              FMT_COMPILE(
+                "Controller with name '{}' cannot be activated, as not all of its fallback "
+                "controller's : '{}' state interfaces are currently available!"),
+              controller_it->info.name, fb_ctrl);
             RCLCPP_ERROR(get_logger(), "%s", message.c_str());
             return controller_interface::return_type::ERROR;
           }
@@ -3470,8 +3558,9 @@ controller_interface::return_type ControllerManager::check_for_interfaces_availa
       std::bind(controller_name_compare, std::placeholders::_1, controller_name));
     if (controller_it == controllers.end())
     {
-      message =
-        "Unable to find the controller : '" + controller_name + "' within the controller list";
+      message = fmt::format(
+        FMT_COMPILE("Unable to find the controller : '{}' within the controller list"),
+        controller_name);
       RCLCPP_ERROR(get_logger(), "%s", message.c_str());
       return controller_interface::return_type::ERROR;
     }
@@ -3485,8 +3574,11 @@ controller_interface::return_type ControllerManager::check_for_interfaces_availa
     {
       if (!resource_manager_->command_interface_is_available(cmd_itf))
       {
-        message = "Unable to activate controller '" + controller_it->info.name +
-                  "' since the command interface '" + cmd_itf + "' is not available.";
+        message = fmt::format(
+          FMT_COMPILE(
+            "Unable to activate controller '{}' since the "
+            "command interface '{}' is not available."),
+          controller_it->info.name, cmd_itf);
         RCLCPP_WARN(get_logger(), "%s", message.c_str());
         return controller_interface::return_type::ERROR;
       }
@@ -3495,8 +3587,10 @@ controller_interface::return_type ControllerManager::check_for_interfaces_availa
     {
       if (!resource_manager_->state_interface_is_available(state_itf))
       {
-        message = "Unable to activate controller '" + controller_it->info.name +
-                  "' since the state interface '" + state_itf + "' is not available.";
+        message = fmt::format(
+          FMT_COMPILE(
+            "Unable to activate controller '{}' since the state interface '{}' is not available."),
+          controller_it->info.name, state_itf);
         RCLCPP_WARN(get_logger(), "%s", message.c_str());
         return controller_interface::return_type::ERROR;
       }
@@ -3562,7 +3656,9 @@ void ControllerManager::controller_activity_diagnostic_callback(
       const auto exec_time_stats = controllers[i].execution_time_statistics->GetStatistics();
       stat.add(
         controllers[i].info.name + exec_time_suffix, make_stats_string(exec_time_stats, "us"));
-      if (is_async)
+      const bool publish_periodicity_stats =
+        is_async || (controllers[i].c->get_update_rate() != this->get_update_rate());
+      if (publish_periodicity_stats)
       {
         stat.add(
           controllers[i].info.name + periodicity_suffix,
@@ -3577,7 +3673,7 @@ void ControllerManager::controller_activity_diagnostic_callback(
             params_->diagnostics.threshold.controllers.periodicity.standard_deviation.error)
         {
           level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-          add_element_to_list(bad_periodicity_async_controllers, controllers[i].info.name);
+          ros2_control::add_item(bad_periodicity_async_controllers, controllers[i].info.name);
         }
         else if (
           periodicity_error >
@@ -3589,7 +3685,7 @@ void ControllerManager::controller_activity_diagnostic_callback(
           {
             level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
           }
-          add_element_to_list(bad_periodicity_async_controllers, controllers[i].info.name);
+          ros2_control::add_item(bad_periodicity_async_controllers, controllers[i].info.name);
         }
       }
       const double max_exp_exec_time = is_async ? 1.e6 / controllers[i].c->get_update_rate() : 0.0;
@@ -3662,12 +3758,21 @@ void ControllerManager::controller_activity_diagnostic_callback(
 void ControllerManager::hardware_components_diagnostic_callback(
   diagnostic_updater::DiagnosticStatusWrapper & stat)
 {
+  if (!is_resource_manager_initialized())
+  {
+    stat.summary(
+      diagnostic_msgs::msg::DiagnosticStatus::ERROR, "Resource manager is not yet initialized!");
+    return;
+  }
+
   bool all_active = true;
   bool atleast_one_hw_active = false;
+  const std::string read_cycle_suffix = ".read_cycle";
+  const std::string write_cycle_suffix = ".write_cycle";
+  const std::string state_suffix = ".state";
   const auto & hw_components_info = resource_manager_->get_components_status();
   for (const auto & [component_name, component_info] : hw_components_info)
   {
-    stat.add(component_name, component_info.state.label());
     if (component_info.state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
     {
       all_active = false;
@@ -3677,31 +3782,166 @@ void ControllerManager::hardware_components_diagnostic_callback(
       atleast_one_hw_active = true;
     }
   }
-  if (!is_resource_manager_initialized())
-  {
-    stat.summary(
-      diagnostic_msgs::msg::DiagnosticStatus::ERROR, "Resource manager is not yet initialized!");
-  }
-  else if (hw_components_info.empty())
+  if (hw_components_info.empty())
   {
     stat.summary(
       diagnostic_msgs::msg::DiagnosticStatus::ERROR, "No hardware components are loaded!");
+    return;
   }
-  else
+  else if (!atleast_one_hw_active)
   {
-    if (!atleast_one_hw_active)
+    stat.summary(
+      diagnostic_msgs::msg::DiagnosticStatus::WARN, "No hardware components are currently active");
+    return;
+  }
+
+  stat.summary(
+    diagnostic_msgs::msg::DiagnosticStatus::OK,
+    all_active ? "All hardware components are active" : "Not all hardware components are active");
+
+  if (cm_param_listener_->is_old(*params_))
+  {
+    *params_ = cm_param_listener_->get_params();
+  }
+
+  auto make_stats_string =
+    [](const auto & statistics_data, const std::string & measurement_unit) -> std::string
+  {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2);
+    oss << "Avg: " << statistics_data.average << " [" << statistics_data.min << " - "
+        << statistics_data.max << "] " << measurement_unit
+        << ", StdDev: " << statistics_data.standard_deviation;
+    return oss.str();
+  };
+
+  // Variable to define the overall status of the controller diagnostics
+  auto level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+
+  std::vector<std::string> high_exec_time_hw;
+  std::vector<std::string> bad_periodicity_async_hw;
+
+  for (const auto & [component_name, component_info] : hw_components_info)
+  {
+    stat.add(component_name + state_suffix, component_info.state.label());
+    if (component_info.state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
     {
-      stat.summary(
-        diagnostic_msgs::msg::DiagnosticStatus::WARN,
-        "No hardware components are currently active");
+      all_active = false;
     }
     else
     {
-      stat.summary(
-        diagnostic_msgs::msg::DiagnosticStatus::OK, all_active
-                                                      ? "All hardware components are active"
-                                                      : "Not all hardware components are active");
+      atleast_one_hw_active = true;
     }
+    if (component_info.state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+    {
+      auto update_stats =
+        [&bad_periodicity_async_hw, &high_exec_time_hw, &stat, &make_stats_string, this](
+          const std::string & comp_name, const auto & statistics,
+          const std::string & statistics_type_suffix, auto & diag_level, const auto & comp_info,
+          const auto & params)
+      {
+        if (!statistics)
+        {
+          return;
+        }
+        const bool is_async = comp_info.is_async;
+        const std::string periodicity_suffix = ".periodicity";
+        const std::string exec_time_suffix = ".execution_time";
+        const auto periodicity_stats = statistics->periodicity.get_statistics();
+        const auto exec_time_stats = statistics->execution_time.get_statistics();
+        stat.add(
+          comp_name + statistics_type_suffix + exec_time_suffix,
+          make_stats_string(exec_time_stats, "us"));
+        const bool publish_periodicity_stats =
+          is_async || (comp_info.rw_rate != this->get_update_rate());
+        if (publish_periodicity_stats)
+        {
+          stat.add(
+            comp_name + statistics_type_suffix + periodicity_suffix,
+            make_stats_string(periodicity_stats, "Hz") +
+              " -> Desired : " + std::to_string(comp_info.rw_rate) + " Hz");
+          const double periodicity_error =
+            std::abs(periodicity_stats.average - static_cast<double>(comp_info.rw_rate));
+          if (
+            periodicity_error >
+              params->diagnostics.threshold.hardware_components.periodicity.mean_error.error ||
+            periodicity_stats.standard_deviation > params->diagnostics.threshold.hardware_components
+                                                     .periodicity.standard_deviation.error)
+          {
+            diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+            ros2_control::add_item(bad_periodicity_async_hw, comp_name);
+          }
+          else if (
+            periodicity_error >
+              params->diagnostics.threshold.hardware_components.periodicity.mean_error.warn ||
+            periodicity_stats.standard_deviation >
+              params->diagnostics.threshold.hardware_components.periodicity.standard_deviation.warn)
+          {
+            if (diag_level != diagnostic_msgs::msg::DiagnosticStatus::ERROR)
+            {
+              diag_level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+            }
+            ros2_control::add_item(bad_periodicity_async_hw, comp_name);
+          }
+        }
+        const double max_exp_exec_time =
+          is_async ? 1.e6 / static_cast<double>(comp_info.rw_rate) : 0.0;
+        if (
+          (exec_time_stats.average - max_exp_exec_time) >
+            params->diagnostics.threshold.hardware_components.execution_time.mean_error.error ||
+          exec_time_stats.standard_deviation > params->diagnostics.threshold.hardware_components
+                                                 .execution_time.standard_deviation.error)
+        {
+          diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+          high_exec_time_hw.push_back(comp_name);
+        }
+        else if (
+          (exec_time_stats.average - max_exp_exec_time) >
+            params->diagnostics.threshold.hardware_components.execution_time.mean_error.warn ||
+          exec_time_stats.standard_deviation > params->diagnostics.threshold.hardware_components
+                                                 .execution_time.standard_deviation.warn)
+        {
+          if (diag_level != diagnostic_msgs::msg::DiagnosticStatus::ERROR)
+          {
+            diag_level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+          }
+          high_exec_time_hw.push_back(comp_name);
+        }
+      };
+
+      // For components : {actuator, sensor and system}
+      update_stats(
+        component_name, component_info.read_statistics, read_cycle_suffix, level, component_info,
+        params_);
+      // For components : {actuator and system}
+      update_stats(
+        component_name, component_info.write_statistics, write_cycle_suffix, level, component_info,
+        params_);
+    }
+  }
+
+  if (!high_exec_time_hw.empty())
+  {
+    std::string high_exec_time_hw_string;
+    for (const auto & hw_comp : high_exec_time_hw)
+    {
+      high_exec_time_hw_string.append(hw_comp);
+      high_exec_time_hw_string.append(" ");
+    }
+    stat.mergeSummary(
+      level, "\nHigh execution jitter or mean error : [ " + high_exec_time_hw_string + "]");
+  }
+  if (!bad_periodicity_async_hw.empty())
+  {
+    std::string bad_periodicity_async_hw_string;
+    for (const auto & hw_comp : bad_periodicity_async_hw)
+    {
+      bad_periodicity_async_hw_string.append(hw_comp);
+      bad_periodicity_async_hw_string.append(" ");
+    }
+    stat.mergeSummary(
+      level,
+      "\nHigh periodicity jitter or mean error : [ " + bad_periodicity_async_hw_string + "]");
   }
 }
 
@@ -3736,9 +3976,9 @@ void ControllerManager::controller_manager_diagnostic_callback(
   }
 
   const double periodicity_error = std::abs(cm_stats.average - get_update_rate());
-  const std::string diag_summary =
-    "Controller Manager has bad periodicity : " + std::to_string(cm_stats.average) +
-    " Hz. Expected consistent " + std::to_string(get_update_rate()) + " Hz";
+  const std::string diag_summary = fmt::format(
+    FMT_COMPILE("Controller Manager has bad periodicity : {} Hz. Expected consistent {} Hz"),
+    cm_stats.average, get_update_rate());
   if (
     periodicity_error >
       params_->diagnostics.threshold.controller_manager.periodicity.mean_error.error ||
