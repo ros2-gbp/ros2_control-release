@@ -153,6 +153,8 @@ const rclcpp_lifecycle::State & System::activate()
   std::unique_lock<std::recursive_mutex> lock(system_mutex_);
   last_read_cycle_time_ = rclcpp::Time(0, 0, RCL_CLOCK_UNINITIALIZED);
   last_write_cycle_time_ = rclcpp::Time(0, 0, RCL_CLOCK_UNINITIALIZED);
+  read_statistics_.reset_statistics();
+  write_statistics_.reset_statistics();
   if (impl_->get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
   {
     impl_->prepare_for_activation();
@@ -232,9 +234,12 @@ const rclcpp_lifecycle::State & System::error()
 
 std::vector<StateInterface::ConstSharedPtr> System::export_state_interfaces()
 {
-  // BEGIN (Handle export change): for backward compatibility, can be removed if
-  // export_command_interfaces() method is removed
+// BEGIN (Handle export change): for backward compatibility, can be removed if
+// export_command_interfaces() method is removed
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   std::vector<StateInterface> interfaces = impl_->export_state_interfaces();
+#pragma GCC diagnostic pop
   // END: for backward compatibility
 
   // If no StateInterfaces has been exported, this could mean:
@@ -260,9 +265,12 @@ std::vector<StateInterface::ConstSharedPtr> System::export_state_interfaces()
 
 std::vector<CommandInterface::SharedPtr> System::export_command_interfaces()
 {
-  // BEGIN (Handle export change): for backward compatibility, can be removed if
-  // export_command_interfaces() method is removed
+// BEGIN (Handle export change): for backward compatibility, can be removed if
+// export_command_interfaces() method is removed
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   std::vector<CommandInterface> interfaces = impl_->export_command_interfaces();
+#pragma GCC diagnostic pop
   // END: for backward compatibility
 
   // If no CommandInterface has been exported, this could mean:
@@ -312,6 +320,16 @@ const rclcpp::Time & System::get_last_read_time() const { return last_read_cycle
 
 const rclcpp::Time & System::get_last_write_time() const { return last_write_cycle_time_; }
 
+const HardwareComponentStatisticsCollector & System::get_read_statistics() const
+{
+  return read_statistics_;
+}
+
+const HardwareComponentStatisticsCollector & System::get_write_statistics() const
+{
+  return write_statistics_;
+}
+
 return_type System::read(const rclcpp::Time & time, const rclcpp::Duration & period)
 {
   if (lifecycleStateThatRequiresNoAction(impl_->get_lifecycle_state().id()))
@@ -328,7 +346,20 @@ return_type System::read(const rclcpp::Time & time, const rclcpp::Duration & per
     {
       error();
     }
-    last_read_cycle_time_ = time;
+    if (trigger_result.successful)
+    {
+      if (trigger_result.execution_time.has_value())
+      {
+        read_statistics_.execution_time->AddMeasurement(
+          static_cast<double>(trigger_result.execution_time.value().count()) / 1.e3);
+      }
+      if (last_read_cycle_time_.get_clock_type() != RCL_CLOCK_UNINITIALIZED)
+      {
+        read_statistics_.periodicity->AddMeasurement(
+          1.0 / (time - last_read_cycle_time_).seconds());
+      }
+      last_read_cycle_time_ = time;
+    }
     return trigger_result.result;
   }
   return return_type::OK;
@@ -350,7 +381,20 @@ return_type System::write(const rclcpp::Time & time, const rclcpp::Duration & pe
     {
       error();
     }
-    last_write_cycle_time_ = time;
+    if (trigger_result.successful)
+    {
+      if (trigger_result.execution_time.has_value())
+      {
+        write_statistics_.execution_time->AddMeasurement(
+          static_cast<double>(trigger_result.execution_time.value().count()) / 1.e3);
+      }
+      if (last_write_cycle_time_.get_clock_type() != RCL_CLOCK_UNINITIALIZED)
+      {
+        write_statistics_.periodicity->AddMeasurement(
+          1.0 / (time - last_write_cycle_time_).seconds());
+      }
+      last_write_cycle_time_ = time;
+    }
     return trigger_result.result;
   }
   return return_type::OK;
