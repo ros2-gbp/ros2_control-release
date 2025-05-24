@@ -30,8 +30,10 @@ from controller_manager import (
     set_controller_parameters_from_param_files,
     bcolors,
 )
+from controller_manager_msgs.srv import SwitchController
 from controller_manager.controller_manager_services import ServiceNotFoundError
 
+from filelock import Timeout, FileLock
 import rclpy
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
@@ -89,13 +91,6 @@ def main(args=None):
         "override the parameters of the same controller.",
         default=None,
         action="append",
-        required=False,
-    )
-    parser.add_argument(
-        "-n",
-        "--namespace",
-        help="DEPRECATED Namespace for the controller_manager and the controller(s)",
-        default=None,
         required=False,
     )
     parser.add_argument(
@@ -163,40 +158,54 @@ def main(args=None):
     controller_manager_timeout = args.controller_manager_timeout
     service_call_timeout = args.service_call_timeout
     switch_timeout = args.switch_timeout
+    strictness = SwitchController.Request.STRICT
 
     if param_files:
         for param_file in param_files:
             if not os.path.isfile(param_file):
                 raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
 
-    node = Node("spawner_" + controller_names[0])
-
-    if node.get_namespace() != "/" and args.namespace:
-        raise RuntimeError(
-            f"Setting namespace through both '--namespace {args.namespace}' arg and the ROS 2 standard way "
-            f"'--ros-args -r __ns:={node.get_namespace()}' is not allowed!"
-        )
-
-    if args.namespace:
-        warnings.filterwarnings("always")
-        warnings.warn(
-            "The '--namespace' argument is deprecated and will be removed in future releases."
-            " Use the ROS 2 standard way of setting the node namespacing using --ros-args -r __ns:=<namespace>",
-            DeprecationWarning,
-        )
-
-    spawner_namespace = args.namespace if args.namespace else node.get_namespace()
-
-    if not spawner_namespace.startswith("/"):
-        spawner_namespace = f"/{spawner_namespace}"
-
-    if not controller_manager_name.startswith("/"):
-        if spawner_namespace and spawner_namespace != "/":
-            controller_manager_name = f"{spawner_namespace}/{controller_manager_name}"
-        else:
-            controller_manager_name = f"/{controller_manager_name}"
-
     try:
+        spawner_node_name = "spawner_" + controller_names[0]
+        lock = FileLock("/tmp/ros2-control-controller-spawner.lock")
+        max_retries = 5
+        retry_delay = 3  # seconds
+        for attempt in range(max_retries):
+            tmp_logger = rclpy.logging.get_logger(spawner_node_name)
+            try:
+                tmp_logger.debug(
+                    bcolors.OKGREEN + "Waiting for the spawner lock to be acquired!" + bcolors.ENDC
+                )
+                # timeout after 20 seconds and try again
+                lock.acquire(timeout=20)
+                tmp_logger.debug(bcolors.OKGREEN + "Spawner lock acquired!" + bcolors.ENDC)
+                break
+            except Timeout:
+                tmp_logger.warning(
+                    bcolors.WARNING
+                    + f"Attempt {attempt+1} failed. Retrying in {retry_delay} seconds..."
+                    + bcolors.ENDC
+                )
+                time.sleep(retry_delay)
+        else:
+            tmp_logger.error(
+                bcolors.ERROR + "Failed to acquire lock after multiple attempts." + bcolors.ENDC
+            )
+            return 1
+
+        node = Node(spawner_node_name)
+
+        spawner_namespace = node.get_namespace()
+
+        if not spawner_namespace.startswith("/"):
+            spawner_namespace = f"/{spawner_namespace}"
+
+        if not controller_manager_name.startswith("/"):
+            if spawner_namespace and spawner_namespace != "/":
+                controller_manager_name = f"{spawner_namespace}/{controller_manager_name}"
+            else:
+                controller_manager_name = f"/{controller_manager_name}"
+
         for controller_name in controller_names:
 
             if is_controller_loaded(
@@ -206,7 +215,7 @@ def main(args=None):
                 controller_manager_timeout,
                 service_call_timeout,
             ):
-                node.get_logger().warn(
+                node.get_logger().warning(
                     bcolors.WARNING
                     + "Controller already loaded, skipping load_controller"
                     + bcolors.ENDC
@@ -271,7 +280,7 @@ def main(args=None):
                         controller_manager_name,
                         [],
                         [controller_name],
-                        True,
+                        strictness,
                         True,
                         switch_timeout,
                         service_call_timeout,
@@ -296,7 +305,7 @@ def main(args=None):
                 controller_manager_name,
                 [],
                 controller_names,
-                True,
+                strictness,
                 True,
                 switch_timeout,
                 service_call_timeout,
@@ -330,7 +339,7 @@ def main(args=None):
                     controller_manager_name,
                     controller_names,
                     [],
-                    True,
+                    strictness,
                     True,
                     switch_timeout,
                     service_call_timeout,
@@ -375,6 +384,7 @@ def main(args=None):
         return 1
     finally:
         node.destroy_node()
+        lock.release()
         rclpy.shutdown()
 
 
