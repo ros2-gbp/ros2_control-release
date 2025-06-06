@@ -15,9 +15,8 @@
 #ifndef TRANSMISSION_INTERFACE__DIFFERENTIAL_TRANSMISSION_HPP_
 #define TRANSMISSION_INTERFACE__DIFFERENTIAL_TRANSMISSION_HPP_
 
-#include <fmt/compile.h>
-
 #include <cassert>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -210,17 +209,14 @@ void DifferentialTransmission::configure(
   if (joint_names.size() != 2)
   {
     throw Exception(
-      fmt::format(
-        FMT_COMPILE("There should be exactly two unique joint names but was given '{}'."),
-        to_string(joint_names)));
+      "There should be exactly two unique joint names but was given " + to_string(joint_names));
   }
   const auto actuator_names = get_names(actuator_handles);
   if (actuator_names.size() != 2)
   {
     throw Exception(
-      fmt::format(
-        FMT_COMPILE("There should be exactly two unique actuator names but was given '{}'."),
-        to_string(actuator_names)));
+      "There should be exactly two unique actuator names but was given " +
+      to_string(actuator_names));
   }
 
   joint_position_ =
@@ -246,9 +242,7 @@ void DifferentialTransmission::configure(
     actuator_effort_.size() != 2)
   {
     throw Exception(
-      fmt::format(
-        FMT_COMPILE("Not enough valid or required actuator handles were presented. \n{}"),
-        get_handles_info()));
+      "Not enough valid or required actuator handles were presented. \n" + get_handles_info());
   }
 
   if (
@@ -256,8 +250,7 @@ void DifferentialTransmission::configure(
     joint_velocity_.size() != actuator_velocity_.size() &&
     joint_effort_.size() != actuator_effort_.size())
   {
-    throw Exception(
-      fmt::format(FMT_COMPILE("Pair-wise mismatch on interfaces. \n{}"), get_handles_info()));
+    throw Exception("Pair-wise mismatch on interfaces. \n" + get_handles_info());
   }
 }
 
@@ -351,15 +344,13 @@ inline void DifferentialTransmission::joint_to_actuator()
 
 std::string DifferentialTransmission::get_handles_info() const
 {
-  return fmt::format(
-    FMT_COMPILE(
-      "Got the following handles:\n"
-      "Joint position: {}, Actuator position: {}\n"
-      "Joint velocity: {}, Actuator velocity: {}\n"
-      "Joint effort: {}, Actuator effort: {}"),
-    to_string(get_names(joint_position_)), to_string(get_names(actuator_position_)),
-    to_string(get_names(joint_velocity_)), to_string(get_names(actuator_velocity_)),
-    to_string(get_names(joint_effort_)), to_string(get_names(actuator_effort_)));
+  return std::string("Got the following handles:\n") +
+         "Joint position: " + to_string(get_names(joint_position_)) +
+         ", Actuator position: " + to_string(get_names(actuator_position_)) + "\n" +
+         "Joint velocity: " + to_string(get_names(joint_velocity_)) +
+         ", Actuator velocity: " + to_string(get_names(actuator_velocity_)) + "\n" +
+         "Joint effort: " + to_string(get_names(joint_effort_)) +
+         ", Actuator effort: " + to_string(get_names(actuator_effort_));
 }
 
 }  // namespace transmission_interface

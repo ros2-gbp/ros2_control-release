@@ -11,16 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <gmock/gmock.h>
 #include <string>
 #include <vector>
 
-#include "gmock/gmock.h"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "transmission_interface/simple_transmission.hpp"
 
 using hardware_interface::HW_IF_EFFORT;
 using hardware_interface::HW_IF_POSITION;
 using hardware_interface::HW_IF_VELOCITY;
+using std::vector;
 using transmission_interface::ActuatorHandle;
 using transmission_interface::Exception;
 using transmission_interface::JointHandle;
