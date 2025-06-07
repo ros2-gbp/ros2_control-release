@@ -1,0 +1,12 @@
+Source: ros-kilted-controller-manager
+Section: misc
+Priority: optional
+Maintainer: Bence Magyar <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libfmt-dev, python3-coverage <!nocheck>, ros-kilted-ament-cmake, ros-kilted-ament-cmake-gen-version-h, ros-kilted-ament-cmake-gmock <!nocheck>, ros-kilted-ament-cmake-pytest <!nocheck>, ros-kilted-ament-cmake-python, ros-kilted-backward-ros, ros-kilted-controller-interface, ros-kilted-controller-manager-msgs, ros-kilted-diagnostic-updater, ros-kilted-example-interfaces <!nocheck>, ros-kilted-generate-parameter-library, ros-kilted-hardware-interface, ros-kilted-hardware-interface-testing <!nocheck>, ros-kilted-launch, ros-kilted-launch <!nocheck>, ros-kilted-launch-ros, ros-kilted-launch-testing <!nocheck>, ros-kilted-launch-testing-ros <!nocheck>, ros-kilted-libstatistics-collector, ros-kilted-pluginlib, ros-kilted-rclcpp, ros-kilted-rclpy <!nocheck>, ros-kilted-rcpputils, ros-kilted-realtime-tools, ros-kilted-robot-state-publisher <!nocheck>, ros-kilted-ros2-control-cmake, ros-kilted-ros2-control-test-assets, ros-kilted-ros2-control-test-assets <!nocheck>, ros-kilted-ros2param, ros-kilted-ros2run, ros-kilted-sensor-msgs <!nocheck>, ros-kilted-std-msgs, ros-kilted-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-kilted-controller-manager
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libfmt-dev, python3-filelock, ros-kilted-backward-ros, ros-kilted-controller-interface, ros-kilted-controller-manager-msgs, ros-kilted-diagnostic-updater, ros-kilted-generate-parameter-library, ros-kilted-hardware-interface, ros-kilted-launch, ros-kilted-launch-ros, ros-kilted-libstatistics-collector, ros-kilted-pluginlib, ros-kilted-rclcpp, ros-kilted-rcpputils, ros-kilted-realtime-tools, ros-kilted-ros2-control-test-assets, ros-kilted-ros2param, ros-kilted-ros2run, ros-kilted-std-msgs, ros-kilted-ros-workspace
+Description: The main runnable entrypoint of ros2_control and home of controller management and resource management.
