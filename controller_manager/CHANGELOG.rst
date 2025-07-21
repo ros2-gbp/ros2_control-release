@@ -2,48 +2,47 @@
 Changelog for package controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.4.0 (2025-07-21)
-------------------
-* Increase controller period tolerance further (`#2405 <https://github.com/ros-controls/ros2_control/issues/2405>`_)
-* Fix controller activation crash on macOS (Fixes `#604 <https://github.com/ros-controls/ros2_control/issues/604>`_) (`#2391 <https://github.com/ros-controls/ros2_control/issues/2391>`_)
-* Increase controller period tolerance in tests (`#2388 <https://github.com/ros-controls/ros2_control/issues/2388>`_)
-* [spawner] Fix Lock timeout error crashes (`#2386 <https://github.com/ros-controls/ros2_control/issues/2386>`_)
-* [Spawner] Fix the scope issue of the logger (`#2382 <https://github.com/ros-controls/ros2_control/issues/2382>`_)
-* Increase tolerance to improve the success rate of the tests (`#2373 <https://github.com/ros-controls/ros2_control/issues/2373>`_)
-* [Spawner] Change strategy for `--unload-on-kill` option (`#2372 <https://github.com/ros-controls/ros2_control/issues/2372>`_)
-* Contributors: Dhruv Patel, Jasper van Brakel, Sai Kishor Kothakota
+4.34.0 (2025-07-21)
+-------------------
+* Further Struct based Method changes to support propagation in `gz_ros2_control` (backport `#2340 <https://github.com/ros-controls/ros2_control/issues/2340>`_) (`#2407 <https://github.com/ros-controls/ros2_control/issues/2407>`_)
+* Shift to Struct based Method and Constructors, with Executor passed from CM to `on_init()` (`#2323 <https://github.com/ros-controls/ros2_control/issues/2323>`_) (`#2339 <https://github.com/ros-controls/ros2_control/issues/2339>`_)
+* Increase controller period tolerance further (`#2405 <https://github.com/ros-controls/ros2_control/issues/2405>`_) (`#2406 <https://github.com/ros-controls/ros2_control/issues/2406>`_)
+* Fix controller activation crash on macOS (Fixes `#604 <https://github.com/ros-controls/ros2_control/issues/604>`_) (`#2391 <https://github.com/ros-controls/ros2_control/issues/2391>`_) (`#2396 <https://github.com/ros-controls/ros2_control/issues/2396>`_)
+* Increase controller period tolerance in tests (`#2388 <https://github.com/ros-controls/ros2_control/issues/2388>`_) (`#2389 <https://github.com/ros-controls/ros2_control/issues/2389>`_)
+* [spawner] Fix Lock timeout error crashes (`#2386 <https://github.com/ros-controls/ros2_control/issues/2386>`_) (`#2387 <https://github.com/ros-controls/ros2_control/issues/2387>`_)
+* [Spawner] Fix the scope issue of the logger (`#2382 <https://github.com/ros-controls/ros2_control/issues/2382>`_) (`#2383 <https://github.com/ros-controls/ros2_control/issues/2383>`_)
+* Increase tolerance to improve the success rate of the tests (`#2373 <https://github.com/ros-controls/ros2_control/issues/2373>`_) (`#2377 <https://github.com/ros-controls/ros2_control/issues/2377>`_)
+* [Spawner] Change strategy for `--unload-on-kill` option (`#2372 <https://github.com/ros-controls/ros2_control/issues/2372>`_) (`#2376 <https://github.com/ros-controls/ros2_control/issues/2376>`_)
+* Contributors: mergify[bot]
 
-5.3.0 (2025-07-02)
-------------------
-* Cleanup old internal API (`#2346 <https://github.com/ros-controls/ros2_control/issues/2346>`_)
-* added params approach to allow propagation in gz_ros2_control (`#2340 <https://github.com/ros-controls/ros2_control/issues/2340>`_)
-* Deactivate controllers with command interfaces to hardware on DEACTIVATE (`#2334 <https://github.com/ros-controls/ros2_control/issues/2334>`_)
-* Shift to Struct based Method and Constructors, with Executor passed from CM to `on_init()` (`#2323 <https://github.com/ros-controls/ros2_control/issues/2323>`_)
-* Contributors: Marq Rasmussen, Sai Kishor Kothakota, Soham Patil
+4.33.0 (2025-07-02)
+-------------------
+* Deactivate controllers with command interfaces to hardware on DEACTIVATE (`#2334 <https://github.com/ros-controls/ros2_control/issues/2334>`_) (`#2341 <https://github.com/ros-controls/ros2_control/issues/2341>`_)
+* Contributors: mergify[bot]
 
-5.2.0 (2025-06-07)
-------------------
-* Move `enforce_command_limits` parameter to GPL parameters (`#2305 <https://github.com/ros-controls/ros2_control/issues/2305>`_)
-* Cleanup test name (`#2295 <https://github.com/ros-controls/ros2_control/issues/2295>`_)
-* check_controllers_running: Make timeout a parameter  (`#2278 <https://github.com/ros-controls/ros2_control/issues/2278>`_)
-* Contributors: Christoph Fröhlich, Sai Kishor Kothakota
+4.32.0 (2025-06-06)
+-------------------
+* Move `enforce_command_limits` parameter to GPL parameters (backport `#2305 <https://github.com/ros-controls/ros2_control/issues/2305>`_) (`#2316 <https://github.com/ros-controls/ros2_control/issues/2316>`_)
+* Cleanup test name (`#2295 <https://github.com/ros-controls/ros2_control/issues/2295>`_) (`#2298 <https://github.com/ros-controls/ros2_control/issues/2298>`_)
+* check_controllers_running: Make timeout a parameter  (`#2278 <https://github.com/ros-controls/ros2_control/issues/2278>`_) (`#2281 <https://github.com/ros-controls/ros2_control/issues/2281>`_)
+* Contributors: mergify[bot]
 
-5.1.0 (2025-05-24)
-------------------
-* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_)
-* Cleanup deprecations in `ros_control`  (`#2258 <https://github.com/ros-controls/ros2_control/issues/2258>`_)
-* Contributors: Sai Kishor Kothakota
+4.31.0 (2025-05-24)
+-------------------
+* Add `data_type` field to the HardwareInterfaces message (backport `#2204 <https://github.com/ros-controls/ros2_control/issues/2204>`_) (`#2232 <https://github.com/ros-controls/ros2_control/issues/2232>`_)
+* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_) (`#2271 <https://github.com/ros-controls/ros2_control/issues/2271>`_)
+* Add new strictness modes to SwitchController service (`#2224 <https://github.com/ros-controls/ros2_control/issues/2224>`_) (`#2231 <https://github.com/ros-controls/ros2_control/issues/2231>`_)
+* Contributors: mergify[bot]
 
-5.0.0 (2025-05-21)
-------------------
-* [CM] Add option to avoid shutting down on hardware initial state failure (`#2230 <https://github.com/ros-controls/ros2_control/issues/2230>`_)
-* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_)
-* Suppress the deprecation warnings of the hardware_interface API (`#2223 <https://github.com/ros-controls/ros2_control/issues/2223>`_)
-* Use `warning` attribute of RcutilsLogger (`#2244 <https://github.com/ros-controls/ros2_control/issues/2244>`_)
-* [CM] Set default strictness of switch_controllers using parameters (`#2168 <https://github.com/ros-controls/ros2_control/issues/2168>`_)
-* Add `data_type` field to the HardwareInterfaces message (`#2204 <https://github.com/ros-controls/ros2_control/issues/2204>`_)
-* Add new strictness modes to SwitchController service (`#2224 <https://github.com/ros-controls/ros2_control/issues/2224>`_)
-* Contributors: Marq Rasmussen, Sai Kishor Kothakota, mini-1235
+4.30.0 (2025-05-21)
+-------------------
+* Keep current shutdown behaviour in Jazzy (`#2254 <https://github.com/ros-controls/ros2_control/issues/2254>`_)
+* [CM] Add option to avoid shutting down on hardware initial state failure (`#2230 <https://github.com/ros-controls/ros2_control/issues/2230>`_) (`#2251 <https://github.com/ros-controls/ros2_control/issues/2251>`_)
+* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_) (`#2249 <https://github.com/ros-controls/ros2_control/issues/2249>`_)
+* Suppress the deprecation warnings of the hardware_interface API (`#2223 <https://github.com/ros-controls/ros2_control/issues/2223>`_) (`#2247 <https://github.com/ros-controls/ros2_control/issues/2247>`_)
+* Use `warning` attribute of RcutilsLogger (`#2244 <https://github.com/ros-controls/ros2_control/issues/2244>`_) (`#2245 <https://github.com/ros-controls/ros2_control/issues/2245>`_)
+* [CM] Set default strictness of switch_controllers using parameters (`#2168 <https://github.com/ros-controls/ros2_control/issues/2168>`_) (`#2233 <https://github.com/ros-controls/ros2_control/issues/2233>`_)
+* Contributors: Bence Magyar, mergify[bot]
 
 4.29.0 (2025-05-04)
 -------------------

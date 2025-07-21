@@ -122,6 +122,23 @@ public:
   /// clock and logger interfaces.
   /**
    * \param[in] hardware_info structure with data from URDF.
+   * \param[in] logger Logger for the hardware component.
+   * \param[in] clock_interface pointer to the clock interface.
+   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
+   * \returns CallbackReturn::ERROR if any error happens or data are missing.
+   */
+  [[deprecated("Use init(HardwareInfo, rclcpp::Logger, rclcpp::Clock::SharedPtr) instead.")]]
+  CallbackReturn init(
+    const HardwareInfo & hardware_info, rclcpp::Logger logger,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+  {
+    return this->init(hardware_info, logger, clock_interface->get_clock());
+  }
+
+  /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
+  /// clock and logger interfaces.
+  /**
+   * \param[in] hardware_info structure with data from URDF.
    * \param[in] clock pointer to the resource manager clock.
    * \param[in] logger Logger for the hardware component.
    * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
@@ -190,26 +207,6 @@ public:
         info_.thread_priority);
       async_handler_->start_thread();
     }
-
-    if (auto locked_executor = params.executor.lock())
-    {
-      std::string node_name = params.hardware_info.name;
-      std::transform(
-        node_name.begin(), node_name.end(), node_name.begin(),
-        [](unsigned char c) { return std::tolower(c); });
-      std::replace(node_name.begin(), node_name.end(), '/', '_');
-      hardware_component_node_ = std::make_shared<rclcpp::Node>(node_name);
-      locked_executor->add_node(hardware_component_node_->get_node_base_interface());
-    }
-    else
-    {
-      RCLCPP_WARN(
-        params.logger,
-        "Executor is not available during hardware component initialization for '%s'. Skipping "
-        "node creation!",
-        params.hardware_info.name.c_str());
-    }
-
     hardware_interface::HardwareComponentInterfaceParams interface_params;
     interface_params.hardware_info = info_;
     interface_params.executor = params.executor;
@@ -697,12 +694,6 @@ public:
    */
   rclcpp::Clock::SharedPtr get_clock() const { return system_clock_; }
 
-  /// Get the default node of the ActuatorInterface.
-  /**
-   * \return node of the ActuatorInterface.
-   */
-  rclcpp::Node::SharedPtr get_node() const { return hardware_component_node_; }
-
   /// Get the hardware info of the SystemInterface.
   /**
    * \return hardware info of the SystemInterface.
@@ -769,7 +760,6 @@ protected:
 private:
   rclcpp::Clock::SharedPtr system_clock_;
   rclcpp::Logger system_logger_;
-  rclcpp::Node::SharedPtr hardware_component_node_ = nullptr;
   // interface names to Handle accessed through getters/setters
   std::unordered_map<std::string, StateInterface::SharedPtr> system_states_;
   std::unordered_map<std::string, CommandInterface::SharedPtr> system_commands_;
