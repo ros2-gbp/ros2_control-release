@@ -2,24 +2,31 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.34.0 (2025-07-21)
--------------------
+5.5.0 (2025-07-31)
+------------------
+* Fix missing include for std::find (`#2425 <https://github.com/ros-controls/ros2_control/issues/2425>`_)
+* Document order of interfaces (`#2394 <https://github.com/ros-controls/ros2_control/issues/2394>`_)
+* Contributors: Christoph Fröhlich, Guilhem Saurel
 
-4.33.0 (2025-07-02)
--------------------
+5.4.0 (2025-07-21)
+------------------
 
-4.32.0 (2025-06-06)
--------------------
+5.3.0 (2025-07-02)
+------------------
 
-4.31.0 (2025-05-24)
--------------------
-* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_) (`#2271 <https://github.com/ros-controls/ros2_control/issues/2271>`_)
-* Contributors: mergify[bot]
+5.2.0 (2025-06-07)
+------------------
 
-4.30.0 (2025-05-21)
--------------------
-* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_) (`#2249 <https://github.com/ros-controls/ros2_control/issues/2249>`_)
-* Contributors: mergify[bot]
+5.1.0 (2025-05-24)
+------------------
+* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_)
+* Cleanup deprecations in `ros_control`  (`#2258 <https://github.com/ros-controls/ros2_control/issues/2258>`_)
+* Contributors: Sai Kishor Kothakota
+
+5.0.0 (2025-05-21)
+------------------
+* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_)
+* Contributors: mini-1235
 
 4.29.0 (2025-05-04)
 -------------------
