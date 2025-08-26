@@ -83,6 +83,23 @@ public:
   /// clock and logger interfaces.
   /**
    * \param[in] hardware_info structure with data from URDF.
+   * \param[in] logger Logger for the hardware component.
+   * \param[in] clock_interface pointer to the clock interface.
+   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
+   * \returns CallbackReturn::ERROR if any error happens or data are missing.
+   */
+  [[deprecated("Use init(HardwareInfo, rclcpp::Logger, rclcpp::Clock::SharedPtr) instead.")]]
+  CallbackReturn init(
+    const HardwareInfo & hardware_info, rclcpp::Logger logger,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+  {
+    return this->init(hardware_info, logger, clock_interface->get_clock());
+  }
+
+  /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
+  /// clock and logger interfaces.
+  /**
+   * \param[in] hardware_info structure with data from URDF.
    * \param[in] clock pointer to the resource manager clock.
    * \param[in] logger Logger for the hardware component.
    * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
@@ -670,27 +687,27 @@ public:
     return opt_value.value();
   }
 
-  /// Get the logger of the HardwareComponentInterface.
+  /// Get the logger of the Interface.
   /**
-   * \return logger of the HardwareComponentInterface.
+   * \return logger of the Interface.
    */
   rclcpp::Logger get_logger() const { return logger_; }
 
-  /// Get the clock
+  /// Get the clock of the Interface.
   /**
-   * \return clock that is shared with the controller manager
+   * \return clock of the Interface.
    */
   rclcpp::Clock::SharedPtr get_clock() const { return clock_; }
 
-  /// Get the default node of the HardwareComponentInterface.
+  /// Get the default node of the Interface.
   /**
-   * \return node of the HardwareComponentInterface.
+   * \return node of the Interface.
    */
   rclcpp::Node::SharedPtr get_node() const { return hardware_component_node_; }
 
-  /// Get the hardware info of the HardwareComponentInterface.
+  /// Get the hardware info of the Interface.
   /**
-   * \return hardware info of the HardwareComponentInterface.
+   * \return hardware info of the Interface.
    */
   const HardwareInfo & get_hardware_info() const { return info_; }
 
