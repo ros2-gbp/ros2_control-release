@@ -1,0 +1,12 @@
+Source: ros-kilted-hardware-interface
+Section: misc
+Priority: optional
+Maintainer: Bence Magyar <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libfmt-dev, ros-kilted-ament-cmake, ros-kilted-ament-cmake-gen-version-h, ros-kilted-ament-cmake-gmock <!nocheck>, ros-kilted-backward-ros, ros-kilted-control-msgs, ros-kilted-joint-limits, ros-kilted-lifecycle-msgs, ros-kilted-pal-statistics, ros-kilted-pluginlib, ros-kilted-rclcpp-lifecycle, ros-kilted-rcpputils, ros-kilted-rcutils, ros-kilted-realtime-tools, ros-kilted-ros2-control-cmake, ros-kilted-ros2-control-test-assets <!nocheck>, ros-kilted-sdformat-urdf, ros-kilted-tinyxml2-vendor, ros-kilted-urdf, ros-kilted-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-kilted-hardware-interface
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libfmt-dev, ros-kilted-backward-ros, ros-kilted-control-msgs, ros-kilted-joint-limits, ros-kilted-lifecycle-msgs, ros-kilted-pal-statistics, ros-kilted-pluginlib, ros-kilted-rclcpp-lifecycle, ros-kilted-rcpputils, ros-kilted-rcutils, ros-kilted-realtime-tools, ros-kilted-sdformat-urdf, ros-kilted-tinyxml2-vendor, ros-kilted-urdf, ros-kilted-ros-workspace
+Description: Base classes for hardware abstraction and tooling for them
