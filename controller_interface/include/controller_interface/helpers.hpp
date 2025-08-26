@@ -15,6 +15,7 @@
 #ifndef CONTROLLER_INTERFACE__HELPERS_HPP_
 #define CONTROLLER_INTERFACE__HELPERS_HPP_
 
+#include <algorithm>
 #include <functional>
 #include <string>
 #include <vector>
@@ -79,15 +80,6 @@ inline bool interface_list_contains_interface_type(
 {
   return std::find(interface_type_list.begin(), interface_type_list.end(), interface_type) !=
          interface_type_list.end();
-}
-
-template <typename T>
-[[deprecated(
-  "Use ros2_control::add_item method instead. This method will be removed by the ROS 2 Kilted "
-  "Kaiju release.")]] void
-add_element_to_list(std::vector<T> & list, const T & element)
-{
-  ros2_control::add_item(list, element);
 }
 
 }  // namespace controller_interface

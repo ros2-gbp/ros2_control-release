@@ -2,26 +2,34 @@
 Changelog for package controller_manager_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.35.0 (2025-07-31)
--------------------
+5.6.0 (2025-08-26)
+------------------
+* Update doc to clarify BEST_EFFORT behavior when switching controllers (`#2448 <https://github.com/ros-controls/ros2_control/issues/2448>`_)
+* Fix typos in the documentation of SwitchController strictness (`#2445 <https://github.com/ros-controls/ros2_control/issues/2445>`_)
+* Contributors: Johannes Huemer, Peter Mitrano (AR)
 
-4.34.0 (2025-07-21)
--------------------
+5.5.0 (2025-07-31)
+------------------
 
-4.33.0 (2025-07-02)
--------------------
+5.4.0 (2025-07-21)
+------------------
 
-4.32.0 (2025-06-06)
--------------------
+5.3.0 (2025-07-02)
+------------------
 
-4.31.0 (2025-05-24)
--------------------
-* Add `data_type` field to the HardwareInterfaces message (backport `#2204 <https://github.com/ros-controls/ros2_control/issues/2204>`_) (`#2232 <https://github.com/ros-controls/ros2_control/issues/2232>`_)
-* Add new strictness modes to SwitchController service (`#2224 <https://github.com/ros-controls/ros2_control/issues/2224>`_) (`#2231 <https://github.com/ros-controls/ros2_control/issues/2231>`_)
-* Contributors: mergify[bot]
+5.2.0 (2025-06-07)
+------------------
 
-4.30.0 (2025-05-21)
--------------------
+5.1.0 (2025-05-24)
+------------------
+* Cleanup deprecations in `ros_control`  (`#2258 <https://github.com/ros-controls/ros2_control/issues/2258>`_)
+* Contributors: Sai Kishor Kothakota
+
+5.0.0 (2025-05-21)
+------------------
+* Add `data_type` field to the HardwareInterfaces message (`#2204 <https://github.com/ros-controls/ros2_control/issues/2204>`_)
+* Add new strictness modes to SwitchController service (`#2224 <https://github.com/ros-controls/ros2_control/issues/2224>`_)
+* Contributors: Sai Kishor Kothakota
 
 4.29.0 (2025-05-04)
 -------------------
