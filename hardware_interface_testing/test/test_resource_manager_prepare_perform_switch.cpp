@@ -14,13 +14,13 @@
 
 // Authors: Dr. Denis
 
-#include "ros2_control_test_assets/test_hardware_interface_constants.hpp"
 #include "test_resource_manager.hpp"
 
 #include <string>
 #include <vector>
 
 #include "hardware_interface/loaned_state_interface.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 #include "ros2_control_test_assets/descriptions.hpp"
 
 const auto hardware_resources_command_modes =
@@ -65,7 +65,7 @@ public:
   {
     ResourceManagerTest::SetUp();
 
-    rm_ = std::make_unique<TestableResourceManager>(node_, command_mode_urdf);
+    rm_ = std::make_unique<TestableResourceManager>(command_mode_urdf);
     ASSERT_EQ(1u, rm_->actuator_components_size());
     ASSERT_EQ(1u, rm_->system_components_size());
 
@@ -105,7 +105,6 @@ public:
   std::unique_ptr<hardware_interface::LoanedStateInterface> claimed_actuator_position_state_;
 
   // Scenarios defined by example criteria
-  rclcpp::Node node_{"ResourceManagerPreparePerformTest"};
   std::vector<std::string> empty_keys = {};
   std::vector<std::string> non_existing_keys = {"elbow_joint/position", "should_joint/position"};
   std::vector<std::string> legal_keys_system = {"joint1/position", "joint2/position"};
@@ -129,54 +128,47 @@ TEST_F(
 
   // When TestSystemCommandModes is ACTIVE expect OK
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 1.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 1.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 101.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 102.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 102.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 202.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 202.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 203.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 203.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
   EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 303.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
-  // When TestActuatorHardware is UNCONFIGURED expect ERROR
+  // When TestActuatorHardware is UNCONFIGURED expect OK
   EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator))
-    << "The actuator HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0)
-    << "Shouldn't change as the perform command mode switch is done only for actuator interfaces";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 303.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 403.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
   EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0)
-    << "Shouldn't change as the perform command mode switch is done only for actuator interfaces";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys))
-    << "The actuator HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0)
-    << "Shouldn't change as the perform command mode switch is done only for actuator interfaces";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 403.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 503.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
   EXPECT_FALSE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0)
-    << "Shouldn't change as the perform command mode switch is done only for actuator interfaces";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 503.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
   EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0)
-    << "Shouldn't change as the perform command mode switch is done only for actuator interfaces";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 603.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 };
 
 // System  : ACTIVE
@@ -190,52 +182,47 @@ TEST_F(
 
   // When TestSystemCommandModes is ACTIVE expect OK
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 1.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 1.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 1.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 101.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 101.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 102.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 102.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 102.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 202.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 202.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 202.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 203.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 203.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 203.0);
   EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 303.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 303.0);
 
-  // When TestActuatorHardware is INACTIVE expect not OK
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.0, 1e-7)
-    << "Start interfaces with inactive should result in no change";
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.0, 1e-7)
-    << "Start interfaces with inactive should result in no change";
+  // When TestActuatorHardware is INACTIVE expect OK
+  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 304.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 304.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 404.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 404.0);
 
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.0, 1e-7)
-    << "Start interfaces with inactive should result in no change";
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.0, 1e-7)
-    << "Start interfaces with inactive should result in no change";
+  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 405.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 405.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 505.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 505.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.001, 1e-7);
-  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator))
-    << "Inactive with empty start interfaces is OK";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 303.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.101, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 506.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 506.0);
+  EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 606.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 606.0);
 };
 
 // System  : INACTIVE
@@ -247,59 +234,49 @@ TEST_F(
     lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, "inactive",
     lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, "active");
 
-  // When TestSystemCommandModes is INACTIVE expect not OK
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0)
-    << "Start interfaces with inactive should result in no change";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0)
-    << "System interfaces shouldn't affect the actuator";
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0)
-    << "Start interfaces with inactive should result in no change";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0)
-    << "System interfaces shouldn't affect the actuator";
+  // When TestSystemCommandModes is INACTIVE expect OK
+  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_system, legal_keys_system));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 1.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 1.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 101.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 101.0);
 
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0)
-    << "Start interfaces with inactive should result in no change";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0)
-    << "System interfaces shouldn't affect the actuator";
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0)
-    << "Start interfaces with inactive should result in no change";
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0)
-    << "System interfaces shouldn't affect the actuator";
+  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_system, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 102.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 102.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 202.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 202.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 1.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0)
-    << "System interfaces shouldn't affect the actuator";
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 203.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 203.0);
   EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0)
-    << "System interfaces shouldn't affect the actuator";
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 303.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 303.0);
 
   // When TestActuatorHardware is ACTIVE expect OK
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.001, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 304.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 304.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.101, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 404.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 404.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.102, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 405.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 405.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.202, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 505.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 505.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.203, 1e-7);
-  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 101.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.303, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 506.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 506.0);
+  EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 606.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 606.0);
 };
 
 // System  : UNCONFIGURED
@@ -314,179 +291,47 @@ TEST_F(
 
   // When TestSystemCommandModes is UNCONFIGURED expect error
   EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system))
-    << "The system HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 100.0);
 
   EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys))
-    << "The system HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 100.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 200.0);
 
   EXPECT_FALSE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system))
-    << "The system HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 200.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 300.0);
 
-  // When TestActuatorHardware is ACTIVE expect OK
+  // When TestActuatorHardware is INACTIVE expect OK
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.001, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 301.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.101, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 401.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.102, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 402.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.202, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 502.0);
 
   EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.203, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 503.0);
   EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.303, 1e-7);
-};
-
-// System  : UNCONFIGURED
-// Actuator: DEACTIVATED then WRITE_IGNORED
-TEST_F(
-  ResourceManagerPreparePerformTest,
-  when_actuator_deactivated_then_write_error_is_ignored_and_remains_inactive)
-{
-  preconfigure_components(
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, "unconfigured",
-    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, "active");
-
-  // When TestSystemCommandModes is UNCONFIGURED expect error
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system))
-    << "The system HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys))
-    << "The system HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system))
-    << "The system HW component is unconfigured, so the perform should fail!";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-
-  // When TestActuatorHardware is ACTIVE expect OK
-  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.001, 1e-7);
-  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.101, 1e-7);
-
-  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.102, 1e-7);
-  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.202, 1e-7);
-
-  EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.203, 1e-7);
-  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.303, 1e-7);
-
-  std::unique_ptr<hardware_interface::LoanedCommandInterface> claimed_actuator_velocity_command_ =
-    std::make_unique<hardware_interface::LoanedCommandInterface>(
-      rm_->claim_command_interface("joint3/position"));
-
-  auto status_map = rm_->get_components_status();
-  EXPECT_EQ(
-    status_map["TestSystemCommandModes"].state.id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
-  EXPECT_EQ(
-    status_map["TestActuatorHardware"].state.id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
-
-  // Now deactivate with write deactivate value
-  EXPECT_TRUE(
-    claimed_actuator_velocity_command_->set_value(test_constants::WRITE_DEACTIVATE_VALUE));
-  rm_->write(node_.now(), rclcpp::Duration(0, 1000000));
-
-  status_map = rm_->get_components_status();
-  EXPECT_EQ(
-    status_map["TestSystemCommandModes"].state.id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
-  EXPECT_EQ(
-    status_map["TestActuatorHardware"].state.id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE);
-
-  // Similar to deactivate callback from write cycle
-  EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.304, 1e-7);
-  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.404, 1e-7);
-
-  // Similar to the proximal activation
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.404, 1e-7);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys))
-    << "Start interfaces with inactive should result in no change";
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.404, 1e-7)
-    << "Start interfaces with inactive should result in no change";
-
-  // Now return ERROR with write fail value
-  EXPECT_TRUE(claimed_actuator_velocity_command_->set_value(test_constants::WRITE_FAIL_VALUE));
-  rm_->write(node_.now(), rclcpp::Duration(0, 1000000));
-
-  status_map = rm_->get_components_status();
-  EXPECT_EQ(
-    status_map["TestSystemCommandModes"].state.id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
-  // The component is INACTIVE, write does nothing, so no error is triggered. State remains
-  // INACTIVE.
-  EXPECT_EQ(
-    status_map["TestActuatorHardware"].state.id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE);
-
-  EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.405, 1e-7);
-  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.505, 1e-7);
-
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.505, 1e-7);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_NEAR(claimed_actuator_position_state_->get_optional().value(), 0.505, 1e-7);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 603.0);
 };
 
 // System  : UNCONFIGURED
@@ -501,52 +346,45 @@ TEST_F(
 
   // When TestSystemCommandModes is UNCONFIGURED expect error
   EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, legal_keys_system));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
   EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_system, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
   EXPECT_FALSE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_system));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
-  // When TestActuatorHardware is FINALIZED expect ERROR
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  // When TestActuatorHardware is INACTIVE expect OK
+  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_TRUE(rm_->prepare_command_mode_switch(legal_keys_actuator, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(legal_keys_actuator, empty_keys));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 
-  EXPECT_FALSE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
-  EXPECT_FALSE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
-  EXPECT_EQ(claimed_system_acceleration_state_->get_optional().value(), 0.0);
-  EXPECT_EQ(claimed_actuator_position_state_->get_optional().value(), 0.0);
+  EXPECT_TRUE(rm_->prepare_command_mode_switch(empty_keys, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
+  EXPECT_TRUE(rm_->perform_command_mode_switch(empty_keys, legal_keys_actuator));
+  EXPECT_EQ(claimed_system_acceleration_state_->get_value(), 0.0);
+  EXPECT_EQ(claimed_actuator_position_state_->get_value(), 0.0);
 };
-
-int main(int argc, char ** argv)
-{
-  rclcpp::init(argc, argv);
-  testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
