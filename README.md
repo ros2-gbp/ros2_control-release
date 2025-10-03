@@ -1,3 +1,37 @@
+## ros2_control (jazzy) - 4.38.0-1
+
+The packages in the `ros2_control` repository were released into the `jazzy` distro by running `/usr/bin/bloom-release --rosdistro jazzy ros2_control` on `Fri, 03 Oct 2025 18:25:47 -0000`
+
+These packages were released:
+- `controller_interface`
+- `controller_manager`
+- `controller_manager_msgs`
+- `hardware_interface`
+- `hardware_interface_testing`
+- `joint_limits`
+- `ros2_control`
+- `ros2_control_test_assets`
+- `ros2controlcli`
+- `rqt_controller_manager`
+- `transmission_interface`
+
+Version of package(s) in repository `ros2_control`:
+
+- upstream repository: https://github.com/ros-controls/ros2_control.git
+- release repository: https://github.com/ros2-gbp/ros2_control-release.git
+- rosdistro version: `4.37.0-1`
+- old version: `4.37.0-1`
+- new version: `4.38.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.13.0`
+- catkin_pkg version: `1.1.0`
+- rosdep version: `0.26.0`
+- rosdistro version: `1.0.1`
+- vcstools version: `0.1.42`
+
+
 ## ros2_control (kilted) - 5.7.0-1
 
 The packages in the `ros2_control` repository were released into the `kilted` distro by running `/usr/bin/bloom-release --rosdistro kilted ros2_control` on `Fri, 03 Oct 2025 09:15:20 -0000`
