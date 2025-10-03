@@ -163,9 +163,9 @@ There are two scripts to interact with controller manager from launch files:
 .. code-block:: console
 
     $ ros2 run controller_manager spawner -h
-    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--inactive] [-u] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT] [--switch-timeout SWITCH_TIMEOUT] [--service-call-timeout SERVICE_CALL_TIMEOUT] [--activate-as-group]
-                  [--controller-ros-args CONTROLLER_ROS_ARGS]
-                  controller_names [controller_names ...]
+    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--inactive] [-u] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT] [--switch-timeout SWITCH_TIMEOUT]
+               [--service-call-timeout SERVICE_CALL_TIMEOUT] [--activate-as-group] [--switch-asap | --no-switch-asap] [--controller-ros-args CONTROLLER_ROS_ARGS]
+               controller_names [controller_names ...]
 
     positional arguments:
       controller_names      List of controllers
@@ -186,6 +186,8 @@ There are two scripts to interact with controller manager from launch files:
       --service-call-timeout SERVICE_CALL_TIMEOUT
                             Time to wait for the service response from the controller manager
       --activate-as-group   Activates all the parsed controllers list together instead of one by one. Useful for activating all chainable controllers altogether
+      --switch-asap, --no-switch-asap
+                            Option to switch the controllers in the realtime loop at the earliest possible time or in the non-realtime loop.
       --controller-ros-args CONTROLLER_ROS_ARGS
                             The --ros-args to be passed to the controller node, e.g., for remapping topics. Pass multiple times for every argument.
 
@@ -383,6 +385,12 @@ thread_priority (optional; int; default: 50)
 use_sim_time (optional; bool; default: false)
   Enables the use of simulation time in the ``controller_manager`` node.
 
+overruns.manage (optional; bool; default: true)
+  Enables or disables the handling of overruns in the real-time loop of the ``controller_manager`` node.
+  If set to true, the controller manager will detect overruns caused by system time changes or longer execution times of the controllers and hardware components.
+  If an overrun is detected, the controller manager will print a warning message to the console.
+  When used with ``use_sim_time`` set to true, this parameter is ignored and the overrun handling is disabled.
+
 Concepts
 -----------
 
@@ -402,6 +410,12 @@ Hardware and Controller Errors
 
 If the hardware during it's ``read`` or ``write`` method returns ``return_type::ERROR``, the controller manager will stop all controllers that are using the hardware's command and state interfaces.
 Likewise, if a controller returns ``return_type::ERROR`` from its ``update`` method, the controller manager will deactivate the respective controller. In future, the controller manager will try to start any fallback controllers if available.
+
+Factors that affect Determinism
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+When run under the conditions determined in the above section, the determinism is assured up to the limitations of the hardware and the real-time kernel. However, there are some situations that can affect determinism:
+
+* When a controller fails to activate, the controller_manager will call the methods ``prepare_command_mode_switch`` and ``perform_command_mode_switch`` to stop the started interfaces. These calls can cause jitter in the main control loop.
 
 Support for Asynchronous Updates
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
