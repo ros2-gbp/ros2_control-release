@@ -725,6 +725,7 @@ public:
       for (const auto & [joint_name, limits] : hw_info.limits)
       {
         std::vector<joint_limits::SoftJointLimits> soft_limits;
+        hard_joint_limits_.insert({joint_name, limits});
         const std::vector<joint_limits::JointLimits> hard_limits{limits};
         joint_limits::JointInterfacesCommandLimiterData data;
         data.set_joint_name(joint_name);
@@ -733,6 +734,7 @@ public:
         if (hw_info.soft_limits.find(joint_name) != hw_info.soft_limits.end())
         {
           soft_limits = {hw_info.soft_limits.at(joint_name)};
+          soft_joint_limits_.insert({joint_name, hw_info.soft_limits.at(joint_name)});
           RCLCPP_INFO(
             get_logger(), "Using SoftJointLimiter for joint '%s' in hardware '%s' : '%s'",
             joint_name.c_str(), hw_info.name.c_str(), soft_limits[0].to_string().c_str());
@@ -1334,6 +1336,10 @@ public:
 
   std::string robot_description_;
 
+  // Unordered map of the hard and soft limits for the joints
+  std::unordered_map<std::string, joint_limits::JointLimits> hard_joint_limits_;
+  std::unordered_map<std::string, joint_limits::SoftJointLimits> soft_joint_limits_;
+
   /// The callback to be called when a component state is switched
   std::function<void()> on_component_state_switch_callback_ = nullptr;
 
@@ -1384,6 +1390,22 @@ ResourceManager::ResourceManager(
   const hardware_interface::ResourceManagerParams & params, bool load)
 : resource_storage_(std::make_unique<ResourceStorage>(params.clock, params.logger))
 {
+  RCLCPP_WARN_EXPRESSION(
+    params.logger, params.allow_controller_activation_with_inactive_hardware,
+    "The parameter 'allow_controller_activation_with_inactive_hardware' is set to true. It is "
+    "recommended to use the settings to false in order to avoid controllers to use inactive "
+    "hardware components and to avoid any unexpected behavior. This feature might be removed in "
+    "future releases and will be defaulted to false.");
+  RCLCPP_WARN_EXPRESSION(
+    params.logger, !params.return_failed_hardware_names_on_return_deactivate_write_cycle_,
+    "The parameter 'deactivate_controllers_on_hardware_self_deactivate' is set to false. It is "
+    "recommended to use the settings to true in order to avoid controllers to use inactive "
+    "hardware components and to avoid any unexpected behavior. This feature might be removed in "
+    "future releases and will be defaulted to true.");
+  allow_controller_activation_with_inactive_hardware_ =
+    params.allow_controller_activation_with_inactive_hardware;
+  return_failed_hardware_names_on_return_deactivate_write_cycle_ =
+    params.return_failed_hardware_names_on_return_deactivate_write_cycle_;
   if (load)
   {
     load_and_initialize_components(params);
@@ -1513,7 +1535,10 @@ bool ResourceManager::load_and_initialize_components(
   resource_storage_->robot_description_ = params.robot_description;
   resource_storage_->cm_update_rate_ = params.update_rate;
   resource_storage_->executor_ = params.executor;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   return load_and_initialize_components(params.robot_description, params.update_rate);
+#pragma GCC diagnostic pop
 }
 
 void ResourceManager::import_joint_limiters(const std::string & urdf)
@@ -1639,6 +1664,12 @@ void ResourceManager::make_controller_exported_state_interfaces_unavailable(
 void ResourceManager::remove_controller_exported_state_interfaces(
   const std::string & controller_name)
 {
+  if (
+    resource_storage_->controllers_exported_state_interfaces_map_.find(controller_name) ==
+    resource_storage_->controllers_exported_state_interfaces_map_.end())
+  {
+    return;
+  }
   auto interface_names =
     resource_storage_->controllers_exported_state_interfaces_map_.at(controller_name);
   resource_storage_->controllers_exported_state_interfaces_map_.erase(controller_name);
@@ -1701,6 +1732,12 @@ void ResourceManager::make_controller_reference_interfaces_unavailable(
 // CM API: Called in "callback/slow"-thread
 void ResourceManager::remove_controller_reference_interfaces(const std::string & controller_name)
 {
+  if (
+    resource_storage_->controllers_reference_interfaces_map_.find(controller_name) ==
+    resource_storage_->controllers_reference_interfaces_map_.end())
+  {
+    return;
+  }
   auto interface_names =
     resource_storage_->controllers_reference_interfaces_map_.at(controller_name);
   resource_storage_->controllers_reference_interfaces_map_.erase(controller_name);
@@ -1916,6 +1953,18 @@ ResourceManager::get_components_status()
   return resource_storage_->hardware_info_map_;
 }
 
+const std::unordered_map<std::string, joint_limits::JointLimits> &
+ResourceManager::get_hard_joint_limits() const
+{
+  return resource_storage_->hard_joint_limits_;
+}
+
+const std::unordered_map<std::string, joint_limits::SoftJointLimits> &
+ResourceManager::get_soft_joint_limits() const
+{
+  return resource_storage_->soft_joint_limits_;
+}
+
 // CM API: Called in "callback/slow"-thread
 bool ResourceManager::prepare_command_mode_switch(
   const std::vector<std::string> & start_interfaces,
@@ -1981,7 +2030,9 @@ bool ResourceManager::prepare_command_mode_switch(
 
   const auto & hardware_info_map = resource_storage_->hardware_info_map_;
   auto call_prepare_mode_switch =
-    [&start_interfaces, &stop_interfaces, &hardware_info_map, logger = get_logger()](
+    [&start_interfaces, &stop_interfaces, &hardware_info_map, logger = get_logger(),
+     allow_controller_activation_with_inactive_hardware =
+       allow_controller_activation_with_inactive_hardware_](
       auto & components, auto & start_interfaces_buffer, auto & stop_interfaces_buffer)
   {
     bool ret = true;
@@ -1999,7 +2050,9 @@ bool ResourceManager::prepare_command_mode_switch(
       }
       if (
         !start_interfaces_buffer.empty() &&
-        component.get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+        component.get_lifecycle_state().id() ==
+          lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE &&
+        !allow_controller_activation_with_inactive_hardware)
       {
         RCLCPP_WARN(
           logger, "Component '%s' is in INACTIVE state, but has start interfaces to switch: \n%s",
@@ -2081,7 +2134,9 @@ bool ResourceManager::perform_command_mode_switch(
 
   const auto & hardware_info_map = resource_storage_->hardware_info_map_;
   auto call_perform_mode_switch =
-    [&start_interfaces, &stop_interfaces, &hardware_info_map, logger = get_logger()](
+    [&start_interfaces, &stop_interfaces, &hardware_info_map, logger = get_logger(),
+     allow_controller_activation_with_inactive_hardware =
+       allow_controller_activation_with_inactive_hardware_](
       auto & components, auto & start_interfaces_buffer, auto & stop_interfaces_buffer)
   {
     bool ret = true;
@@ -2099,7 +2154,9 @@ bool ResourceManager::perform_command_mode_switch(
       }
       if (
         !start_interfaces_buffer.empty() &&
-        component.get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+        component.get_lifecycle_state().id() ==
+          lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE &&
+        !allow_controller_activation_with_inactive_hardware)
       {
         RCLCPP_WARN(
           logger, "Component '%s' is in INACTIVE state, but has start interfaces to switch: \n%s",
@@ -2482,7 +2539,10 @@ HardwareReadWriteStatus ResourceManager::write(
           lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, lifecycle_state_names::INACTIVE);
         set_component_state(component_name, inactive_state);
         read_write_status.result = ret_val;
-        read_write_status.failed_hardware_names.push_back(component_name);
+        if (return_failed_hardware_names_on_return_deactivate_write_cycle_)
+        {
+          read_write_status.failed_hardware_names.push_back(component_name);
+        }
       }
     }
   };
