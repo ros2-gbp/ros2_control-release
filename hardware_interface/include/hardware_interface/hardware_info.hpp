@@ -184,6 +184,24 @@ public:
     }
   }
 
+  /**
+   * @brief Check if the HandleDataType can be casted to double.
+   * @return True if the HandleDataType can be casted to double, false otherwise.
+   * @note Once we add support for more data types, this function should be updated
+   */
+  bool is_castable_to_double() const
+  {
+    switch (value_)
+    {
+      case DOUBLE:
+        return true;
+      case BOOL:
+        return true;  // bool can be converted to double
+      default:
+        return false;  // unknown type cannot be converted
+    }
+  }
+
   HandleDataType from_string(const std::string & data_type) { return HandleDataType(data_type); }
 
 private:
@@ -229,6 +247,18 @@ struct InterfaceDescription
   HandleDataType get_data_type() const { return HandleDataType(interface_info.data_type); }
 };
 
+struct HardwareAsyncParams
+{
+  /// Thread priority for the async worker thread
+  int thread_priority = 50;
+  /// Scheduling policy for the async worker thread
+  std::string scheduling_policy = "synchronized";
+  /// CPU affinity cores for the async worker thread
+  std::vector<int> cpu_affinity_cores = {};
+  /// Whether to print warnings when the async thread doesn't meet its deadline
+  bool print_warnings = true;
+};
+
 /// This structure stores information about hardware defined in a robot's URDF.
 struct HardwareInfo
 {
@@ -242,8 +272,12 @@ struct HardwareInfo
   unsigned int rw_rate;
   /// Component is async
   bool is_async;
+  // TODO(anyone): deprecate after branching for kilted
+  /// [[deprecated("Use async_params instead.")]]
   /// Async thread priority
   int thread_priority;
+  /// Async Parameters
+  HardwareAsyncParams async_params;
   /// Name of the pluginlib plugin of the hardware that will be loaded.
   std::string hardware_plugin_name;
   /// (Optional) Key-value pairs for hardware parameters.

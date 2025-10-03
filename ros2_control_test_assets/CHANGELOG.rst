@@ -2,31 +2,33 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.37.0 (2025-09-12)
--------------------
+5.7.0 (2025-10-03)
+------------------
+* Add detach async policy for rate critical frameworks (`#2477 <https://github.com/ros-controls/ros2_control/issues/2477>`_)
+* Contributors: Sai Kishor Kothakota
 
-4.36.0 (2025-08-26)
--------------------
+5.6.0 (2025-08-26)
+------------------
 
-4.35.0 (2025-07-31)
--------------------
+5.5.0 (2025-07-31)
+------------------
 
-4.34.0 (2025-07-21)
--------------------
+5.4.0 (2025-07-21)
+------------------
 
-4.33.0 (2025-07-02)
--------------------
+5.3.0 (2025-07-02)
+------------------
 
-4.32.0 (2025-06-06)
--------------------
+5.2.0 (2025-06-07)
+------------------
 
-4.31.0 (2025-05-24)
--------------------
-* Read `data_type` for all types of interfaces (`#2235 <https://github.com/ros-controls/ros2_control/issues/2235>`_) (`#2261 <https://github.com/ros-controls/ros2_control/issues/2261>`_)
-* Contributors: mergify[bot]
+5.1.0 (2025-05-24)
+------------------
+* Read `data_type` for all types of interfaces (`#2235 <https://github.com/ros-controls/ros2_control/issues/2235>`_)
+* Contributors: Sai Kishor Kothakota
 
-4.30.0 (2025-05-21)
--------------------
+5.0.0 (2025-05-21)
+------------------
 
 4.29.0 (2025-05-04)
 -------------------
