@@ -15,23 +15,33 @@
 #ifndef CONTROLLER_MANAGER_TEST_COMMON_HPP_
 #define CONTROLLER_MANAGER_TEST_COMMON_HPP_
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "controller_interface/controller_interface.hpp"
+
 #include "controller_manager/controller_manager.hpp"
+#include "controller_manager_msgs/srv/list_hardware_interfaces.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
-#include "gmock/gmock.h"
-#include "rclcpp/executors.hpp"
+
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp/utilities.hpp"
-#include "ros2_control_test_assets/descriptions.hpp"
+
 #include "std_msgs/msg/string.hpp"
+
+#include "ros2_control_test_assets/descriptions.hpp"
+#include "test_controller_failed_init/test_controller_failed_init.hpp"
 
 namespace
 {
+const auto TIME = rclcpp::Time(0);
 const auto PERIOD = rclcpp::Duration::from_seconds(0.01);
 const auto STRICT = controller_manager_msgs::srv::SwitchController::Request::STRICT;
 const auto BEST_EFFORT = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
@@ -57,20 +67,40 @@ class ControllerManagerFixture : public ::testing::Test
 public:
   explicit ControllerManagerFixture(
     const std::string & robot_description = ros2_control_test_assets::minimal_robot_urdf,
-    const std::string & cm_namespace = "")
-  : robot_description_(robot_description)
+    const bool & pass_urdf_as_parameter = false, const std::string & cm_namespace = "")
+  : robot_description_(robot_description), pass_urdf_as_parameter_(pass_urdf_as_parameter)
   {
     executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-    cm_ = std::make_shared<CtrlMgr>(
-      std::make_unique<hardware_interface::ResourceManager>(
-        rm_node_->get_node_clock_interface(), rm_node_->get_node_logging_interface()),
-      executor_, TEST_CM_NAME, cm_namespace);
-    // We want to be able to not pass robot description immediately
-    if (!robot_description_.empty())
+    // We want to be able to create a ResourceManager where no urdf file has been passed to
+    if (robot_description_.empty())
     {
-      pass_robot_description_to_cm_and_rm(robot_description_);
+      cm_ = std::make_shared<CtrlMgr>(
+        std::make_unique<hardware_interface::ResourceManager>(), executor_, TEST_CM_NAME,
+        cm_namespace);
     }
-    time_ = rclcpp::Time(0, 0, cm_->get_trigger_clock()->get_clock_type());
+    else
+    {
+      // can be removed later, needed if we want to have the deprecated way of passing the robot
+      // description file to the controller manager covered by tests
+      if (pass_urdf_as_parameter_)
+      {
+        cm_ = std::make_shared<CtrlMgr>(
+          std::make_unique<hardware_interface::ResourceManager>(robot_description_, true, true),
+          executor_, TEST_CM_NAME, cm_namespace);
+      }
+      else
+      {
+        // TODO(mamueluth) : passing via topic not working in test setup, tested cm does
+        // not receive msg. Have to check this...
+
+        // this is just a workaround to skip passing
+        cm_ = std::make_shared<CtrlMgr>(
+          std::make_unique<hardware_interface::ResourceManager>(), executor_, TEST_CM_NAME,
+          cm_namespace);
+        // mimic topic call
+        pass_robot_description_to_cm_and_rm(robot_description_);
+      }
+    }
   }
 
   static void SetUpTestCase() { rclcpp::init(0, nullptr); }
@@ -89,7 +119,7 @@ public:
       {
         while (run_updater_)
         {
-          cm_->update(time_, rclcpp::Duration::from_seconds(0.01));
+          cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
       });
@@ -121,6 +151,7 @@ public:
     const std::future_status expected_future_status = std::future_status::timeout,
     const controller_interface::return_type expected_return = controller_interface::return_type::OK)
   {
+    // First activation not possible because controller not configured
     auto switch_future = std::async(
       std::launch::async, &controller_manager::ControllerManager::switch_controller, cm_,
       start_controllers, stop_controllers, strictness, true, rclcpp::Duration(0, 0));
@@ -138,26 +169,17 @@ public:
   bool run_updater_;
   const std::string robot_description_;
   rclcpp::Time time_;
-
-protected:
-  rclcpp::Node::SharedPtr rm_node_ = std::make_shared<rclcpp::Node>("ResourceManager");
+  const bool pass_urdf_as_parameter_;
 };
 
 class TestControllerManagerSrvs
 : public ControllerManagerFixture<controller_manager::ControllerManager>
 {
 public:
-  TestControllerManagerSrvs() {}
-
-  ~TestControllerManagerSrvs() override
+  TestControllerManagerSrvs()
+  : ControllerManagerFixture<controller_manager::ControllerManager>(
+      ros2_control_test_assets::minimal_robot_urdf, true)
   {
-    RCLCPP_DEBUG(cm_->get_logger(), "Stopping controller manager updater thread");
-    stop_runner_ = true;
-    if (cm_rt_thread_.joinable())
-    {
-      cm_rt_thread_.join();
-    }
-    RCLCPP_DEBUG(cm_->get_logger(), "Controller manager updater thread stopped");
   }
 
   void SetUp() override
@@ -168,32 +190,13 @@ public:
 
   void SetUpSrvsCMExecutor()
   {
-    cm_rt_thread_ = std::thread(
-      [&]
+    update_timer_ = cm_->create_wall_timer(
+      std::chrono::milliseconds(10),
+      [&]()
       {
-        // for calculating sleep time
-        auto const period = std::chrono::nanoseconds(1'000'000'000 / cm_->get_update_rate());
-
-        // for calculating the measured period of the loop
-        rclcpp::Time previous_time = cm_->get_clock()->now();
-        std::this_thread::sleep_for(period);
-        std::chrono::steady_clock::time_point next_iteration_time{std::chrono::steady_clock::now()};
-
-        while (rclcpp::ok() && !stop_runner_)
-        {
-          auto const current_time = cm_->get_clock()->now();
-          auto const measured_period = current_time - previous_time;
-          previous_time = current_time;
-          cm_->read(time_, PERIOD);
-          cm_->update(time_, PERIOD);
-          cm_->write(time_, PERIOD);
-          next_iteration_time += period;
-          if (next_iteration_time < std::chrono::steady_clock::now())
-          {
-            next_iteration_time = std::chrono::steady_clock::now();
-          }
-          std::this_thread::sleep_until(next_iteration_time);
-        }
+        cm_->read(TIME, PERIOD);
+        cm_->update(TIME, PERIOD);
+        cm_->write(TIME, PERIOD);
       });
 
     executor_->add_node(cm_);
@@ -220,7 +223,7 @@ public:
       while (service_executor.spin_until_future_complete(result, std::chrono::milliseconds(50)) !=
              rclcpp::FutureReturnCode::SUCCESS)
       {
-        cm_->update(time_, rclcpp::Duration::from_seconds(0.01));
+        cm_->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
       }
     }
     else
@@ -232,8 +235,7 @@ public:
   }
 
 protected:
-  std::atomic_bool stop_runner_ = false;
-  std::thread cm_rt_thread_;
+  rclcpp::TimerBase::SharedPtr update_timer_;
   std::future<void> executor_spin_future_;
 };
 

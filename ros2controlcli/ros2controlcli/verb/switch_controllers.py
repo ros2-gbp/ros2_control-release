@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from controller_manager import switch_controllers, bcolors
-from controller_manager_msgs.srv import SwitchController
+from controller_manager import switch_controllers
 
 from ros2cli.node.direct import add_arguments
 from ros2cli.node.strategy import NodeStrategy
@@ -28,6 +27,13 @@ class SwitchControllersVerb(VerbExtension):
     def add_arguments(self, parser, cli_name):
         add_arguments(parser)
         arg = parser.add_argument(
+            "--stop",
+            nargs="*",
+            default=[],
+            help="Name of the controllers to be deactivated",
+        )
+        arg.completer = LoadedControllerNameCompleter(["active"])
+        arg = parser.add_argument(
             "--deactivate",
             nargs="*",
             default=[],
@@ -35,23 +41,21 @@ class SwitchControllersVerb(VerbExtension):
         )
         arg.completer = LoadedControllerNameCompleter(["active"])
         arg = parser.add_argument(
+            "--start",
+            nargs="*",
+            default=[],
+            help="Name of the controllers to be activated",
+        )
+        arg.completer = LoadedControllerNameCompleter(["inactive"])
+        arg = parser.add_argument(
             "--activate",
             nargs="*",
             default=[],
             help="Name of the controllers to be activated",
         )
         arg.completer = LoadedControllerNameCompleter(["inactive"])
-        strictness_group = parser.add_mutually_exclusive_group(required=False)
-        strictness_group.add_argument(
-            "--strict",
-            help="Set the switch_controllers service strictness to strict",
-            action="store_true",
-        )
-        strictness_group.add_argument(
-            "--best-effort",
-            help="Set the switch_controllers service strictness to best effort",
-            action="store_true",
-        )
+        parser.add_argument("--strict", action="store_true", help="Strict switch")
+        parser.add_argument("--start-asap", action="store_true", help="Start asap controllers")
         parser.add_argument("--activate-asap", action="store_true", help="Start asap controllers")
         parser.add_argument(
             "--switch-timeout",
@@ -63,24 +67,28 @@ class SwitchControllersVerb(VerbExtension):
         add_controller_mgr_parsers(parser)
 
     def main(self, *, args):
-        with NodeStrategy(args).direct_node as node:
-            strictness = 0
-            if args.strict:
-                strictness = SwitchController.Request.STRICT
-            elif args.best_effort:
-                strictness = SwitchController.Request.BEST_EFFORT
+        if args.stop:
+            print('"--stop" flag is deprecated, use "--deactivate" instead!')
+            args.deactivate = args.stop
+        if args.start:
+            print('"--start" flag is deprecated, use "--activate" instead!')
+            args.activate = args.start
+        if args.start_asap:
+            print('"--start-asap" flag is deprecated, use "--activate-asap" instead!')
+            args.activate_asap = args.start_asap
+
+        with NodeStrategy(args) as node:
             response = switch_controllers(
                 node,
                 args.controller_manager,
                 args.deactivate,
                 args.activate,
-                strictness,
-                args.activate_asap,
+                args.strict,
+                args.start_asap,
                 args.switch_timeout,
             )
             if not response.ok:
-                print(bcolors.FAIL + response.message + bcolors.ENDC)
-                return 1
+                return "Error switching controllers, check controller_manager logs"
 
-            print(bcolors.OKBLUE + response.message + bcolors.ENDC)
+            print("Successfully switched controllers")
             return 0
