@@ -2,39 +2,39 @@
 Changelog for package ros2controlcli
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.39.0 (2025-10-27)
--------------------
+5.8.0 (2025-10-27)
+------------------
 
-4.38.0 (2025-10-03)
--------------------
+5.7.0 (2025-10-03)
+------------------
 
-4.37.0 (2025-09-12)
--------------------
+5.6.0 (2025-08-26)
+------------------
 
-4.36.0 (2025-08-26)
--------------------
+5.5.0 (2025-07-31)
+------------------
 
-4.35.0 (2025-07-31)
--------------------
+5.4.0 (2025-07-21)
+------------------
+* Fix setuptools deprecations (`#2395 <https://github.com/ros-controls/ros2_control/issues/2395>`_)
+* Contributors: mosfet80
 
-4.34.0 (2025-07-21)
--------------------
+5.3.0 (2025-07-02)
+------------------
 
-4.33.0 (2025-07-02)
--------------------
+5.2.0 (2025-06-07)
+------------------
 
-4.32.0 (2025-06-06)
--------------------
+5.1.0 (2025-05-24)
+------------------
+* Cleanup deprecations in `ros_control`  (`#2258 <https://github.com/ros-controls/ros2_control/issues/2258>`_)
+* Contributors: Sai Kishor Kothakota
 
-4.31.0 (2025-05-24)
--------------------
-* Add `data_type` field to the HardwareInterfaces message (backport `#2204 <https://github.com/ros-controls/ros2_control/issues/2204>`_) (`#2232 <https://github.com/ros-controls/ros2_control/issues/2232>`_)
-* Contributors: mergify[bot]
-
-4.30.0 (2025-05-21)
--------------------
-* [CM] Set default strictness of switch_controllers using parameters (`#2168 <https://github.com/ros-controls/ros2_control/issues/2168>`_) (`#2233 <https://github.com/ros-controls/ros2_control/issues/2233>`_)
-* Contributors: mergify[bot]
+5.0.0 (2025-05-21)
+------------------
+* [CM] Set default strictness of switch_controllers using parameters (`#2168 <https://github.com/ros-controls/ros2_control/issues/2168>`_)
+* Add `data_type` field to the HardwareInterfaces message (`#2204 <https://github.com/ros-controls/ros2_control/issues/2204>`_)
+* Contributors: Sai Kishor Kothakota
 
 4.29.0 (2025-05-04)
 -------------------

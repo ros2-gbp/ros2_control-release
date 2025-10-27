@@ -15,7 +15,6 @@
 #ifndef TRANSMISSION_INTERFACE__HANDLE_HPP_
 #define TRANSMISSION_INTERFACE__HANDLE_HPP_
 
-#include <optional>
 #include <string>
 #include "hardware_interface/macros.hpp"
 
@@ -24,7 +23,9 @@ namespace transmission_interface
 class Handle
 {
 public:
-  Handle(const std::string & prefix_name, const std::string & interface_name, double * value_ptr)
+  Handle(
+    const std::string & prefix_name, const std::string & interface_name,
+    double * value_ptr = nullptr)
   : prefix_name_(prefix_name), interface_name_(interface_name), value_ptr_(value_ptr)
   {
   }
@@ -54,23 +55,10 @@ public:
     return *value_ptr_;
   }
 
-  [[deprecated(
-    "For Transmission Handles use get_value() instead to retrieve the value. This method will be "
-    "removed by the ROS 2 Kilted Kaiju release.")]]
-  std::optional<double> get_optional() const
-  {
-    if (value_ptr_)
-    {
-      return *value_ptr_;
-    }
-    return std::nullopt;
-  }
-
-  bool set_value(double value)
+  void set_value(double value)
   {
     THROW_ON_NULLPTR(this->value_ptr_);
     *this->value_ptr_ = value;
-    return true;
   }
 
 protected:
