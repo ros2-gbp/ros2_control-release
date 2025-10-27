@@ -416,13 +416,14 @@ Hardware and Controller Errors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If the hardware during it's ``read`` or ``write`` method returns ``return_type::ERROR``, the controller manager will stop all controllers that are using the hardware's command and state interfaces.
-Likewise, if a controller returns ``return_type::ERROR`` from its ``update`` method, the controller manager will deactivate the respective controller. In future, the controller manager will try to start any fallback controllers if available.
+Likewise, if a controller returns ``return_type::ERROR`` from its ``update`` method, the controller manager will deactivate the respective controller (or) the entire controller chain it is part of, then the controller manager will try to start any available fallback controllers.
 
 Factors that affect Determinism
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 When run under the conditions determined in the above section, the determinism is assured up to the limitations of the hardware and the real-time kernel. However, there are some situations that can affect determinism:
 
-* When a controller fails to activate, the controller_manager will call the methods ``prepare_command_mode_switch`` and ``perform_command_mode_switch`` to stop the started interfaces. These calls can cause jitter in the main control loop.
+* When a controller fails to activate in the realtime loop, the controller_manager will call the methods ``prepare_command_mode_switch`` and ``perform_command_mode_switch`` to stop the started interfaces. These calls can cause jitter in the main control loop.
+* If a controller does not complete a successful update cycle in the realtime loop (for example, returns ``return_type::ERROR``), the controller manager will deactivate that controller (or) the entire controller chain it is part of. It will then invoke ``prepare_command_mode_switch`` and ``perform_command_mode_switch`` to stop the interfaces used by the affected controller(s). These actions can introduce jitter into the main control loop.
 
 Support for Asynchronous Updates
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -443,6 +444,21 @@ The async update support is transparent to each controller implementation. A con
         is_async: true
         update_rate: 20  # Hz
         ...
+
+You can set more parameters of the ``AsyncFunctionHandler``, which handles the thread of the controller, using the ``async_parameters`` namespace. For example:
+
+.. code-block:: yaml
+
+    example_async_controller:
+      ros__parameters:
+        type: example_controller/ExampleAsyncController
+        update_rate: 20  # Hz
+        is_async: true
+        async_parameters:
+          cpu_affinity: [2, 4]
+          thread_priority: 50
+          wait_until_initial_trigger: false
+          ...
 
 will result in the controller being loaded and configured to run at 20Hz, while the controller manager runs at 100Hz. The description of the parameters can be found in the `Common Controller Parameters <https://control.ros.org/master/doc/ros2_controllers/doc/controllers_index.html#common-controller-parameters>`_ section of the ros2_controllers documentation.
 
