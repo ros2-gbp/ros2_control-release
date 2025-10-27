@@ -5,6 +5,11 @@ Release Notes: Jazzy to Kilted
 
 This list summarizes the changes between Jazzy (previous) and Kilted (current) releases.
 
+controller_interface
+********************
+* The new ``MagneticFieldSensor`` semantic component provides an interface for reading data from magnetometers. `(#2627 <https://github.com/ros-controls/ros2_control/pull/2627>`__)
+* The controller_manager will now deactivate the entire controller chain if a controller in the chain fails during the update cycle. `(#2681 <https://github.com/ros-controls/ros2_control/pull/2681>`__)
+
 controller_manager
 ******************
 * The default strictness of the ``switch_controllers`` can now we be chosen using ROS 2 parameters. The default behaviour is still left to ``BEST_EFFORT`` (`#2168 <https://github.com/ros-controls/ros2_control/pull/2168>`_).
@@ -26,3 +31,7 @@ hardware_interface
 ros2controlcli
 **************
 * The CLI verbs ``list_hardware_components`` and ``list_hardware_interfaces`` will now show the data type used by the internal Command and State interfaces (`#2204 <https://github.com/ros-controls/ros2_control/pull/2204>`_).
+
+transmission_interface
+**********************
+* The ``simple_transmission`` and ``differential_transmission`` now also support the ``force`` interface (`#2588 <https://github.com/ros-controls/ros2_control/pull/2588>`_).
