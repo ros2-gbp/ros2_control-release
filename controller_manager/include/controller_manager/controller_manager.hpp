@@ -280,10 +280,11 @@ protected:
    *
    * \param[in] rt_controller_list controllers in the real-time list.
    * \param[in] controllers_to_activate names of the controller that have to be activated.
+   * \param[in] strictness level of strictness for activation.
    */
   void activate_controllers(
     const std::vector<ControllerSpec> & rt_controller_list,
-    const std::vector<std::string> & controllers_to_activate);
+    const std::vector<std::string> & controllers_to_activate, int strictness);
 
   void list_controllers_srv_cb(
     const std::shared_ptr<controller_manager_msgs::srv::ListControllers::Request> request,
@@ -486,6 +487,14 @@ private:
   void update_list_with_controller_chain(
     const std::string & ctrl_name, std::vector<std::string>::iterator controller_iterator,
     bool append_to_controller);
+
+  /**
+   * @brief Build the controller chain topology information based on the provided controllers.
+   *  This method constructs a directed graph representing the dependencies between controllers.
+   *  It analyzes the relationships between controllers, such as which controllers depend on others,
+   *  and builds a directed graph to represent these dependencies.
+   */
+  void build_controllers_topology_info(const std::vector<ControllerSpec> & controllers);
 
   /**
    * @brief Method to publish the state of the controller manager.
