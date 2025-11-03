@@ -2,43 +2,44 @@
 Changelog for package joint_limits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.8.1 (2025-11-03)
-------------------
+4.39.1 (2025-11-03)
+-------------------
 
-5.8.0 (2025-10-27)
-------------------
+4.39.0 (2025-10-27)
+-------------------
 
-5.7.0 (2025-10-03)
-------------------
+4.38.0 (2025-10-03)
+-------------------
 
-5.6.0 (2025-08-26)
-------------------
-* Remove extra semicolons (`#2478 <https://github.com/ros-controls/ros2_control/issues/2478>`_)
-* Contributors: Tapia Danish
+4.37.0 (2025-09-12)
+-------------------
 
-5.5.0 (2025-07-31)
-------------------
+4.36.0 (2025-08-26)
+-------------------
 
-5.4.0 (2025-07-21)
-------------------
-* Fix the crashing joint limiters when used with multiple interfaces (`#2371 <https://github.com/ros-controls/ros2_control/issues/2371>`_)
-* Contributors: Sai Kishor Kothakota
+4.35.0 (2025-07-31)
+-------------------
 
-5.3.0 (2025-07-02)
-------------------
+4.34.0 (2025-07-21)
+-------------------
+* Fix the crashing joint limiters when used with multiple interfaces (`#2371 <https://github.com/ros-controls/ros2_control/issues/2371>`_) (`#2398 <https://github.com/ros-controls/ros2_control/issues/2398>`_)
+* Contributors: mergify[bot]
 
-5.2.0 (2025-06-07)
-------------------
+4.33.0 (2025-07-02)
+-------------------
 
-5.1.0 (2025-05-24)
-------------------
-* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_)
-* Contributors: Sai Kishor Kothakota
+4.32.0 (2025-06-06)
+-------------------
 
-5.0.0 (2025-05-21)
-------------------
-* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_)
-* Contributors: mini-1235
+4.31.0 (2025-05-24)
+-------------------
+* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_) (`#2271 <https://github.com/ros-controls/ros2_control/issues/2271>`_)
+* Contributors: mergify[bot]
+
+4.30.0 (2025-05-21)
+-------------------
+* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_) (`#2249 <https://github.com/ros-controls/ros2_control/issues/2249>`_)
+* Contributors: mergify[bot]
 
 4.29.0 (2025-05-04)
 -------------------

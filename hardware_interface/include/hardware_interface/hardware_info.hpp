@@ -184,24 +184,6 @@ public:
     }
   }
 
-  /**
-   * @brief Check if the HandleDataType can be casted to double.
-   * @return True if the HandleDataType can be casted to double, false otherwise.
-   * @note Once we add support for more data types, this function should be updated
-   */
-  bool is_castable_to_double() const
-  {
-    switch (value_)
-    {
-      case DOUBLE:
-        return true;
-      case BOOL:
-        return true;  // bool can be converted to double
-      default:
-        return false;  // unknown type cannot be converted
-    }
-  }
-
   HandleDataType from_string(const std::string & data_type) { return HandleDataType(data_type); }
 
 private:
@@ -272,9 +254,7 @@ struct HardwareInfo
   unsigned int rw_rate;
   /// Component is async
   bool is_async;
-  // TODO(anyone): deprecate after branching for kilted
-  /// [[deprecated("Use async_params instead.")]]
-  /// Async thread priority
+  /// [[deprecated("Use async_params instead.")]] Async thread priority
   int thread_priority;
   /// Async Parameters
   HardwareAsyncParams async_params;

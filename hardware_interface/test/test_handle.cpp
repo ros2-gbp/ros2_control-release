@@ -225,22 +225,13 @@ TEST(TestHandle, interface_description_bool_data_type)
   ASSERT_FALSE(handle.get_optional<bool>().value()) << "Default value should be false";
   ASSERT_TRUE(handle.set_value(true));
   ASSERT_TRUE(handle.get_optional<bool>().value());
-  ASSERT_EQ(handle.get_optional(), 1.0);
   ASSERT_TRUE(handle.set_value(false));
   ASSERT_FALSE(handle.get_optional<bool>().value());
-  ASSERT_EQ(handle.get_optional(), 0.0);
-
-  info.name = "some_interface";
-  interface_descr = InterfaceDescription(itf_name, info);
-  StateInterface handle2{interface_descr};
-  EXPECT_EQ(handle2.get_name(), itf_name + "/" + "some_interface");
-  ASSERT_TRUE(handle2.set_value(false));
-  ASSERT_FALSE(handle2.get_optional<bool>().value());
-  ASSERT_EQ(handle2.get_optional(), 0.0);
 
   // Test the assertions
   ASSERT_THROW({ std::ignore = handle.set_value(-1.0); }, std::runtime_error);
   ASSERT_THROW({ std::ignore = handle.set_value(0.0); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.get_optional<double>(); }, std::runtime_error);
 }
 
 TEST(TestHandle, handle_constructor_double_data_type)
@@ -283,14 +274,13 @@ TEST(TestHandle, handle_constructor_bool_data_type)
     << "Default value should be true as it is initialized";
   ASSERT_TRUE(handle.set_value(false));
   ASSERT_FALSE(handle.get_optional<bool>().value());
-  ASSERT_EQ(handle.get_optional(), 0.0);
   ASSERT_TRUE(handle.set_value(true));
   ASSERT_TRUE(handle.get_optional<bool>().value());
-  ASSERT_EQ(handle.get_optional(), 1.0);
 
   // Test the assertions
   ASSERT_THROW({ std::ignore = handle.set_value(-1.0); }, std::runtime_error);
   ASSERT_THROW({ std::ignore = handle.set_value(0.0); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.get_optional<double>(); }, std::runtime_error);
 }
 
 TEST(TestHandle, interface_description_unknown_data_type)
