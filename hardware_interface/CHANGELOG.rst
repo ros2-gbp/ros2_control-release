@@ -2,6 +2,9 @@
 Changelog for package hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.39.1 (2025-11-03)
+-------------------
+
 4.39.0 (2025-10-27)
 -------------------
 * Deactivate the controller chain upon failed group activation (`#2669 <https://github.com/ros-controls/ros2_control/issues/2669>`_) (`#2737 <https://github.com/ros-controls/ros2_control/issues/2737>`_)
