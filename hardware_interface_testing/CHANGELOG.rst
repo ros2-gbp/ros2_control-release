@@ -2,15 +2,15 @@
 Changelog for package hardware_interface_testing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.8.2 (2025-11-09)
+6.0.2 (2025-11-09)
 ------------------
-* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_) (`#2797 <https://github.com/ros-controls/ros2_control/issues/2797>`_)
-* Contributors: mergify[bot]
+* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_)
+* Contributors: Sai Kishor Kothakota
 
-5.8.1 (2025-11-03)
+6.0.1 (2025-11-03)
 ------------------
 
-5.8.0 (2025-10-27)
+6.0.0 (2025-10-27)
 ------------------
 
 5.7.0 (2025-10-03)
