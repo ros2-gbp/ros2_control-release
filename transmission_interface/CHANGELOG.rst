@@ -2,55 +2,50 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.39.2 (2025-11-09)
--------------------
+5.8.2 (2025-11-09)
+------------------
 
-4.39.1 (2025-11-03)
--------------------
+5.8.1 (2025-11-03)
+------------------
 
-4.39.0 (2025-10-27)
--------------------
-* [Transmission] Fix the differential transmission configure checks (`#2682 <https://github.com/ros-controls/ros2_control/issues/2682>`_) (`#2687 <https://github.com/ros-controls/ros2_control/issues/2687>`_)
-* [Transmissions] Add `force`  interface (backport `#2588 <https://github.com/ros-controls/ros2_control/issues/2588>`_) (`#2678 <https://github.com/ros-controls/ros2_control/issues/2678>`_)
+5.8.0 (2025-10-27)
+------------------
+* [Transmission] Fix the differential transmission configure checks (`#2682 <https://github.com/ros-controls/ros2_control/issues/2682>`_) (`#2688 <https://github.com/ros-controls/ros2_control/issues/2688>`_)
+* [Transmissions] Add `force`  interface (backport `#2588 <https://github.com/ros-controls/ros2_control/issues/2588>`_) (`#2679 <https://github.com/ros-controls/ros2_control/issues/2679>`_)
 * Contributors: mergify[bot]
 
-4.38.0 (2025-10-03)
--------------------
+5.7.0 (2025-10-03)
+------------------
 
-4.37.0 (2025-09-12)
--------------------
+5.6.0 (2025-08-26)
+------------------
 
-4.36.0 (2025-08-26)
--------------------
+5.5.0 (2025-07-31)
+------------------
 
-4.35.0 (2025-07-31)
--------------------
+5.4.0 (2025-07-21)
+------------------
 
-4.34.0 (2025-07-21)
--------------------
+5.3.0 (2025-07-02)
+------------------
 
-4.33.0 (2025-07-02)
--------------------
-* [Transmissions] Add `absolute_position` and `torque` interfaces (`#2310 <https://github.com/ros-controls/ros2_control/issues/2310>`_) (`#2319 <https://github.com/ros-controls/ros2_control/issues/2319>`_)
-* Contributors: mergify[bot]
+5.2.0 (2025-06-07)
+------------------
+* [Transmissions] Add `absolute_position` and `torque` interfaces (`#2310 <https://github.com/ros-controls/ros2_control/issues/2310>`_)
+* Fix pre-commit (`#2277 <https://github.com/ros-controls/ros2_control/issues/2277>`_)
+* Fix fourbarlinkage (`#1837 <https://github.com/ros-controls/ros2_control/issues/1837>`_)
+* Contributors: Bartłomiej Krajewski, Jordan Palacios, Sai Kishor Kothakota
 
-4.32.0 (2025-06-06)
--------------------
-* Fix pre-commit (`#2277 <https://github.com/ros-controls/ros2_control/issues/2277>`_) (`#2285 <https://github.com/ros-controls/ros2_control/issues/2285>`_)
-* Contributors: mergify[bot]
+5.1.0 (2025-05-24)
+------------------
+* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_)
+* Contributors: Sai Kishor Kothakota
 
-4.31.0 (2025-05-24)
--------------------
-* Fix fourbarlinkage (`#1837 <https://github.com/ros-controls/ros2_control/issues/1837>`_) (`#2276 <https://github.com/ros-controls/ros2_control/issues/2276>`_)
-* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_) (`#2271 <https://github.com/ros-controls/ros2_control/issues/2271>`_)
-* Contributors: mergify[bot]
-
-4.30.0 (2025-05-21)
--------------------
-* Add deprecated `get_optional` to Transmission Handle (`#2255 <https://github.com/ros-controls/ros2_control/issues/2255>`_)
-* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_) (`#2249 <https://github.com/ros-controls/ros2_control/issues/2249>`_)
-* Suppress the deprecation warnings of the hardware_interface API (`#2223 <https://github.com/ros-controls/ros2_control/issues/2223>`_) (`#2247 <https://github.com/ros-controls/ros2_control/issues/2247>`_)
-* Contributors: Sai Kishor Kothakota, mergify[bot]
+5.0.0 (2025-05-21)
+------------------
+* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_)
+* Suppress the deprecation warnings of the hardware_interface API (`#2223 <https://github.com/ros-controls/ros2_control/issues/2223>`_)
+* Contributors: Sai Kishor Kothakota, mini-1235
 
 4.29.0 (2025-05-04)
 -------------------

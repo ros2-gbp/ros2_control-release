@@ -2,63 +2,61 @@
 Changelog for package hardware_interface_testing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.39.2 (2025-11-09)
--------------------
-* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_) (`#2796 <https://github.com/ros-controls/ros2_control/issues/2796>`_)
+5.8.2 (2025-11-09)
+------------------
+* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_) (`#2797 <https://github.com/ros-controls/ros2_control/issues/2797>`_)
 * Contributors: mergify[bot]
 
-4.39.1 (2025-11-03)
--------------------
+5.8.1 (2025-11-03)
+------------------
 
-4.39.0 (2025-10-27)
--------------------
+5.8.0 (2025-10-27)
+------------------
 
-4.38.0 (2025-10-03)
--------------------
-* Add parameter to allow controllers with inactive hardware components (`#2501 <https://github.com/ros-controls/ros2_control/issues/2501>`_) (`#2584 <https://github.com/ros-controls/ros2_control/issues/2584>`_)
-* Fix exclusive hardware control mode switching on controller failed activation (`#1522 <https://github.com/ros-controls/ros2_control/issues/1522>`_) (`#2580 <https://github.com/ros-controls/ros2_control/issues/2580>`_)
-* Fix shadowed variables, redefinition and old-style casts (`#2569 <https://github.com/ros-controls/ros2_control/issues/2569>`_) (`#2570 <https://github.com/ros-controls/ros2_control/issues/2570>`_)
-* Contributors: mergify[bot]
+5.7.0 (2025-10-03)
+------------------
+* Cleanup deprecations for kilted release (`#2605 <https://github.com/ros-controls/ros2_control/issues/2605>`_)
+* Add parameter to allow controllers with inactive hardware components (`#2501 <https://github.com/ros-controls/ros2_control/issues/2501>`_)
+* Fix exclusive hardware control mode switching on controller failed activation (`#1522 <https://github.com/ros-controls/ros2_control/issues/1522>`_)
+* Fix shadowed variables, redefinition and old-style casts (`#2569 <https://github.com/ros-controls/ros2_control/issues/2569>`_)
+* Contributors: Christoph Fröhlich, Sai Kishor Kothakota
 
-4.37.0 (2025-09-12)
--------------------
+5.6.0 (2025-08-26)
+------------------
+* Unify `write` behavior between Actuator and System hardware interfaces (`#2453 <https://github.com/ros-controls/ros2_control/issues/2453>`_)
+* Supress deprecated RM API warnings in the tests (`#2428 <https://github.com/ros-controls/ros2_control/issues/2428>`_)
+* Contributors: Sai Kishor Kothakota, Soham Patil
 
-4.36.0 (2025-08-26)
--------------------
-* Supress deprecated RM API warnings in the tests (`#2428 <https://github.com/ros-controls/ros2_control/issues/2428>`_) (`#2455 <https://github.com/ros-controls/ros2_control/issues/2455>`_)
-* Unify `write` behavior between Actuator and System hardware interfaces (`#2453 <https://github.com/ros-controls/ros2_control/issues/2453>`_) (`#2457 <https://github.com/ros-controls/ros2_control/issues/2457>`_)
-* Contributors: mergify[bot]
+5.5.0 (2025-07-31)
+------------------
+* Fix the prepare_command_mode_switch behaviour when HW is INACTIVE (`#2347 <https://github.com/ros-controls/ros2_control/issues/2347>`_)
+* Contributors: Sai Kishor Kothakota
 
-4.35.0 (2025-07-31)
--------------------
-* Fix the prepare_command_mode_switch behaviour when HW is INACTIVE (`#2347 <https://github.com/ros-controls/ros2_control/issues/2347>`_) (`#2418 <https://github.com/ros-controls/ros2_control/issues/2418>`_)
-* Addition of a Default Node for Hardware Component (`#2348 <https://github.com/ros-controls/ros2_control/issues/2348>`_) (`#2413 <https://github.com/ros-controls/ros2_control/issues/2413>`_)
-* Contributors: mergify[bot]
+5.4.0 (2025-07-21)
+------------------
+* Addition of a Default Node for Hardware Component (`#2348 <https://github.com/ros-controls/ros2_control/issues/2348>`_)
+* Contributors: Soham Patil
 
-4.34.0 (2025-07-21)
--------------------
-* Add deprecations to old methods not using Structs  (backport `#2344 <https://github.com/ros-controls/ros2_control/issues/2344>`_) (`#2359 <https://github.com/ros-controls/ros2_control/issues/2359>`_)
-* Contributors: mergify[bot]
+5.3.0 (2025-07-02)
+------------------
+* Add deprecations to old methods not using param structs  (`#2344 <https://github.com/ros-controls/ros2_control/issues/2344>`_)
+* Deactivate controllers with command interfaces to hardware on DEACTIVATE (`#2334 <https://github.com/ros-controls/ros2_control/issues/2334>`_)
+* Contributors: Marq Rasmussen, Sai Kishor Kothakota
 
-4.33.0 (2025-07-02)
--------------------
-* Deactivate controllers with command interfaces to hardware on DEACTIVATE (`#2334 <https://github.com/ros-controls/ros2_control/issues/2334>`_) (`#2341 <https://github.com/ros-controls/ros2_control/issues/2341>`_)
-* Contributors: mergify[bot]
+5.2.0 (2025-06-07)
+------------------
 
-4.32.0 (2025-06-06)
--------------------
+5.1.0 (2025-05-24)
+------------------
+* [RM] Isolate start and stop interfaces for each Hardware Component (`#2120 <https://github.com/ros-controls/ros2_control/issues/2120>`_)
+* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_)
+* Contributors: Sai Kishor Kothakota
 
-4.31.0 (2025-05-24)
--------------------
-* [RM] Isolate start and stop interfaces for each Hardware Component (backport `#2120 <https://github.com/ros-controls/ros2_control/issues/2120>`_) (`#2273 <https://github.com/ros-controls/ros2_control/issues/2273>`_)
-* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_) (`#2271 <https://github.com/ros-controls/ros2_control/issues/2271>`_)
-* Contributors: mergify[bot]
-
-4.30.0 (2025-05-21)
--------------------
-* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_) (`#2249 <https://github.com/ros-controls/ros2_control/issues/2249>`_)
-* Suppress the deprecation warnings of the hardware_interface API (`#2223 <https://github.com/ros-controls/ros2_control/issues/2223>`_) (`#2247 <https://github.com/ros-controls/ros2_control/issues/2247>`_)
-* Contributors: mergify[bot]
+5.0.0 (2025-05-21)
+------------------
+* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_)
+* Suppress the deprecation warnings of the hardware_interface API (`#2223 <https://github.com/ros-controls/ros2_control/issues/2223>`_)
+* Contributors: Sai Kishor Kothakota, mini-1235
 
 4.29.0 (2025-05-04)
 -------------------

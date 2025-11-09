@@ -25,6 +25,7 @@
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
@@ -33,6 +34,8 @@
 #include "hardware_interface/introspection.hpp"
 #include "hardware_interface/lexical_casts.hpp"
 #include "hardware_interface/macros.hpp"
+
+#include "rclcpp/logging.hpp"
 
 namespace
 {
@@ -95,8 +98,7 @@ public:
       {
         throw std::invalid_argument(
           fmt::format(
-            FMT_COMPILE(
-              "Invalid initial value : '{}' parsed for interface : '{}' with type : '{}'"),
+            FMT_COMPILE("Invalid initial value: '{}' parsed for interface: '{}' with type: '{}'"),
             initial_value, handle_name_, data_type_.to_string()));
       }
     }
@@ -110,7 +112,7 @@ public:
       throw std::runtime_error(
         fmt::format(
           FMT_COMPILE(
-            "Invalid data type : '{}' for interface : {}. Supported types are double and bool."),
+            "Invalid data type: '{}' for interface: {}. Supported types are double and bool."),
           data_type, handle_name_));
     }
   }
@@ -165,31 +167,7 @@ public:
 
   const std::string & get_interface_name() const { return interface_name_; }
 
-  [[deprecated(
-    "Replaced by get_name method, which is semantically more correct")]] const std::string &
-  get_full_name() const
-  {
-    return get_name();
-  }
-
   const std::string & get_prefix_name() const { return prefix_name_; }
-
-  [[deprecated(
-    "Use std::optional<T> get_optional() instead to retrieve the value. This method will be "
-    "removed by the ROS 2 Kilted Kaiju release.")]]
-  double get_value() const
-  {
-    std::shared_lock<std::shared_mutex> lock(handle_mutex_, std::try_to_lock);
-    if (!lock.owns_lock())
-    {
-      return std::numeric_limits<double>::quiet_NaN();
-    }
-    // BEGIN (Handle export change): for backward compatibility
-    // TODO(Manuel) return value_ if old functionality is removed
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
-    // END
-  }
 
   /**
    * @brief Get the value of the handle.
@@ -229,9 +207,30 @@ public:
     // TODO(saikishor) return value_ if old functionality is removed
     if constexpr (std::is_same_v<T, double>)
     {
-      // If the template is of type double, check if the value_ptr_ is not nullptr
-      THROW_ON_NULLPTR(value_ptr_);
-      return *value_ptr_;
+      switch (data_type_)
+      {
+        case HandleDataType::DOUBLE:
+          THROW_ON_NULLPTR(value_ptr_);
+          return *value_ptr_;
+        case HandleDataType::BOOL:
+          // TODO(christophfroehlich): replace with RCLCPP_WARN_ONCE once
+          // https://github.com/ros2/rclcpp/issues/2587
+          // is fixed
+          if (!notified_)
+          {
+            RCLCPP_WARN(
+              rclcpp::get_logger(get_name()),
+              "Casting bool to double for interface: %s. Better use get_optional<bool>().",
+              get_name().c_str());
+            notified_ = true;
+          }
+          return static_cast<double>(std::get<bool>(value_));
+        default:
+          throw std::runtime_error(
+            fmt::format(
+              FMT_COMPILE("Data type: '{}' cannot be casted to double for interface: {}"),
+              data_type_.to_string(), get_name()));
+      }
     }
     try
     {
@@ -241,57 +240,9 @@ public:
     {
       throw std::runtime_error(
         fmt::format(
-          FMT_COMPILE("Invalid data type : '{}' access for interface : {} expected : '{}'"),
+          FMT_COMPILE("Invalid data type: '{}' access for interface: {} expected: '{}'"),
           get_type_name<T>(), get_name(), data_type_.to_string()));
     }
-    // END
-  }
-
-  /**
-   * @brief Get the value of the handle.
-   * @tparam T The type of the value to be retrieved.
-   * @param value The value of the handle.
-   * @return true if the value is accessed successfully, false otherwise.
-   *
-   * @note The method is thread-safe and non-blocking.
-   * @note When different threads access the same handle at same instance, and if they are unable to
-   * lock the handle to access the value, the handle returns false. If the operation is successful,
-   * the value is updated and returns true.
-   */
-  template <typename T>
-  [[deprecated(
-    "Use std::optional<T> get_optional() instead to retrieve the value. This method will be "
-    "removed by the ROS 2 Kilted Kaiju release.")]] [[nodiscard]] bool
-  get_value(T & value) const
-  {
-    std::shared_lock<std::shared_mutex> lock(handle_mutex_, std::try_to_lock);
-    if (!lock.owns_lock())
-    {
-      return false;
-    }
-    // BEGIN (Handle export change): for backward compatibility
-    // TODO(Manuel) return value_ if old functionality is removed
-    if constexpr (std::is_same_v<T, double>)
-    {
-      // If the template is of type double, check if the value_ptr_ is not nullptr
-      THROW_ON_NULLPTR(value_ptr_);
-      value = *value_ptr_;
-    }
-    else
-    {
-      try
-      {
-        value = std::get<T>(value_);
-      }
-      catch (const std::bad_variant_access & err)
-      {
-        throw std::runtime_error(
-          fmt::format(
-            FMT_COMPILE("Invalid data type : '{}' access for interface : {} expected : '{}'"),
-            get_type_name<T>(), get_name(), data_type_.to_string()));
-      }
-    }
-    return true;
     // END
   }
 
@@ -346,7 +297,7 @@ public:
       {
         throw std::runtime_error(
           fmt::format(
-            FMT_COMPILE("Invalid data type : '{}' access for interface : {} expected : '{}'"),
+            FMT_COMPILE("Invalid data type: '{}' access for interface: {} expected: '{}'"),
             get_type_name<T>(), get_name(), data_type_.to_string()));
       }
       value_ = value;
@@ -358,6 +309,9 @@ public:
   std::shared_mutex & get_mutex() const { return handle_mutex_; }
 
   HandleDataType get_data_type() const { return data_type_; }
+
+  /// Returns true if the handle data type can be casted to double.
+  bool is_castable_to_double() const { return data_type_.is_castable_to_double(); }
 
 private:
   void copy(const Handle & other) noexcept
@@ -398,6 +352,12 @@ protected:
   double * value_ptr_;
   // END
   mutable std::shared_mutex handle_mutex_;
+
+private:
+  // TODO(christophfroehlich): remove once
+  // https://github.com/ros2/rclcpp/issues/2587
+  // is fixed
+  mutable bool notified_ = false;
 };
 
 class StateInterface : public Handle
