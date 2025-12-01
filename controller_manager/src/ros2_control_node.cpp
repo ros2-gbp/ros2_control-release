@@ -13,14 +13,13 @@
 // limitations under the License.
 
 #include <errno.h>
-#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
 
 #include "controller_manager/controller_manager.hpp"
-#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/executors.hpp"
 #include "realtime_tools/realtime_helpers.hpp"
 
 using namespace std::chrono_literals;
@@ -42,7 +41,21 @@ int main(int argc, char ** argv)
     std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
   std::string manager_node_name = "controller_manager";
 
-  auto cm = std::make_shared<controller_manager::ControllerManager>(executor, manager_node_name);
+  rclcpp::NodeOptions cm_node_options = controller_manager::get_cm_node_options();
+  std::vector<std::string> node_arguments = cm_node_options.arguments();
+  for (int i = 1; i < argc; ++i)
+  {
+    if (node_arguments.empty() && std::string(argv[i]) != "--ros-args")
+    {
+      // A simple way to reject non ros args
+      continue;
+    }
+    node_arguments.push_back(argv[i]);
+  }
+  cm_node_options.arguments(node_arguments);
+
+  auto cm = std::make_shared<controller_manager::ControllerManager>(
+    executor, manager_node_name, "", cm_node_options);
 
   const bool use_sim_time = cm->get_parameter_or("use_sim_time", false);
 
@@ -58,13 +71,16 @@ int main(int argc, char ** argv)
   }
 
   RCLCPP_INFO(cm->get_logger(), "update rate is %d Hz", cm->get_update_rate());
+  const bool manage_overruns = cm->get_parameter_or<bool>("overruns.manage", true);
+  RCLCPP_INFO(
+    cm->get_logger(), "Overruns handling is : %s", manage_overruns ? "enabled" : "disabled");
   const int thread_priority = cm->get_parameter_or<int>("thread_priority", kSchedPriority);
   RCLCPP_INFO(
     cm->get_logger(), "Spawning %s RT thread with scheduler priority: %d", cm->get_name(),
     thread_priority);
 
   std::thread cm_thread(
-    [cm, thread_priority, use_sim_time]()
+    [cm, thread_priority, use_sim_time, manage_overruns]()
     {
       rclcpp::Parameter cpu_affinity_param;
       if (cm->get_parameter("cpu_affinity", cpu_affinity_param))
@@ -106,35 +122,56 @@ int main(int argc, char ** argv)
           thread_priority);
       }
 
+      // wait for the clock to be available
+      cm->get_clock()->wait_until_started();
+      cm->get_clock()->sleep_for(rclcpp::Duration::from_seconds(1.0 / cm->get_update_rate()));
+
       // for calculating sleep time
       auto const period = std::chrono::nanoseconds(1'000'000'000 / cm->get_update_rate());
-      auto const cm_now = std::chrono::nanoseconds(cm->now().nanoseconds());
-      std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
-        next_iteration_time{cm_now};
 
       // for calculating the measured period of the loop
-      rclcpp::Time previous_time = cm->now();
+      rclcpp::Time previous_time = cm->get_trigger_clock()->now();
+      std::this_thread::sleep_for(period);
+
+      std::chrono::steady_clock::time_point next_iteration_time{std::chrono::steady_clock::now()};
 
       while (rclcpp::ok())
       {
         // calculate measured period
-        auto const current_time = cm->now();
+        auto const current_time = cm->get_trigger_clock()->now();
         auto const measured_period = current_time - previous_time;
         previous_time = current_time;
 
         // execute update loop
-        cm->read(cm->now(), measured_period);
-        cm->update(cm->now(), measured_period);
-        cm->write(cm->now(), measured_period);
+        cm->read(cm->get_trigger_clock()->now(), measured_period);
+        cm->update(cm->get_trigger_clock()->now(), measured_period);
+        cm->write(cm->get_trigger_clock()->now(), measured_period);
 
         // wait until we hit the end of the period
-        next_iteration_time += period;
         if (use_sim_time)
         {
           cm->get_clock()->sleep_until(current_time + period);
         }
         else
         {
+          next_iteration_time += period;
+          const auto time_now = std::chrono::steady_clock::now();
+          if (manage_overruns && next_iteration_time < time_now)
+          {
+            const double time_diff =
+              static_cast<double>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - next_iteration_time)
+                  .count()) /
+              1.e6;
+            const double cm_period = 1.e3 / static_cast<double>(cm->get_update_rate());
+            const int overrun_count = static_cast<int>(std::ceil(time_diff / cm_period));
+            RCLCPP_WARN_THROTTLE(
+              cm->get_logger(), *cm->get_clock(), 1000,
+              "Overrun detected! The controller manager missed its desired rate of %d Hz. The loop "
+              "took %f ms (missed cycles : %d).",
+              cm->get_update_rate(), time_diff + cm_period, overrun_count + 1);
+            next_iteration_time += (overrun_count * period);
+          }
           std::this_thread::sleep_until(next_iteration_time);
         }
       }
