@@ -18,7 +18,6 @@
 #include "hardware_interface/actuator_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "ros2_control_test_assets/test_hardware_interface_constants.hpp"
 
 using hardware_interface::ActuatorInterface;
 using hardware_interface::CommandInterface;
@@ -43,15 +42,14 @@ struct JointState
 
 class TestActuatorExclusiveInterfaces : public ActuatorInterface
 {
-  CallbackReturn on_init(
-    const hardware_interface::HardwareComponentInterfaceParams & params) override
+  CallbackReturn on_init(const hardware_interface::HardwareInfo & info) override
   {
-    if (ActuatorInterface::on_init(params) != CallbackReturn::SUCCESS)
+    if (ActuatorInterface::on_init(info) != CallbackReturn::SUCCESS)
     {
       return CallbackReturn::ERROR;
     }
 
-    for (const auto & j : get_hardware_info().joints)
+    for (const auto & j : info.joints)
     {
       (void)j;  // Suppress unused warning
       current_states_.emplace_back(JointState{});
