@@ -2,22 +2,22 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-6.1.0 (2025-12-01)
+5.9.0 (2025-12-01)
 ------------------
-* Improving differential_transmission configure checks (`#2812 <https://github.com/ros-controls/ros2_control/issues/2812>`_)
-* Contributors: Jordan Palacios
+* Improving differential_transmission configure checks (`#2812 <https://github.com/ros-controls/ros2_control/issues/2812>`_) (`#2815 <https://github.com/ros-controls/ros2_control/issues/2815>`_)
+* Contributors: mergify[bot]
 
-6.0.2 (2025-11-09)
-------------------
-
-6.0.1 (2025-11-03)
+5.8.2 (2025-11-09)
 ------------------
 
-6.0.0 (2025-10-27)
+5.8.1 (2025-11-03)
 ------------------
-* [Transmission] Fix the differential transmission configure checks (`#2682 <https://github.com/ros-controls/ros2_control/issues/2682>`_)
-* [Transmissions] Add `force`  interface (`#2588 <https://github.com/ros-controls/ros2_control/issues/2588>`_)
-* Contributors: Jordan Palacios, Sai Kishor Kothakota
+
+5.8.0 (2025-10-27)
+------------------
+* [Transmission] Fix the differential transmission configure checks (`#2682 <https://github.com/ros-controls/ros2_control/issues/2682>`_) (`#2688 <https://github.com/ros-controls/ros2_control/issues/2688>`_)
+* [Transmissions] Add `force`  interface (backport `#2588 <https://github.com/ros-controls/ros2_control/issues/2588>`_) (`#2679 <https://github.com/ros-controls/ros2_control/issues/2679>`_)
+* Contributors: mergify[bot]
 
 5.7.0 (2025-10-03)
 ------------------
