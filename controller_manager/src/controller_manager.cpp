@@ -65,14 +65,12 @@ static const rmw_qos_profile_t qos_services = {
 inline bool is_controller_unconfigured(
   const controller_interface::ControllerInterfaceBase & controller)
 {
-  return controller.get_lifecycle_state().id() ==
-         lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED;
+  return controller.get_lifecycle_id() == lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED;
 }
 
 inline bool is_controller_inactive(const controller_interface::ControllerInterfaceBase & controller)
 {
-  return controller.get_lifecycle_state().id() ==
-         lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
+  return controller.get_lifecycle_id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
 }
 
 inline bool is_controller_inactive(
@@ -83,7 +81,7 @@ inline bool is_controller_inactive(
 
 inline bool is_controller_active(const controller_interface::ControllerInterfaceBase & controller)
 {
-  return controller.get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE;
+  return controller.get_lifecycle_id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE;
 }
 
 inline bool is_controller_active(
@@ -1251,7 +1249,7 @@ controller_interface::return_type ControllerManager::configure_controller(
   }
   auto controller = found_it->c;
 
-  auto state = controller->get_lifecycle_state();
+  const auto & state = controller->get_lifecycle_state();
   if (
     state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE ||
     state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED)
@@ -1262,7 +1260,6 @@ controller_interface::return_type ControllerManager::configure_controller(
     return controller_interface::return_type::ERROR;
   }
 
-  auto new_state = controller->get_lifecycle_state();
   if (state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
   {
     RCLCPP_DEBUG(
@@ -1277,7 +1274,7 @@ controller_interface::return_type ControllerManager::configure_controller(
 
   try
   {
-    new_state = controller->configure();
+    const auto & new_state = controller->configure();
     if (new_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
     {
       RCLCPP_ERROR(
@@ -2121,6 +2118,7 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::add_co
     controller_params.controller_name = controller.info.name;
     controller_params.robot_description = robot_description_;
     controller_params.update_rate = get_update_rate();
+    controller_params.controller_manager_update_rate = get_update_rate();
     controller_params.node_namespace = get_namespace();
     controller_params.node_options = controller_node_options;
     controller_params.hard_joint_limits = resource_manager_->get_hard_joint_limits();
@@ -3070,8 +3068,6 @@ controller_interface::return_type ControllerManager::update(
         loaded_controller.info.name.c_str());
       continue;
     }
-    // TODO(v-lopez) we could cache this information
-    // https://github.com/ros-controls/ros2_control/issues/153
     if (is_controller_active(*loaded_controller.c))
     {
       if (
