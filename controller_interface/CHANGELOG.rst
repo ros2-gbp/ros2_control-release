@@ -2,31 +2,33 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.10.0 (2025-12-09)
--------------------
-* Fix the blocking calls of lifecycle_state in the real-time loop (backport `#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_) (`#2891 <https://github.com/ros-controls/ros2_control/issues/2891>`_)
-* Fix platform-dependent warning in `controller_interface_base.cpp` using `fmt::format` (`#2880 <https://github.com/ros-controls/ros2_control/issues/2880>`_) (`#2881 <https://github.com/ros-controls/ros2_control/issues/2881>`_)
-* Contributors: mergify[bot]
-
-5.9.0 (2025-12-01)
+6.2.0 (2025-12-10)
 ------------------
-* Add tf prefix helper and test (`#2803 <https://github.com/ros-controls/ros2_control/issues/2803>`_) (`#2867 <https://github.com/ros-controls/ros2_control/issues/2867>`_)
-* Calculate achievable update rate of controllers (`#2828 <https://github.com/ros-controls/ros2_control/issues/2828>`_) (`#2844 <https://github.com/ros-controls/ros2_control/issues/2844>`_)
-* Use fmt for correct int64_t format specifier across platforms (`#2817 <https://github.com/ros-controls/ros2_control/issues/2817>`_) (`#2841 <https://github.com/ros-controls/ros2_control/issues/2841>`_)
-* Contributors: mergify[bot]
+* Fix the blocking calls of lifecycle_state in the real-time loop (`#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_)
+* Fix platform-dependent warning in `controller_interface_base.cpp` using `fmt::format` (`#2880 <https://github.com/ros-controls/ros2_control/issues/2880>`_)
+* Contributors: Dhruv Patel, Sai Kishor Kothakota
 
-5.8.2 (2025-11-09)
+6.1.0 (2025-12-01)
+------------------
+* Add tf prefix helper and test (`#2803 <https://github.com/ros-controls/ros2_control/issues/2803>`_)
+* Calculate achievable update rate of controllers (`#2828 <https://github.com/ros-controls/ros2_control/issues/2828>`_)
+* Use fmt for correct int64_t format specifier across platforms (`#2817 <https://github.com/ros-controls/ros2_control/issues/2817>`_)
+* Contributors: Dhruv Patel, Ege Kural, Sai Kishor Kothakota
+
+6.0.2 (2025-11-09)
+------------------
+* Extend the reasoning for the capacity mismatch (`#2723 <https://github.com/ros-controls/ros2_control/issues/2723>`_)
+* Contributors: Sai Kishor Kothakota
+
+6.0.1 (2025-11-03)
 ------------------
 
-5.8.1 (2025-11-03)
+6.0.0 (2025-10-27)
 ------------------
-
-5.8.0 (2025-10-27)
-------------------
-* Add magnetic_field_sensor semantic component (`#2627 <https://github.com/ros-controls/ros2_control/issues/2627>`_) (`#2656 <https://github.com/ros-controls/ros2_control/issues/2656>`_)
-* Fix `-Wreturn-local-addr` compiler warning (`#2628 <https://github.com/ros-controls/ros2_control/issues/2628>`_) (`#2632 <https://github.com/ros-controls/ros2_control/issues/2632>`_)
+* Add magnetic_field_sensor semantic component (`#2627 <https://github.com/ros-controls/ros2_control/issues/2627>`_)
+* Fix `-Wreturn-local-addr` compiler warning (`#2628 <https://github.com/ros-controls/ros2_control/issues/2628>`_)
 * [Controllers] Set async thread properties via parameters (`#2613 <https://github.com/ros-controls/ros2_control/issues/2613>`_)
-* Contributors: Sai Kishor Kothakota, mergify[bot]
+* Contributors: Aarav Gupta, Christoph Fröhlich, Sai Kishor Kothakota
 
 5.7.0 (2025-10-03)
 ------------------

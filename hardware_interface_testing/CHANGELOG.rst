@@ -2,25 +2,25 @@
 Changelog for package hardware_interface_testing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.10.0 (2025-12-09)
--------------------
-* Fix the blocking calls of lifecycle_state in the real-time loop (backport `#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_) (`#2891 <https://github.com/ros-controls/ros2_control/issues/2891>`_)
-* Contributors: mergify[bot]
-
-5.9.0 (2025-12-01)
+6.2.0 (2025-12-10)
 ------------------
-* Publish all castable data types to pal_statistics (`#2633 <https://github.com/ros-controls/ros2_control/issues/2633>`_) (`#2854 <https://github.com/ros-controls/ros2_control/issues/2854>`_)
-* Contributors: mergify[bot]
+* Fix the blocking calls of lifecycle_state in the real-time loop (`#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_)
+* Contributors: Sai Kishor Kothakota
 
-5.8.2 (2025-11-09)
+6.1.0 (2025-12-01)
 ------------------
-* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_) (`#2797 <https://github.com/ros-controls/ros2_control/issues/2797>`_)
-* Contributors: mergify[bot]
+* Publish all castable data types to pal_statistics (`#2633 <https://github.com/ros-controls/ros2_control/issues/2633>`_)
+* Contributors: Christoph Fröhlich
 
-5.8.1 (2025-11-03)
+6.0.2 (2025-11-09)
+------------------
+* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_)
+* Contributors: Sai Kishor Kothakota
+
+6.0.1 (2025-11-03)
 ------------------
 
-5.8.0 (2025-10-27)
+6.0.0 (2025-10-27)
 ------------------
 
 5.7.0 (2025-10-03)
