@@ -2,6 +2,18 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.42.0 (2025-12-29)
+-------------------
+* Add new interface_configuration_types and reusable methods (`#2902 <https://github.com/ros-controls/ros2_control/issues/2902>`_) (`#2935 <https://github.com/ros-controls/ros2_control/issues/2935>`_)
+* Use Pimpl approach for controller and hardware component interfaces (backport `#2898 <https://github.com/ros-controls/ros2_control/issues/2898>`_) (`#2931 <https://github.com/ros-controls/ros2_control/issues/2931>`_)
+* Contributors: mergify[bot]
+
+4.41.0 (2025-12-10)
+-------------------
+* Calculate achievable update rate of controllers (backport `#2828 <https://github.com/ros-controls/ros2_control/issues/2828>`_) (`#2843 <https://github.com/ros-controls/ros2_control/issues/2843>`_)
+* Fix the blocking calls of lifecycle_state in the real-time loop (backport `#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_) (`#2890 <https://github.com/ros-controls/ros2_control/issues/2890>`_)
+* Contributors: mergify[bot]
+
 4.40.0 (2025-12-01)
 -------------------
 * Add tf prefix helper and test (`#2803 <https://github.com/ros-controls/ros2_control/issues/2803>`_) (`#2866 <https://github.com/ros-controls/ros2_control/issues/2866>`_)
