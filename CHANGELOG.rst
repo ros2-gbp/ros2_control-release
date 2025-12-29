@@ -2,6 +2,12 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.42.0 (2025-12-29)
+-------------------
+
+4.41.0 (2025-12-10)
+-------------------
+
 4.40.0 (2025-12-01)
 -------------------
 * Improving differential_transmission configure checks (`#2812 <https://github.com/ros-controls/ros2_control/issues/2812>`_) (`#2814 <https://github.com/ros-controls/ros2_control/issues/2814>`_)
