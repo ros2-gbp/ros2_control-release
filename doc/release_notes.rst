@@ -32,6 +32,10 @@ For details see the controller_manager section.
 * The new semantic command interface ``LedRgbDevice`` provides standard (command) interfaces for 3-channel LED devices (`#1945 <https://github.com/ros-controls/ros2_control/pull/1945>`_)
 * The new ``MagneticFieldSensor`` semantic component provides an interface for reading data from magnetometers. `(#2627 <https://github.com/ros-controls/ros2_control/pull/2627>`__)
 * The controller_manager will now deactivate the entire controller chain if a controller in the chain fails during the update cycle. `(#2681 <https://github.com/ros-controls/ros2_control/pull/2681>`__)
+* The update rate of the controller will now be approximated to a closer achievable frequency, when its frequency is not achievable with the current controller manager update rate. (`#2828 <https://github.com/ros-controls/ros2_control/pull/2828>`__)
+* The lifecycle ID is cached internally in the controller to avoid calls to get_lifecycle_state() in the real-time control loop. (`#2884 <https://github.com/ros-controls/ros2_control/pull/2884>`__)
+* Added 2 new interface_configuration_types: ``INDIVIDUAL_BEST_EFFORT`` and ``REGEX``. These allow for more flexible controller interface configurations. (`#2902 <https://github.com/ros-controls/ros2_control/pull/2902>`__)
+
 
 controller_manager
 ******************
@@ -104,6 +108,7 @@ controller_manager
 * The ``bcolors`` class now respects the ``RCUTILS_COLORIZED_OUTPUT`` environment
   variable to automatically disable colors in non-TTY and CI environments.
 * A new parameter ``handle_exceptions`` is added to the controller manager to control whether exceptions thrown by controllers during update are caught and handled internally or propagated. (`#2807 <https://github.com/ros-controls/ros2_control/pull/2807>`__)
+* Added new ``cleanup_controller`` service to the controller manager to allow cleaning up controllers from external clients. (`#2414 <https://github.com/ros-controls/ros2_control/pull/2414>`__)
 
 hardware_interface
 ******************
@@ -191,6 +196,8 @@ hardware_interface
 * The hardware interface is now treated similarly as ERROR, when a hardware component returns ERROR on the read cycle (`#2334 <https://github.com/ros-controls/ros2_control/pull/2334>`_).
 * The controllers are now deactivated when a hardware component returns DEACTIVATE on the write cycle. The parameter ``deactivate_controllers_on_hardware_self_deactivate`` is added to control this behavior temporarily. It is recommended to set this parameter to true in order to avoid controllers to use inactive hardware components and to avoid any unexpected behavior. This feature parameter will be removed in future releases and will be defaulted to true (`#2334 <https://github.com/ros-controls/ros2_control/pull/2334>`_ & `#2501 <https://github.com/ros-controls/ros2_control/pull/2501>`_).
 * The controllers are not allowed to be activated when the hardware component is in INACTIVE state. The parameter ``allow_controller_activation_with_inactive_hardware`` is added to control this behavior temporarily. It is recommended to set this parameter to false in order to avoid controllers to use inactive hardware components and to avoid any unexpected behavior. This feature parameter will be removed in future releases and will be defaulted to false (`#2347 <https://github.com/ros-controls/ros2_control/pull/2347>`_).
+* The lifecycle ID is cached internally in the controller to avoid calls to get_lifecycle_state() in the real-time control loop. (`#2884 <https://github.com/ros-controls/ros2_control/pull/2884>`__)
+* Handles now also support ``float32``, ``uint8``, ``int8``, ``uint16``, ``int16``, ``uint32``, ``int32`` data types in addition to double and bool. (`#2879 <https://github.com/ros-controls/ros2_control/pull/2879>`__)
 
 joint_limits
 ************
@@ -218,6 +225,7 @@ ros2controlcli
     ros2 control <verb> <arguments> --ros-args -r __ns:=<namespace>
 
 * The CLI verbs ``list_hardware_components`` and ``list_hardware_interfaces`` will now show the data type used by the internal Command and State interfaces (`#2204 <https://github.com/ros-controls/ros2_control/pull/2204>`_).
+* Added CLI support for invoking controller cleanup. (`#2414 <https://github.com/ros-controls/ros2_control/pull/2414>`__)
 
 transmission_interface
 **********************
