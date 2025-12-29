@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "control_msgs/msg/hardware_status.hpp"
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
@@ -45,8 +44,6 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "realtime_tools/async_function_handler.hpp"
-#include "realtime_tools/realtime_publisher.hpp"
-#include "realtime_tools/realtime_thread_safe_box.hpp"
 
 namespace hardware_interface
 {
@@ -81,6 +78,26 @@ public:
   /// clock and logger interfaces.
   /**
    * \param[in] hardware_info structure with data from URDF.
+   * \param[in] logger Logger for the hardware component.
+   * \param[in] clock_interface pointer to the clock interface.
+   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
+   * \returns CallbackReturn::ERROR if any error happens or data are missing.
+   */
+  [[deprecated("Use init(HardwareInfo, rclcpp::Logger, rclcpp::Clock::SharedPtr) instead.")]]
+  CallbackReturn init(
+    const HardwareInfo & hardware_info, rclcpp::Logger logger,
+    rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+  {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    return this->init(hardware_info, logger, clock_interface->get_clock());
+#pragma GCC diagnostic pop
+  }
+
+  /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
+  /// clock and logger interfaces.
+  /**
+   * \param[in] hardware_info structure with data from URDF.
    * \param[in] clock pointer to the resource manager clock.
    * \param[in] logger Logger for the hardware component.
    * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
@@ -88,8 +105,9 @@ public:
    */
   [[deprecated(
     "Replaced by CallbackReturn init(const hardware_interface::HardwareComponentParams & "
-    "params). Initialization is handled by the Framework.")]] CallbackReturn
-  init(const HardwareInfo & hardware_info, rclcpp::Logger logger, rclcpp::Clock::SharedPtr clock)
+    "params). Initialization is handled by the Framework.")]]
+  CallbackReturn init(
+    const HardwareInfo & hardware_info, rclcpp::Logger logger, rclcpp::Clock::SharedPtr clock)
   {
     hardware_interface::HardwareComponentParams params;
     params.hardware_info = hardware_info;
@@ -112,29 +130,14 @@ public:
    */
   CallbackReturn init(const hardware_interface::HardwareComponentParams & params);
 
-  /// User-overridable method to configure the structure of the HardwareStatus message.
+  /// Initialization of the hardware interface from data parsed from the robot's URDF.
   /**
-   * To enable status publishing, override this method to pre-allocate the message structure
-   * and fill in static information like device IDs and interface names. This method is called
-   * once during the non-realtime `init()` phase. If the `hardware_device_states` vector is
-   * left empty, publishing will be disabled.
-   *
-   * \param[out] msg_template A reference to a HardwareStatus message to be configured.
-   * \returns CallbackReturn::SUCCESS if configured successfully, CallbackReturn::ERROR on failure.
+   * \param[in] hardware_info structure with data from URDF.
+   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
+   * \returns CallbackReturn::ERROR if any error happens or data are missing.
    */
-  virtual CallbackReturn init_hardware_status_message(
-    control_msgs::msg::HardwareStatus & msg_template);
-
-  /// User-overridable method to fill the hardware status message with real-time data.
-  /**
-   * This real-time safe method is called by the framework within the `trigger_read()` loop.
-   * Override this method to populate the `value` fields of the pre-allocated message with the
-   * latest hardware states that were updated in your `read()` method.
-   *
-   * \param[in,out] msg The pre-allocated message to be filled with the latest values.
-   * \returns return_type::OK on success, return_type::ERROR on failure.
-   */
-  virtual return_type update_hardware_status_message(control_msgs::msg::HardwareStatus & msg);
+  [[deprecated("Use on_init(const HardwareComponentInterfaceParams & params) instead.")]]
+  virtual CallbackReturn on_init(const HardwareInfo & hardware_info);
 
   /// Initialization of the hardware interface from data parsed from the robot's URDF.
   /**

@@ -2,74 +2,75 @@
 Changelog for package controller_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.11.0 (2025-12-29)
+4.42.0 (2025-12-29)
 -------------------
-* Add new interface_configuration_types and reusable methods (`#2902 <https://github.com/ros-controls/ros2_control/issues/2902>`_) (`#2936 <https://github.com/ros-controls/ros2_control/issues/2936>`_)
-* Use Pimpl approach for controller and hardware component interfaces (`#2898 <https://github.com/ros-controls/ros2_control/issues/2898>`_) (`#2932 <https://github.com/ros-controls/ros2_control/issues/2932>`_)
+* Add new interface_configuration_types and reusable methods (`#2902 <https://github.com/ros-controls/ros2_control/issues/2902>`_) (`#2935 <https://github.com/ros-controls/ros2_control/issues/2935>`_)
+* Use Pimpl approach for controller and hardware component interfaces (backport `#2898 <https://github.com/ros-controls/ros2_control/issues/2898>`_) (`#2931 <https://github.com/ros-controls/ros2_control/issues/2931>`_)
 * Contributors: mergify[bot]
 
-5.10.0 (2025-12-09)
+4.41.0 (2025-12-10)
 -------------------
-* Fix the blocking calls of lifecycle_state in the real-time loop (backport `#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_) (`#2891 <https://github.com/ros-controls/ros2_control/issues/2891>`_)
-* Fix platform-dependent warning in `controller_interface_base.cpp` using `fmt::format` (`#2880 <https://github.com/ros-controls/ros2_control/issues/2880>`_) (`#2881 <https://github.com/ros-controls/ros2_control/issues/2881>`_)
+* Calculate achievable update rate of controllers (backport `#2828 <https://github.com/ros-controls/ros2_control/issues/2828>`_) (`#2843 <https://github.com/ros-controls/ros2_control/issues/2843>`_)
+* Fix the blocking calls of lifecycle_state in the real-time loop (backport `#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_) (`#2890 <https://github.com/ros-controls/ros2_control/issues/2890>`_)
 * Contributors: mergify[bot]
 
-5.9.0 (2025-12-01)
-------------------
-* Add tf prefix helper and test (`#2803 <https://github.com/ros-controls/ros2_control/issues/2803>`_) (`#2867 <https://github.com/ros-controls/ros2_control/issues/2867>`_)
-* Calculate achievable update rate of controllers (`#2828 <https://github.com/ros-controls/ros2_control/issues/2828>`_) (`#2844 <https://github.com/ros-controls/ros2_control/issues/2844>`_)
-* Use fmt for correct int64_t format specifier across platforms (`#2817 <https://github.com/ros-controls/ros2_control/issues/2817>`_) (`#2841 <https://github.com/ros-controls/ros2_control/issues/2841>`_)
+4.40.0 (2025-12-01)
+-------------------
+* Add tf prefix helper and test (`#2803 <https://github.com/ros-controls/ros2_control/issues/2803>`_) (`#2866 <https://github.com/ros-controls/ros2_control/issues/2866>`_)
+* Use fmt for correct int64_t format specifier across platforms (`#2817 <https://github.com/ros-controls/ros2_control/issues/2817>`_) (`#2840 <https://github.com/ros-controls/ros2_control/issues/2840>`_)
 * Contributors: mergify[bot]
 
-5.8.2 (2025-11-09)
-------------------
+4.39.2 (2025-11-09)
+-------------------
 
-5.8.1 (2025-11-03)
-------------------
+4.39.1 (2025-11-03)
+-------------------
 
-5.8.0 (2025-10-27)
-------------------
-* Add magnetic_field_sensor semantic component (`#2627 <https://github.com/ros-controls/ros2_control/issues/2627>`_) (`#2656 <https://github.com/ros-controls/ros2_control/issues/2656>`_)
-* Fix `-Wreturn-local-addr` compiler warning (`#2628 <https://github.com/ros-controls/ros2_control/issues/2628>`_) (`#2632 <https://github.com/ros-controls/ros2_control/issues/2632>`_)
-* [Controllers] Set async thread properties via parameters (`#2613 <https://github.com/ros-controls/ros2_control/issues/2613>`_)
-* Contributors: Sai Kishor Kothakota, mergify[bot]
+4.39.0 (2025-10-27)
+-------------------
+* Add magnetic_field_sensor semantic component (`#2627 <https://github.com/ros-controls/ros2_control/issues/2627>`_) (`#2655 <https://github.com/ros-controls/ros2_control/issues/2655>`_)
+* Fix `-Wreturn-local-addr` compiler warning (`#2628 <https://github.com/ros-controls/ros2_control/issues/2628>`_) (`#2631 <https://github.com/ros-controls/ros2_control/issues/2631>`_)
+* [Controllers] Set async thread properties via parameters (`#2613 <https://github.com/ros-controls/ros2_control/issues/2613>`_) (`#2614 <https://github.com/ros-controls/ros2_control/issues/2614>`_)
+* Contributors: mergify[bot]
 
-5.7.0 (2025-10-03)
-------------------
-* Cleanup deprecations for kilted release (`#2605 <https://github.com/ros-controls/ros2_control/issues/2605>`_)
-* Add `ControllerInterfaceParams` to initialize the Controllers (`#2390 <https://github.com/ros-controls/ros2_control/issues/2390>`_)
-* Let `get_ordered_interfaces` throw if input vector size does not fit (`#2528 <https://github.com/ros-controls/ros2_control/issues/2528>`_)
-* Update message dependencies for tests (`#2497 <https://github.com/ros-controls/ros2_control/issues/2497>`_)
-* Contributors: Christoph Fröhlich, Sai Kishor Kothakota
+4.38.0 (2025-10-03)
+-------------------
+* Add `ControllerInterfaceParams` to initialize the Controllers (backport `#2390 <https://github.com/ros-controls/ros2_control/issues/2390>`_) (`#2601 <https://github.com/ros-controls/ros2_control/issues/2601>`_)
+* Contributors: mergify[bot]
 
-5.6.0 (2025-08-26)
-------------------
+4.37.0 (2025-09-12)
+-------------------
+* Update message dependencies for tests (`#2497 <https://github.com/ros-controls/ros2_control/issues/2497>`_) (`#2500 <https://github.com/ros-controls/ros2_control/issues/2500>`_)
+* Contributors: mergify[bot]
 
-5.5.0 (2025-07-31)
-------------------
-* Fix missing include for std::find (`#2425 <https://github.com/ros-controls/ros2_control/issues/2425>`_)
-* Document order of interfaces (`#2394 <https://github.com/ros-controls/ros2_control/issues/2394>`_)
-* Contributors: Christoph Fröhlich, Guilhem Saurel
+4.36.0 (2025-08-26)
+-------------------
+* Fix missing include for std::find (`#2425 <https://github.com/ros-controls/ros2_control/issues/2425>`_) (`#2427 <https://github.com/ros-controls/ros2_control/issues/2427>`_)
+* Contributors: mergify[bot]
 
-5.4.0 (2025-07-21)
-------------------
+4.35.0 (2025-07-31)
+-------------------
+* Document order of interfaces (`#2394 <https://github.com/ros-controls/ros2_control/issues/2394>`_) (`#2422 <https://github.com/ros-controls/ros2_control/issues/2422>`_)
+* Contributors: mergify[bot]
 
-5.3.0 (2025-07-02)
-------------------
+4.34.0 (2025-07-21)
+-------------------
 
-5.2.0 (2025-06-07)
-------------------
+4.33.0 (2025-07-02)
+-------------------
 
-5.1.0 (2025-05-24)
-------------------
-* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_)
-* Cleanup deprecations in `ros_control`  (`#2258 <https://github.com/ros-controls/ros2_control/issues/2258>`_)
-* Contributors: Sai Kishor Kothakota
+4.32.0 (2025-06-06)
+-------------------
 
-5.0.0 (2025-05-21)
-------------------
-* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_)
-* Contributors: mini-1235
+4.31.0 (2025-05-24)
+-------------------
+* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_) (`#2271 <https://github.com/ros-controls/ros2_control/issues/2271>`_)
+* Contributors: mergify[bot]
+
+4.30.0 (2025-05-21)
+-------------------
+* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_) (`#2249 <https://github.com/ros-controls/ros2_control/issues/2249>`_)
+* Contributors: mergify[bot]
 
 4.29.0 (2025-05-04)
 -------------------
