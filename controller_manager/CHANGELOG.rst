@@ -2,6 +2,9 @@
 Changelog for package controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.42.1 (2025-12-30)
+-------------------
+
 4.42.0 (2025-12-29)
 -------------------
 * Add new interface_configuration_types and reusable methods (`#2902 <https://github.com/ros-controls/ros2_control/issues/2902>`_) (`#2935 <https://github.com/ros-controls/ros2_control/issues/2935>`_)
