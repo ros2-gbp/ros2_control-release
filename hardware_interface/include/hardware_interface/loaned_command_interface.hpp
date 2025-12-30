@@ -31,12 +31,19 @@ class LoanedCommandInterface
 public:
   using Deleter = std::function<void(void)>;
 
-  explicit LoanedCommandInterface(CommandInterface::SharedPtr command_interface)
+  [[deprecated("Replaced by the new version using shared_ptr")]] explicit LoanedCommandInterface(
+    CommandInterface & command_interface)
   : LoanedCommandInterface(command_interface, nullptr)
   {
   }
 
-  explicit LoanedCommandInterface(CommandInterface::SharedPtr command_interface, Deleter && deleter)
+  [[deprecated("Replaced by the new version using shared_ptr")]] LoanedCommandInterface(
+    CommandInterface & command_interface, Deleter && deleter)
+  : command_interface_(command_interface), deleter_(std::forward<Deleter>(deleter))
+  {
+  }
+
+  LoanedCommandInterface(CommandInterface::SharedPtr command_interface, Deleter && deleter)
   : command_interface_(*command_interface), deleter_(std::forward<Deleter>(deleter))
   {
   }
@@ -78,6 +85,13 @@ public:
 
   const std::string & get_interface_name() const { return command_interface_.get_interface_name(); }
 
+  [[deprecated(
+    "Replaced by get_name method, which is semantically more correct")]] const std::string
+  get_full_name() const
+  {
+    return command_interface_.get_name();
+  }
+
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
   /**
@@ -116,7 +130,7 @@ public:
 
   [[deprecated(
     "Use std::optional<T> get_optional() instead to retrieve the value. This method will be "
-    "removed by the ROS 2 Lyrical Luth release.")]]
+    "removed by the ROS 2 Kilted Kaiju release.")]]
   double get_value() const
   {
     std::optional<double> opt_value = get_optional();
@@ -166,16 +180,40 @@ public:
   }
 
   /**
+   * @brief Get the value of the command interface.
+   * @tparam T The type of the value to be retrieved.
+   * @param value The value of the command interface.
+   * @param max_tries The maximum number of tries to get the value.
+   * @return true if the value is accessed successfully, false otherwise.
+   *
+   * @note The method is thread-safe and non-blocking.
+   * @note When different threads access the internal handle at same instance, and if they are
+   * unable to lock the handle to access the value, the handle returns false. If the operation is
+   * successful, the value is updated and returns true.
+   * @note The method will try to get the value max_tries times before returning false. The method
+   * will yield the thread between tries. If the value is updated successfully, the method returns
+   * true immediately.
+   */
+  template <typename T>
+  [[deprecated(
+    "Use std::optional<T> get_optional() instead to retrieve the value. This method will be "
+    "removed by the ROS 2 Kilted Kaiju release.")]] [[nodiscard]] bool
+  get_value(T & value, unsigned int max_tries = 10) const
+  {
+    const auto opt_value = get_optional<T>(max_tries);
+    if (opt_value.has_value())
+    {
+      value = opt_value.value();
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * @brief Get the data type of the command interface.
    * @return The data type of the command interface.
    */
   HandleDataType get_data_type() const { return command_interface_.get_data_type(); }
-
-  /**
-   * @brief Check if the state interface can be casted to double.
-   * @return True if the state interface can be casted to double, false otherwise.
-   */
-  bool is_castable_to_double() const { return command_interface_.is_castable_to_double(); }
 
 protected:
   CommandInterface & command_interface_;
