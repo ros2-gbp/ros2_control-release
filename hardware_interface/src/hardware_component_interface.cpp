@@ -40,6 +40,11 @@ public:
   std::atomic<std::chrono::nanoseconds> read_execution_time_ = std::chrono::nanoseconds::zero();
   std::atomic<return_type> write_return_info_ = return_type::OK;
   std::atomic<std::chrono::nanoseconds> write_execution_time_ = std::chrono::nanoseconds::zero();
+
+  std::shared_ptr<rclcpp::Publisher<control_msgs::msg::HardwareStatus>> hardware_status_publisher_;
+  realtime_tools::RealtimeThreadSafeBox<std::optional<control_msgs::msg::HardwareStatus>>
+    hardware_status_box_;
+  rclcpp::TimerBase::SharedPtr hardware_status_timer_;
 };
 
 HardwareComponentInterface::HardwareComponentInterface()
@@ -50,7 +55,14 @@ HardwareComponentInterface::HardwareComponentInterface()
 {
 }
 
-HardwareComponentInterface::~HardwareComponentInterface() = default;
+HardwareComponentInterface::~HardwareComponentInterface()
+{
+  if (async_handler_)
+  {
+    async_handler_->stop_thread();
+  }
+  async_handler_.reset();
+}
 
 CallbackReturn HardwareComponentInterface::init(
   const hardware_interface::HardwareComponentParams & params)
@@ -125,16 +137,120 @@ CallbackReturn HardwareComponentInterface::init(
       params.hardware_info.name.c_str());
   }
 
+  double publish_rate = 0.0;
+  auto it = info_.hardware_parameters.find("status_publish_rate");
+  if (it != info_.hardware_parameters.end())
+  {
+    try
+    {
+      publish_rate = hardware_interface::stod(it->second);
+    }
+    catch (const std::invalid_argument &)
+    {
+      RCLCPP_WARN(
+        get_logger(), "Invalid 'status_publish_rate' parameter. Using default %.1f Hz.",
+        publish_rate);
+    }
+  }
+
+  if (publish_rate == 0.0)
+  {
+    RCLCPP_INFO(
+      get_logger(),
+      "`status_publish_rate` is set to 0.0, hardware status publisher will not be created.");
+  }
+  else
+  {
+    control_msgs::msg::HardwareStatus status_msg_template;
+    if (init_hardware_status_message(status_msg_template) != CallbackReturn::SUCCESS)
+    {
+      RCLCPP_ERROR(get_logger(), "User-defined 'init_hardware_status_message' failed.");
+      return CallbackReturn::ERROR;
+    }
+
+    if (!status_msg_template.hardware_device_states.empty())
+    {
+      if (!impl_->hardware_component_node_)
+      {
+        RCLCPP_WARN(
+          get_logger(),
+          "Hardware status message was configured, but no node is available for the publisher. "
+          "Publisher will not be created.");
+      }
+      else
+      {
+        try
+        {
+          impl_->hardware_status_publisher_ =
+            impl_->hardware_component_node_->create_publisher<control_msgs::msg::HardwareStatus>(
+              "~/hardware_status", rclcpp::SystemDefaultsQoS());
+
+          impl_->hardware_status_timer_ = impl_->hardware_component_node_->create_wall_timer(
+            std::chrono::duration<double>(1.0 / publish_rate),
+            [this]()
+            {
+              std::optional<control_msgs::msg::HardwareStatus> msg_to_publish_opt;
+              impl_->hardware_status_box_.get(msg_to_publish_opt);
+
+              if (msg_to_publish_opt.has_value() && impl_->hardware_status_publisher_)
+              {
+                control_msgs::msg::HardwareStatus & msg = msg_to_publish_opt.value();
+                if (update_hardware_status_message(msg) != return_type::OK)
+                {
+                  RCLCPP_WARN_THROTTLE(
+                    get_logger(), *impl_->clock_, 1000,
+                    "User's update_hardware_status_message() failed for '%s'.", info_.name.c_str());
+                  return;
+                }
+                msg.header.stamp = this->get_clock()->now();
+                impl_->hardware_status_publisher_->publish(msg);
+              }
+            });
+          impl_->hardware_status_box_.set(std::make_optional(status_msg_template));
+        }
+        catch (const std::exception & e)
+        {
+          RCLCPP_ERROR(
+            get_logger(), "Exception during publisher/timer setup for hardware status: %s",
+            e.what());
+          return CallbackReturn::ERROR;
+        }
+      }
+    }
+    else
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "`status_publish_rate` was set to a non-zero value, but no hardware status message was "
+        "configured. Publisher will not be created. Are you sure "
+        "init_hardware_status_message() is set up properly?");
+    }
+  }
+
   hardware_interface::HardwareComponentInterfaceParams interface_params;
   interface_params.hardware_info = info_;
   interface_params.executor = params.executor;
   return on_init(interface_params);
 }
 
-CallbackReturn HardwareComponentInterface::on_init(
-  const hardware_interface::HardwareInfo & hardware_info)
+CallbackReturn HardwareComponentInterface::init_hardware_status_message(
+  control_msgs::msg::HardwareStatus & /*msg_template*/)
 {
-  info_ = hardware_info;
+  // Default implementation does nothing, disabling the feature.
+  return CallbackReturn::SUCCESS;
+}
+
+return_type HardwareComponentInterface::update_hardware_status_message(
+  control_msgs::msg::HardwareStatus & /*msg*/)
+{
+  // Default implementation does nothing.
+  return return_type::OK;
+}
+
+CallbackReturn HardwareComponentInterface::on_init(
+  const hardware_interface::HardwareComponentInterfaceParams & params)
+{
+  info_ = params.hardware_info;
   if (info_.type == "actuator")
   {
     parse_state_interface_descriptions(info_.joints, joint_state_interfaces_);
@@ -154,16 +270,6 @@ CallbackReturn HardwareComponentInterface::on_init(
     parse_command_interface_descriptions(info_.gpios, gpio_command_interfaces_);
   }
   return CallbackReturn::SUCCESS;
-}
-
-CallbackReturn HardwareComponentInterface::on_init(
-  const hardware_interface::HardwareComponentInterfaceParams & params)
-{
-  // This is done for backward compatibility with the old on_init method.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  return on_init(params.hardware_info);
-#pragma GCC diagnostic pop
 }
 
 rclcpp::NodeOptions HardwareComponentInterface::define_custom_node_options() const
