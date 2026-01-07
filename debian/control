@@ -1,0 +1,12 @@
+Source: ros-kilted-controller-interface
+Section: misc
+Priority: optional
+Maintainer: Bence Magyar <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libfmt-dev, ros-kilted-ament-cmake, ros-kilted-ament-cmake-gen-version-h, ros-kilted-ament-cmake-gmock <!nocheck>, ros-kilted-geometry-msgs <!nocheck>, ros-kilted-hardware-interface, ros-kilted-rclcpp-lifecycle, ros-kilted-realtime-tools, ros-kilted-ros2-control-cmake, ros-kilted-sensor-msgs <!nocheck>, ros-kilted-std-msgs <!nocheck>, ros-kilted-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-kilted-controller-interface
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-kilted-hardware-interface, ros-kilted-rclcpp-lifecycle, ros-kilted-realtime-tools, ros-kilted-ros-workspace
+Description: Base classes for controllers and syntax cookies for supporting common sensor types in controllers and broadcasters
