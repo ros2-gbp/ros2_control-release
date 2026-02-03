@@ -2,68 +2,69 @@
 Changelog for package controller_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-6.4.0 (2026-02-03)
-------------------
-* Add a log entry if enforce_command_limits is false (`#2998 <https://github.com/ros-controls/ros2_control/issues/2998>`_)
-* Replace std::for_each with idiomatic container operations (`#2986 <https://github.com/ros-controls/ros2_control/issues/2986>`_)
-* Improve warning if spawner cannot acquire filelock (`#2970 <https://github.com/ros-controls/ros2_control/issues/2970>`_)
-* [Simulation] Catch exceptions of sleep_until context (`#2963 <https://github.com/ros-controls/ros2_control/issues/2963>`_)
-* Fix typo in TODO comments: MutliThreadedExecutor -> MultiThreadedExecutor (`#2958 <https://github.com/ros-controls/ros2_control/issues/2958>`_)
-* Contributors: Bence Magyar, Christoph Fröhlich, Sai Kishor Kothakota, Vignesh Vembar
+5.12.0 (2026-02-03)
+-------------------
+* Add a log entry if enforce_command_limits is false (`#2998 <https://github.com/ros-controls/ros2_control/issues/2998>`_) (`#3000 <https://github.com/ros-controls/ros2_control/issues/3000>`_)
+* Replace std::for_each with idiomatic container operations (`#2986 <https://github.com/ros-controls/ros2_control/issues/2986>`_) (`#2991 <https://github.com/ros-controls/ros2_control/issues/2991>`_)
+* Improve warning if spawner cannot acquire filelock (`#2970 <https://github.com/ros-controls/ros2_control/issues/2970>`_) (`#2973 <https://github.com/ros-controls/ros2_control/issues/2973>`_)
+* [Simulation] Catch exceptions of sleep_until context (`#2963 <https://github.com/ros-controls/ros2_control/issues/2963>`_) (`#2965 <https://github.com/ros-controls/ros2_control/issues/2965>`_)
+* Fix typo in TODO comments: MutliThreadedExecutor -> MultiThreadedExecutor (`#2958 <https://github.com/ros-controls/ros2_control/issues/2958>`_) (`#2960 <https://github.com/ros-controls/ros2_control/issues/2960>`_)
+* Contributors: mergify[bot]
 
-6.3.2 (2026-01-10)
-------------------
-* Fix the duplicate entries in the controller exported interfaces (`#2951 <https://github.com/ros-controls/ros2_control/issues/2951>`_)
-* Contributors: Sai Kishor Kothakota
+5.11.3 (2026-01-10)
+-------------------
+* Fix the duplicate entries in the controller exported interfaces (`#2951 <https://github.com/ros-controls/ros2_control/issues/2951>`_) (`#2955 <https://github.com/ros-controls/ros2_control/issues/2955>`_)
+* Contributors: mergify[bot]
 
-6.3.1 (2025-12-30)
-------------------
+5.11.2 (2026-01-07)
+-------------------
 
-6.3.0 (2025-12-29)
-------------------
-* Add new interface_configuration_types and reusable methods (`#2902 <https://github.com/ros-controls/ros2_control/issues/2902>`_)
-* Add `cleanup_controller` lifecycle transition (`#2414 <https://github.com/ros-controls/ros2_control/issues/2414>`_)
-* Contributors: Sai Kishor Kothakota, Soham Patil
+5.11.1 (2025-12-30)
+-------------------
 
-6.2.0 (2025-12-10)
-------------------
-* Fix the blocking calls of lifecycle_state in the real-time loop (`#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_)
-* Contributors: Sai Kishor Kothakota
+5.11.0 (2025-12-29)
+-------------------
+* Add new interface_configuration_types and reusable methods (`#2902 <https://github.com/ros-controls/ros2_control/issues/2902>`_) (`#2936 <https://github.com/ros-controls/ros2_control/issues/2936>`_)
+* Add `cleanup_controller` lifecycle transition (backport `#2414 <https://github.com/ros-controls/ros2_control/issues/2414>`_) (`#2915 <https://github.com/ros-controls/ros2_control/issues/2915>`_)
+* Contributors: mergify[bot]
 
-6.1.0 (2025-12-01)
-------------------
-* Fix the CM statistics async publish placement (`#2865 <https://github.com/ros-controls/ros2_control/issues/2865>`_)
-* Fix failing controller switch when using ::ALL command interface configuration (`#2856 <https://github.com/ros-controls/ros2_control/issues/2856>`_)
-* Add `handle_exceptions` parameter to controller manager (`#2807 <https://github.com/ros-controls/ros2_control/issues/2807>`_)
-* Calculate achievable update rate of controllers (`#2828 <https://github.com/ros-controls/ros2_control/issues/2828>`_)
-* Fix dependencies of controller_manager (`#2836 <https://github.com/ros-controls/ros2_control/issues/2836>`_)
-* Contributors: Christoph Fröhlich, Sai Kishor Kothakota
+5.10.0 (2025-12-09)
+-------------------
+* Fix the blocking calls of lifecycle_state in the real-time loop (backport `#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_) (`#2891 <https://github.com/ros-controls/ros2_control/issues/2891>`_)
+* Contributors: mergify[bot]
 
-6.0.2 (2025-11-09)
+5.9.0 (2025-12-01)
 ------------------
-* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_)
-* Fix ANSI escape code pollution in log output (`#2741 <https://github.com/ros-controls/ros2_control/issues/2741>`_)
-* Contributors: Sai Kishor Kothakota, sauman raaj
+* Fix the CM statistics async publish placement (`#2865 <https://github.com/ros-controls/ros2_control/issues/2865>`_) (`#2869 <https://github.com/ros-controls/ros2_control/issues/2869>`_)
+* Fix failing controller switch when using ::ALL command interface configuration (`#2856 <https://github.com/ros-controls/ros2_control/issues/2856>`_) (`#2859 <https://github.com/ros-controls/ros2_control/issues/2859>`_)
+* Add `handle_exceptions` parameter to controller manager (backport `#2807 <https://github.com/ros-controls/ros2_control/issues/2807>`_) (`#2850 <https://github.com/ros-controls/ros2_control/issues/2850>`_)
+* Calculate achievable update rate of controllers (`#2828 <https://github.com/ros-controls/ros2_control/issues/2828>`_) (`#2844 <https://github.com/ros-controls/ros2_control/issues/2844>`_)
+* Fix dependencies of controller_manager (backport `#2836 <https://github.com/ros-controls/ros2_control/issues/2836>`_) (`#2839 <https://github.com/ros-controls/ros2_control/issues/2839>`_)
+* Contributors: mergify[bot]
 
-6.0.1 (2025-11-03)
+5.8.2 (2025-11-09)
 ------------------
-* Fail early for the resource conflicts between the activating controllers (`#2760 <https://github.com/ros-controls/ros2_control/issues/2760>`_)
-* Contributors: Sai Kishor Kothakota
+* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_) (`#2797 <https://github.com/ros-controls/ros2_control/issues/2797>`_)
+* Fix ANSI escape code pollution in log output (backport `#2741 <https://github.com/ros-controls/ros2_control/issues/2741>`_) (`#2784 <https://github.com/ros-controls/ros2_control/issues/2784>`_)
+* Contributors: mergify[bot]
 
-6.0.0 (2025-10-27)
+5.8.1 (2025-11-03)
 ------------------
-* Switch the default strictness to STRICT (`#2742 <https://github.com/ros-controls/ros2_control/issues/2742>`_)
-* Deactivate the whole controller chain if one of the update results in ERROR (`#2681 <https://github.com/ros-controls/ros2_control/issues/2681>`_)
-* Deactivate the controller chain upon failed group activation (`#2669 <https://github.com/ros-controls/ros2_control/issues/2669>`_)
-* Add test_test_utils to CMakeLists (`#2729 <https://github.com/ros-controls/ros2_control/issues/2729>`_)
-* Fix concurrent spinning of the test_node (`#2721 <https://github.com/ros-controls/ros2_control/issues/2721>`_)
-* [Spawner] Fix failing makedirs on multiple spawners at startup (`#2698 <https://github.com/ros-controls/ros2_control/issues/2698>`_)
-* [Spawner] Create the FileLock in the ROS_HOME location (`#2677 <https://github.com/ros-controls/ros2_control/issues/2677>`_)
-* Fix the same hardware component node naming issue with multiple controller managers setup (`#2657 <https://github.com/ros-controls/ros2_control/issues/2657>`_)
-* Move clock availability check to controller manager thread (`#2654 <https://github.com/ros-controls/ros2_control/issues/2654>`_)
-* increase tolerance of the controller manager tests (`#2629 <https://github.com/ros-controls/ros2_control/issues/2629>`_)
+* Fail early for the resource conflicts between the activating controllers (`#2760 <https://github.com/ros-controls/ros2_control/issues/2760>`_) (`#2773 <https://github.com/ros-controls/ros2_control/issues/2773>`_)
+* Contributors: mergify[bot]
+
+5.8.0 (2025-10-27)
+------------------
+* Deactivate the whole controller chain if one of the update results in ERROR (`#2681 <https://github.com/ros-controls/ros2_control/issues/2681>`_) (`#2744 <https://github.com/ros-controls/ros2_control/issues/2744>`_)
+* Deactivate the controller chain upon failed group activation (`#2669 <https://github.com/ros-controls/ros2_control/issues/2669>`_) (`#2738 <https://github.com/ros-controls/ros2_control/issues/2738>`_)
+* Fix concurrent spinning of the test_node (backport `#2721 <https://github.com/ros-controls/ros2_control/issues/2721>`_) (`#2728 <https://github.com/ros-controls/ros2_control/issues/2728>`_)
+* [Spawner] Fix failing makedirs on multiple spawners at startup (`#2698 <https://github.com/ros-controls/ros2_control/issues/2698>`_) (`#2700 <https://github.com/ros-controls/ros2_control/issues/2700>`_)
+* [Spawner] Create the FileLock in the ROS_HOME location (`#2677 <https://github.com/ros-controls/ros2_control/issues/2677>`_) (`#2686 <https://github.com/ros-controls/ros2_control/issues/2686>`_)
+* Fix the same hardware component node naming issue with multiple controller managers setup (`#2657 <https://github.com/ros-controls/ros2_control/issues/2657>`_) (`#2667 <https://github.com/ros-controls/ros2_control/issues/2667>`_)
+* Move clock availability check to controller manager thread (`#2654 <https://github.com/ros-controls/ros2_control/issues/2654>`_) (`#2661 <https://github.com/ros-controls/ros2_control/issues/2661>`_)
+* increase tolerance of the controller manager tests (`#2629 <https://github.com/ros-controls/ros2_control/issues/2629>`_) (`#2637 <https://github.com/ros-controls/ros2_control/issues/2637>`_)
 * [Controllers] Set async thread properties via parameters (`#2613 <https://github.com/ros-controls/ros2_control/issues/2613>`_)
-* Contributors: Christoph Fröhlich, Erik Holum, Sai Kishor Kothakota
+* Contributors: Sai Kishor Kothakota, mergify[bot]
 
 5.7.0 (2025-10-03)
 ------------------
