@@ -15,11 +15,71 @@
 #ifndef HARDWARE_INTERFACE__SENSOR_HPP_
 #define HARDWARE_INTERFACE__SENSOR_HPP_
 
-#include "hardware_interface/hardware_component.hpp"
-#include "hardware_interface/sensor_interface.hpp"
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "hardware_interface/handle.hpp"
+#include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "hardware_interface/visibility_control.h"
+#include "rclcpp/duration.hpp"
+#include "rclcpp/time.hpp"
+#include "rclcpp_lifecycle/state.hpp"
 
 namespace hardware_interface
 {
-using Sensor = HardwareComponent;
+class SensorInterface;
+
+class Sensor final
+{
+public:
+  Sensor() = default;
+
+  HARDWARE_INTERFACE_PUBLIC
+  explicit Sensor(std::unique_ptr<SensorInterface> impl);
+
+  Sensor(Sensor && other) = default;
+
+  ~Sensor() = default;
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & initialize(const HardwareInfo & sensor_info);
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & configure();
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & cleanup();
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & shutdown();
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & activate();
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & deactivate();
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & error();
+
+  HARDWARE_INTERFACE_PUBLIC
+  std::vector<StateInterface> export_state_interfaces();
+
+  HARDWARE_INTERFACE_PUBLIC
+  std::string get_name() const;
+
+  HARDWARE_INTERFACE_PUBLIC
+  const rclcpp_lifecycle::State & get_state() const;
+
+  HARDWARE_INTERFACE_PUBLIC
+  return_type read(const rclcpp::Time & time, const rclcpp::Duration & period);
+
+private:
+  std::unique_ptr<SensorInterface> impl_;
+};
+
 }  // namespace hardware_interface
 #endif  // HARDWARE_INTERFACE__SENSOR_HPP_

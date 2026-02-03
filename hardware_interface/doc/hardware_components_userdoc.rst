@@ -17,8 +17,6 @@ Guidelines and Best Practices
    Hardware Interface Types <hardware_interface_types_userdoc.rst>
    Writing a Hardware Component <writing_new_hardware_component.rst>
    Different Update Rates <different_update_rates_userdoc.rst>
-   Asynchronous Execution <asynchronous_components.rst>
-   Semantic Components <semantic_components.rst>
 
 
 Lifecycle of a Hardware Component
@@ -41,7 +39,7 @@ The hardware transitions to the following state after each method:
 * **INACTIVE** (``on_configure``, ``on_deactivate``):
 
   Communication with the hardware is established and hardware component is configured.
-  States can be read, but command interfaces (System and Actuator only) are not available.
+  States can be read and command interfaces (System and Actuator only) are available.
 
   As of now, it is left to the hardware component implementation to continue using the command received from the ``CommandInterfaces`` or to skip them completely.
 
