@@ -2,66 +2,66 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.12.0 (2026-02-03)
+4.43.0 (2026-02-03)
 -------------------
-* Fix disabling joint limits via URDF (`#2992 <https://github.com/ros-controls/ros2_control/issues/2992>`_) (`#2997 <https://github.com/ros-controls/ros2_control/issues/2997>`_)
-* Strip leading and trailing whitespaces while parsing components (`#2974 <https://github.com/ros-controls/ros2_control/issues/2974>`_) (`#2977 <https://github.com/ros-controls/ros2_control/issues/2977>`_)
+* Fix disabling joint limits via URDF (`#2992 <https://github.com/ros-controls/ros2_control/issues/2992>`_) (`#2996 <https://github.com/ros-controls/ros2_control/issues/2996>`_)
+* Strip leading and trailing whitespaces while parsing components (`#2974 <https://github.com/ros-controls/ros2_control/issues/2974>`_) (`#2976 <https://github.com/ros-controls/ros2_control/issues/2976>`_)
 * Contributors: mergify[bot]
 
-5.11.3 (2026-01-10)
+4.42.2 (2026-01-10)
 -------------------
 
-5.11.2 (2026-01-07)
+4.42.1 (2025-12-30)
 -------------------
 
-5.11.1 (2025-12-30)
+4.42.0 (2025-12-29)
 -------------------
 
-5.11.0 (2025-12-29)
+4.41.0 (2025-12-10)
 -------------------
 
-5.10.0 (2025-12-09)
+4.40.0 (2025-12-01)
 -------------------
 
-5.9.0 (2025-12-01)
-------------------
+4.39.2 (2025-11-09)
+-------------------
 
-5.8.2 (2025-11-09)
-------------------
+4.39.1 (2025-11-03)
+-------------------
 
-5.8.1 (2025-11-03)
-------------------
+4.39.0 (2025-10-27)
+-------------------
 
-5.8.0 (2025-10-27)
-------------------
+4.38.0 (2025-10-03)
+-------------------
+* Add detach async policy for rate critical frameworks (backport `#2477 <https://github.com/ros-controls/ros2_control/issues/2477>`_) (`#2600 <https://github.com/ros-controls/ros2_control/issues/2600>`_)
+* Contributors: mergify[bot]
 
-5.7.0 (2025-10-03)
-------------------
-* Add detach async policy for rate critical frameworks (`#2477 <https://github.com/ros-controls/ros2_control/issues/2477>`_)
-* Contributors: Sai Kishor Kothakota
+4.37.0 (2025-09-12)
+-------------------
 
-5.6.0 (2025-08-26)
-------------------
+4.36.0 (2025-08-26)
+-------------------
 
-5.5.0 (2025-07-31)
-------------------
+4.35.0 (2025-07-31)
+-------------------
 
-5.4.0 (2025-07-21)
-------------------
+4.34.0 (2025-07-21)
+-------------------
 
-5.3.0 (2025-07-02)
-------------------
+4.33.0 (2025-07-02)
+-------------------
 
-5.2.0 (2025-06-07)
-------------------
+4.32.0 (2025-06-06)
+-------------------
 
-5.1.0 (2025-05-24)
-------------------
-* Read `data_type` for all types of interfaces (`#2235 <https://github.com/ros-controls/ros2_control/issues/2235>`_)
-* Contributors: Sai Kishor Kothakota
+4.31.0 (2025-05-24)
+-------------------
+* Read `data_type` for all types of interfaces (`#2235 <https://github.com/ros-controls/ros2_control/issues/2235>`_) (`#2261 <https://github.com/ros-controls/ros2_control/issues/2261>`_)
+* Contributors: mergify[bot]
 
-5.0.0 (2025-05-21)
-------------------
+4.30.0 (2025-05-21)
+-------------------
 
 4.29.0 (2025-05-04)
 -------------------
