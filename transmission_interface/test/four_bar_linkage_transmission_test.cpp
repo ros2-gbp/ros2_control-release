@@ -14,10 +14,10 @@
 
 /// \author Adolfo Rodriguez Tsouroukdissian
 
-#include <gmock/gmock.h>
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "random_generator_utils.hpp"
 #include "transmission_interface/four_bar_linkage_transmission.hpp"
@@ -26,7 +26,6 @@ using hardware_interface::HW_IF_EFFORT;
 using hardware_interface::HW_IF_POSITION;
 using hardware_interface::HW_IF_VELOCITY;
 using testing::DoubleNear;
-using testing::Not;
 using transmission_interface::ActuatorHandle;
 using transmission_interface::Exception;
 using transmission_interface::FourBarLinkageTransmission;
@@ -89,6 +88,13 @@ TEST(PreconditionsTest, AccessorValidation)
   EXPECT_THAT(-4.0, DoubleNear(trans.get_joint_reduction()[1], EPS));
   EXPECT_THAT(1.0, DoubleNear(trans.get_joint_offset()[0], EPS));
   EXPECT_THAT(-1.0, DoubleNear(trans.get_joint_offset()[1], EPS));
+
+  ASSERT_THAT(
+    trans.get_supported_joint_interfaces(),
+    testing::ElementsAre(HW_IF_POSITION, HW_IF_VELOCITY, HW_IF_EFFORT));
+  ASSERT_THAT(
+    trans.get_supported_actuator_interfaces(),
+    testing::ElementsAre(HW_IF_POSITION, HW_IF_VELOCITY, HW_IF_EFFORT));
 }
 
 void testConfigureWithBadHandles(std::string interface_name)

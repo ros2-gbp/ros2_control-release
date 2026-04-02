@@ -13,77 +13,117 @@
 // limitations under the License.
 
 #include <array>
-#include <memory>
 #include <vector>
 
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
-
-#include "rcutils/logging_macros.h"
+#include "rclcpp/logging.hpp"
+#include "ros2_control_test_assets/test_hardware_interface_constants.hpp"
 
 using hardware_interface::CommandInterface;
 using hardware_interface::return_type;
 using hardware_interface::StateInterface;
 using hardware_interface::SystemInterface;
 
+namespace
+{
+void verify_internal_lifecycle_id(uint8_t expected_id, uint8_t actual_id)
+{
+  if (expected_id != actual_id)
+  {
+    throw std::runtime_error(
+      "Internal lifecycle ID does not match the expected lifecycle ID. Expected: " +
+      std::to_string(expected_id) + ", Actual: " + std::to_string(actual_id));
+  }
+}
+}  // namespace
+
 class TestSystem : public SystemInterface
 {
-  std::vector<StateInterface> export_state_interfaces() override
+  CallbackReturn on_init(
+    const hardware_interface::HardwareComponentInterfaceParams & params) override
   {
-    std::vector<StateInterface> state_interfaces;
-    for (auto i = 0u; i < info_.joints.size(); ++i)
+    if (SystemInterface::on_init(params) != CallbackReturn::SUCCESS)
     {
-      if (info_.joints[i].name != "configuration")
-      {
-        state_interfaces.emplace_back(
-          hardware_interface::StateInterface(
-            info_.joints[i].name, hardware_interface::HW_IF_POSITION, &position_state_[i]));
-        state_interfaces.emplace_back(
-          hardware_interface::StateInterface(
-            info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_state_[i]));
-        state_interfaces.emplace_back(
-          hardware_interface::StateInterface(
-            info_.joints[i].name, hardware_interface::HW_IF_ACCELERATION, &acceleration_state_[i]));
-      }
+      return CallbackReturn::ERROR;
+    }
+    verify_internal_lifecycle_id(get_lifecycle_id(), get_lifecycle_state().id());
+
+    // Simulating initialization error
+    if (get_hardware_info().joints[0].state_interfaces[1].name == "does_not_exist")
+    {
+      return CallbackReturn::ERROR;
     }
 
-    if (info_.joints.size() > 2)
+    if (get_hardware_info().rw_rate == 0u)
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "System hardware component '%s' from plugin '%s' failed to initialize as rw_rate is 0.",
+        get_hardware_info().name.c_str(), get_hardware_info().hardware_plugin_name.c_str());
+      return CallbackReturn::ERROR;
+    }
+    return CallbackReturn::SUCCESS;
+  }
+
+  std::vector<StateInterface::ConstSharedPtr> on_export_state_interfaces() override
+  {
+    verify_internal_lifecycle_id(get_lifecycle_id(), get_lifecycle_state().id());
+    const auto info = get_hardware_info();
+    std::vector<StateInterface::ConstSharedPtr> state_interfaces;
+    for (auto i = 0u; i < info.joints.size(); ++i)
+    {
+      position_state_[i] =
+        std::make_shared<StateInterface>(info.joints[i].name, hardware_interface::HW_IF_POSITION);
+      std::ignore = position_state_[i]->set_value(0.0, false);
+      velocity_state_[i] =
+        std::make_shared<StateInterface>(info.joints[i].name, hardware_interface::HW_IF_VELOCITY);
+      std::ignore = velocity_state_[i]->set_value(0.0, false);
+      acceleration_state_[i] = std::make_shared<StateInterface>(
+        info.joints[i].name, hardware_interface::HW_IF_ACCELERATION);
+      std::ignore = acceleration_state_[i]->set_value(0.0, false);
+      state_interfaces.push_back(position_state_[i]);
+      state_interfaces.push_back(velocity_state_[i]);
+      state_interfaces.push_back(acceleration_state_[i]);
+    }
+
+    if (info.gpios.size() > 0)
     {
       // Add configuration/max_tcp_jerk interface
-      state_interfaces.emplace_back(
-        hardware_interface::StateInterface(
-          info_.joints[2].name, info_.joints[2].state_interfaces[0].name, &configuration_state_));
+      configuration_state_ = std::make_shared<StateInterface>(
+        info.gpios[0].name, info.gpios[0].state_interfaces[0].name);
+      std::ignore = configuration_state_->set_value(0.0, false);
+      state_interfaces.push_back(configuration_state_);
     }
 
     return state_interfaces;
   }
 
-  std::vector<CommandInterface> export_command_interfaces() override
+  std::vector<CommandInterface::SharedPtr> on_export_command_interfaces() override
   {
-    RCUTILS_LOG_INFO_NAMED("test_system", "Exporting configuration interfaces.");
-    std::vector<CommandInterface> command_interfaces;
-    for (auto i = 0u; i < info_.joints.size(); ++i)
+    verify_internal_lifecycle_id(get_lifecycle_id(), get_lifecycle_state().id());
+    const auto info = get_hardware_info();
+    std::vector<CommandInterface::SharedPtr> command_interfaces;
+    for (auto i = 0u; i < info.joints.size(); ++i)
     {
-      if (info_.joints[i].name != "configuration")
-      {
-        command_interfaces.emplace_back(
-          hardware_interface::CommandInterface(
-            info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_command_[i]));
-      }
+      velocity_command_[i] =
+        std::make_shared<CommandInterface>(info.joints[i].name, hardware_interface::HW_IF_VELOCITY);
+      std::ignore = velocity_command_[i]->set_value(0.0, false);
+      command_interfaces.push_back(velocity_command_[i]);
     }
     // Add max_acceleration command interface
-    command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(
-        info_.joints[0].name, info_.joints[0].command_interfaces[1].name,
-        &max_acceleration_command_));
+    max_acceleration_command_ = std::make_shared<CommandInterface>(
+      info.joints[0].name, info.joints[0].command_interfaces[1].name);
+    std::ignore = max_acceleration_command_->set_value(0.0, false);
+    command_interfaces.push_back(max_acceleration_command_);
 
-    if (info_.joints.size() > 2)
+    if (info.gpios.size() > 0)
     {
       // Add configuration/max_tcp_jerk interface
-      command_interfaces.emplace_back(
-        hardware_interface::CommandInterface(
-          info_.joints[2].name, info_.joints[2].command_interfaces[0].name,
-          &configuration_command_));
+      configuration_command_ = std::make_shared<CommandInterface>(
+        info.gpios[0].name, info.gpios[0].command_interfaces[0].name);
+      std::ignore = configuration_command_->set_value(0.0, false);
+      command_interfaces.push_back(configuration_command_);
     }
 
     return command_interfaces;
@@ -91,47 +131,98 @@ class TestSystem : public SystemInterface
 
   return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
-    // simulate error on read
-    if (velocity_command_[0] == 28282828)
+    verify_internal_lifecycle_id(get_lifecycle_id(), get_lifecycle_state().id());
+    if (get_hardware_info().is_async)
     {
-      // reset value to get out from error on the next call - simplifies CM tests
-      velocity_command_[0] = 0.0;
+      std::this_thread::sleep_for(
+        std::chrono::milliseconds(1000 / (3 * get_hardware_info().rw_rate)));
+    }
+    double vel_cmd = 0.0;
+    std::ignore = velocity_command_[0]->get_value(vel_cmd, false);
+    // simulate error on read
+    if (vel_cmd == test_constants::READ_FAIL_VALUE)
+    {
+      // reset value to get out from error on the next call - simplifies CM
+      // tests
+      std::ignore = velocity_command_[0]->set_value(0.0, false);
       return return_type::ERROR;
     }
+    // simulate deactivate on read
+    if (vel_cmd == test_constants::READ_DEACTIVATE_VALUE)
+    {
+      return return_type::DEACTIVATE;
+    }
+    // simulate exception on read
+    const auto velocity_command_value = velocity_command_[0]->get_optional();
+    if (
+      velocity_command_value.has_value() &&
+      velocity_command_value.value() == test_constants::READ_THROW_VALUE)
+    {
+      throw std::runtime_error("Exception from TestSystem::read() as requested.");
+    }
+    // The next line is for the testing purposes. We need value to be changed to
+    // be sure that the feedback from hardware to controllers in the chain is
+    // working as it should. This makes value checks clearer and confirms there
+    // is no "state = command" line or some other mixture of interfaces
+    // somewhere in the test stack.
+    std::ignore = velocity_state_[0]->set_value(vel_cmd / 2.0, false);
     return return_type::OK;
   }
 
   return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
-    // simulate error on write
-    if (velocity_command_[0] == 23232323)
+    verify_internal_lifecycle_id(get_lifecycle_id(), get_lifecycle_state().id());
+    if (get_hardware_info().is_async)
     {
-      // reset value to get out from error on the next call - simplifies CM tests
-      velocity_command_[0] = 0.0;
+      std::this_thread::sleep_for(
+        std::chrono::milliseconds(1000 / (6 * get_hardware_info().rw_rate)));
+    }
+    double vel_cmd = 0.0;
+    std::ignore = velocity_command_[0]->get_value(vel_cmd, false);
+    // simulate error on write
+    if (vel_cmd == test_constants::WRITE_FAIL_VALUE)
+    {
+      // reset value to get out from error on the next call - simplifies CM
+      // tests
+      std::ignore = velocity_command_[0]->set_value(0.0, false);
       return return_type::ERROR;
+    }
+    // simulate deactivate on write
+    if (vel_cmd == test_constants::WRITE_DEACTIVATE_VALUE)
+    {
+      return return_type::DEACTIVATE;
+    }
+    // simulate exception on write
+    const auto velocity_command_value = velocity_command_[0]->get_optional();
+    if (
+      velocity_command_value.has_value() &&
+      velocity_command_value.value() == test_constants::WRITE_THROW_VALUE)
+    {
+      throw std::runtime_error("Exception from TestSystem::write() as requested.");
     }
     return return_type::OK;
   }
 
 private:
-  std::array<double, 2> velocity_command_ = {0.0, 0.0};
-  std::array<double, 2> position_state_ = {0.0, 0.0};
-  std::array<double, 2> velocity_state_ = {0.0, 0.0};
-  std::array<double, 2> acceleration_state_ = {0.0, 0.0};
-  double max_acceleration_command_ = 0.0;
-  double configuration_state_ = 0.0;
-  double configuration_command_ = 0.0;
+  std::array<CommandInterface::SharedPtr, 2> velocity_command_;
+  std::array<StateInterface::SharedPtr, 2> position_state_;
+  std::array<StateInterface::SharedPtr, 2> velocity_state_;
+  std::array<StateInterface::SharedPtr, 2> acceleration_state_;
+  CommandInterface::SharedPtr max_acceleration_command_;
+  StateInterface::SharedPtr configuration_state_;
+  CommandInterface::SharedPtr configuration_command_;
 };
 
-class TestUnitilizableSystem : public TestSystem
+class TestUninitializableSystem : public TestSystem
 {
-  CallbackReturn on_init(const hardware_interface::HardwareInfo & info) override
+  CallbackReturn on_init(
+    const hardware_interface::HardwareComponentInterfaceParams & params) override
   {
-    SystemInterface::on_init(info);
+    SystemInterface::on_init(params);
     return CallbackReturn::ERROR;
   }
 };
 
 #include "pluginlib/class_list_macros.hpp"  // NOLINT
 PLUGINLIB_EXPORT_CLASS(TestSystem, hardware_interface::SystemInterface)
-PLUGINLIB_EXPORT_CLASS(TestUnitilizableSystem, hardware_interface::SystemInterface)
+PLUGINLIB_EXPORT_CLASS(TestUninitializableSystem, hardware_interface::SystemInterface)
