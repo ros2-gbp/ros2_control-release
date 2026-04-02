@@ -2,6 +2,11 @@
 Changelog for package joint_limits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+5.13.0 (2026-04-02)
+-------------------
+* Consistently add <cmath> include with define for windows (backport `#3061 <https://github.com/ros-controls/ros2_control/issues/3061>`_) (`#3067 <https://github.com/ros-controls/ros2_control/issues/3067>`_)
+* Contributors: mergify[bot]
+
 5.12.0 (2026-02-03)
 -------------------
 * Fix disabling joint limits via URDF (`#2992 <https://github.com/ros-controls/ros2_control/issues/2992>`_) (`#2997 <https://github.com/ros-controls/ros2_control/issues/2997>`_)
