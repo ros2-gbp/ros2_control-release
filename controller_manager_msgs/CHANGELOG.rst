@@ -2,38 +2,41 @@
 Changelog for package controller_manager_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-6.5.0 (2026-04-02)
-------------------
-* Remove linters from msg package (`#3059 <https://github.com/ros-controls/ros2_control/issues/3059>`_)
-* Contributors: Christoph Fröhlich
+5.13.0 (2026-04-02)
+-------------------
+* Remove linters from msg package (`#3059 <https://github.com/ros-controls/ros2_control/issues/3059>`_) (`#3064 <https://github.com/ros-controls/ros2_control/issues/3064>`_)
+* Contributors: mergify[bot]
 
-6.4.0 (2026-02-03)
-------------------
+5.12.0 (2026-02-03)
+-------------------
 
-6.3.2 (2026-01-10)
-------------------
+5.11.3 (2026-01-10)
+-------------------
 
-6.3.1 (2025-12-30)
-------------------
+5.11.2 (2026-01-07)
+-------------------
 
-6.3.0 (2025-12-29)
-------------------
-* Add `cleanup_controller` lifecycle transition (`#2414 <https://github.com/ros-controls/ros2_control/issues/2414>`_)
-* Contributors: Soham Patil
+5.11.1 (2025-12-30)
+-------------------
 
-6.2.0 (2025-12-10)
-------------------
+5.11.0 (2025-12-29)
+-------------------
+* Add `cleanup_controller` lifecycle transition (backport `#2414 <https://github.com/ros-controls/ros2_control/issues/2414>`_) (`#2915 <https://github.com/ros-controls/ros2_control/issues/2915>`_)
+* Contributors: mergify[bot]
 
-6.1.0 (2025-12-01)
-------------------
+5.10.0 (2025-12-09)
+-------------------
 
-6.0.2 (2025-11-09)
-------------------
-
-6.0.1 (2025-11-03)
+5.9.0 (2025-12-01)
 ------------------
 
-6.0.0 (2025-10-27)
+5.8.2 (2025-11-09)
+------------------
+
+5.8.1 (2025-11-03)
+------------------
+
+5.8.0 (2025-10-27)
 ------------------
 
 5.7.0 (2025-10-03)

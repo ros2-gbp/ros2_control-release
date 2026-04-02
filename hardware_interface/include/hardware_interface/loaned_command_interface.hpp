@@ -116,6 +116,22 @@ public:
     return true;
   }
 
+  [[deprecated(
+    "Use std::optional<T> get_optional() instead to retrieve the value. This method will be "
+    "removed by the ROS 2 Lyrical Luth release.")]]
+  double get_value() const
+  {
+    std::optional<double> opt_value = get_optional();
+    if (opt_value.has_value())
+    {
+      return opt_value.value();
+    }
+    else
+    {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+  }
+
   /**
    * @brief Get the value of the command interface.
    * @tparam T The type of the value to be retrieved.
@@ -165,8 +181,8 @@ public:
 
 protected:
   CommandInterface & command_interface_;
-  std::string interface_name_;
   Deleter deleter_;
+  std::string interface_name_;
 
 private:
   struct HandleRTStatistics

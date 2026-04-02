@@ -97,9 +97,8 @@ TEST_F(ChainableControllerInterfaceTest, export_state_interfaces_list_only)
   ASSERT_TRUE(
     controller.exported_state_interfaces_.find("testable_chainable_controller/test_state_ptr") !=
     controller.exported_state_interfaces_.end());
-  std::ignore =
-    controller.exported_state_interfaces_.at("testable_chainable_controller/test_state_ptr")
-      ->set_value(EXPORTED_STATE_INTERFACE_VALUE);
+  controller.exported_state_interfaces_.at("testable_chainable_controller/test_state_ptr")
+    ->set_value(EXPORTED_STATE_INTERFACE_VALUE);
   EXPECT_EQ(exported_state_interfaces[0]->get_optional().value(), EXPORTED_STATE_INTERFACE_VALUE);
 
   // calling export_state_interfaces again should return the same interface and shouldn't throw
@@ -141,9 +140,8 @@ TEST_F(ChainableControllerInterfaceTest, export_state_interfaces_list_plus_legac
   ASSERT_TRUE(
     controller.exported_state_interfaces_.find("testable_chainable_controller/test_state_ptr") !=
     controller.exported_state_interfaces_.end());
-  std::ignore =
-    controller.exported_state_interfaces_.at("testable_chainable_controller/test_state_ptr")
-      ->set_value(EXPORTED_STATE_INTERFACE_VALUE);
+  controller.exported_state_interfaces_.at("testable_chainable_controller/test_state_ptr")
+    ->set_value(EXPORTED_STATE_INTERFACE_VALUE);
   EXPECT_EQ(exported_state_interfaces[0]->get_optional().value(), EXPORTED_STATE_INTERFACE_VALUE);
 
   // calling export_state_interfaces again should return the same interface and shouldn't throw
@@ -214,9 +212,8 @@ TEST_F(ChainableControllerInterfaceTest, export_reference_interfaces_list_only)
   ASSERT_TRUE(
     controller.exported_reference_interfaces_.find("testable_chainable_controller/test_itf_ptr") !=
     controller.exported_reference_interfaces_.end());
-  std::ignore =
-    controller.exported_reference_interfaces_.at("testable_chainable_controller/test_itf_ptr")
-      ->set_value(INTERFACE_VALUE);
+  controller.exported_reference_interfaces_.at("testable_chainable_controller/test_itf_ptr")
+    ->set_value(INTERFACE_VALUE);
   EXPECT_EQ(reference_interfaces[0]->get_optional().value(), INTERFACE_VALUE);
 
   // calling export_reference_interfaces again should return the same interface and shouldn't throw
@@ -258,9 +255,8 @@ TEST_F(ChainableControllerInterfaceTest, export_reference_interfaces_list_plus_l
   ASSERT_TRUE(
     controller.exported_reference_interfaces_.find("testable_chainable_controller/test_itf_ptr") !=
     controller.exported_reference_interfaces_.end());
-  std::ignore =
-    controller.exported_reference_interfaces_.at("testable_chainable_controller/test_itf_ptr")
-      ->set_value(INTERFACE_VALUE);
+  controller.exported_reference_interfaces_.at("testable_chainable_controller/test_itf_ptr")
+    ->set_value(INTERFACE_VALUE);
   EXPECT_EQ(reference_interfaces[0]->get_optional().value(), INTERFACE_VALUE);
 
   // calling export_reference_interfaces again should return the same interface and shouldn't throw

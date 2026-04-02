@@ -80,6 +80,27 @@ public:
   /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
   /// clock and logger interfaces.
   /**
+   * \param[in] hardware_info structure with data from URDF.
+   * \param[in] clock pointer to the resource manager clock.
+   * \param[in] logger Logger for the hardware component.
+   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
+   * \returns CallbackReturn::ERROR if any error happens or data are missing.
+   */
+  [[deprecated(
+    "Replaced by CallbackReturn init(const hardware_interface::HardwareComponentParams & "
+    "params). Initialization is handled by the Framework.")]] CallbackReturn
+  init(const HardwareInfo & hardware_info, rclcpp::Logger logger, rclcpp::Clock::SharedPtr clock)
+  {
+    hardware_interface::HardwareComponentParams params;
+    params.hardware_info = hardware_info;
+    params.clock = clock;
+    params.logger = logger;
+    return init(params);
+  };
+
+  /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
+  /// clock and logger interfaces.
+  /**
    * \param[in] params  A struct of type HardwareComponentParams containing all necessary
    * parameters for initializing this specific hardware component,
    * including its HardwareInfo, a dedicated logger, a clock, and a
@@ -114,6 +135,15 @@ public:
    * \returns return_type::OK on success, return_type::ERROR on failure.
    */
   virtual return_type update_hardware_status_message(control_msgs::msg::HardwareStatus & msg);
+
+  /// Initialization of the hardware interface from data parsed from the robot's URDF.
+  /**
+   * \param[in] hardware_info structure with data from URDF.
+   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
+   * \returns CallbackReturn::ERROR if any error happens or data are missing.
+   */
+  [[deprecated("Use on_init(const HardwareComponentInterfaceParams & params) instead.")]]
+  virtual CallbackReturn on_init(const HardwareInfo & hardware_info);
 
   /// Initialization of the hardware interface from data parsed from the robot's URDF.
   /**
