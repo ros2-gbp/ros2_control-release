@@ -2,54 +2,53 @@
 Changelog for package hardware_interface_testing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-6.6.0 (2026-04-17)
-------------------
-* Fix RCLCPP_VERSION_GTE for add_node (`#3198 <https://github.com/ros-controls/ros2_control/issues/3198>`_)
-* Contributors: Christoph Fröhlich
+5.14.0 (2026-04-17)
+-------------------
+* Fix RCLCPP_VERSION_GTE for add_node (backport `#3198 <https://github.com/ros-controls/ros2_control/issues/3198>`_) (`#3201 <https://github.com/ros-controls/ros2_control/issues/3201>`_)
+* Fix API breaking change of Executor::add_node (backport `#3080 <https://github.com/ros-controls/ros2_control/issues/3080>`_) (`#3191 <https://github.com/ros-controls/ros2_control/issues/3191>`_)
+* Contributors: mergify[bot]
 
-6.5.1 (2026-04-05)
-------------------
-* Fix API breaking change of Executor::add_node (`#3080 <https://github.com/ros-controls/ros2_control/issues/3080>`_)
-* Contributors: Christoph Fröhlich
+5.13.0 (2026-04-02)
+-------------------
+* Fix forwarding handle_exceptions parameter to resource manager (`#3107 <https://github.com/ros-controls/ros2_control/issues/3107>`_) (`#3118 <https://github.com/ros-controls/ros2_control/issues/3118>`_)
+* Consistently add <cmath> include with define for windows (backport `#3061 <https://github.com/ros-controls/ros2_control/issues/3061>`_) (`#3067 <https://github.com/ros-controls/ros2_control/issues/3067>`_)
+* Bump version of pre-commit hooks (`#3055 <https://github.com/ros-controls/ros2_control/issues/3055>`_) (`#3058 <https://github.com/ros-controls/ros2_control/issues/3058>`_)
+* Contributors: mergify[bot]
 
-6.5.0 (2026-04-02)
-------------------
-* Migrate hardware components to new handle API (`#2987 <https://github.com/ros-controls/ros2_control/issues/2987>`_)
-* Fix forwarding handle_exceptions parameter to resource manager (`#3107 <https://github.com/ros-controls/ros2_control/issues/3107>`_)
-* Consistently add <cmath> include with define for windows (`#3061 <https://github.com/ros-controls/ros2_control/issues/3061>`_)
-* Contributors: Christoph Fröhlich, Sai Kishor Kothakota, github-actions[bot]
+5.12.0 (2026-02-03)
+-------------------
 
-6.4.0 (2026-02-03)
-------------------
+5.11.3 (2026-01-10)
+-------------------
 
-6.3.2 (2026-01-10)
-------------------
+5.11.2 (2026-01-07)
+-------------------
 
-6.3.1 (2025-12-30)
-------------------
+5.11.1 (2025-12-30)
+-------------------
 
-6.3.0 (2025-12-29)
-------------------
+5.11.0 (2025-12-29)
+-------------------
 
-6.2.0 (2025-12-10)
-------------------
-* Fix the blocking calls of lifecycle_state in the real-time loop (`#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_)
-* Contributors: Sai Kishor Kothakota
+5.10.0 (2025-12-09)
+-------------------
+* Fix the blocking calls of lifecycle_state in the real-time loop (backport `#2884 <https://github.com/ros-controls/ros2_control/issues/2884>`_) (`#2891 <https://github.com/ros-controls/ros2_control/issues/2891>`_)
+* Contributors: mergify[bot]
 
-6.1.0 (2025-12-01)
+5.9.0 (2025-12-01)
 ------------------
-* Publish all castable data types to pal_statistics (`#2633 <https://github.com/ros-controls/ros2_control/issues/2633>`_)
-* Contributors: Christoph Fröhlich
+* Publish all castable data types to pal_statistics (`#2633 <https://github.com/ros-controls/ros2_control/issues/2633>`_) (`#2854 <https://github.com/ros-controls/ros2_control/issues/2854>`_)
+* Contributors: mergify[bot]
 
-6.0.2 (2025-11-09)
+5.8.2 (2025-11-09)
 ------------------
-* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_)
-* Contributors: Sai Kishor Kothakota
+* Avoid deadlocks for failed command switching (`#2774 <https://github.com/ros-controls/ros2_control/issues/2774>`_) (`#2797 <https://github.com/ros-controls/ros2_control/issues/2797>`_)
+* Contributors: mergify[bot]
 
-6.0.1 (2025-11-03)
+5.8.1 (2025-11-03)
 ------------------
 
-6.0.0 (2025-10-27)
+5.8.0 (2025-10-27)
 ------------------
 
 5.7.0 (2025-10-03)

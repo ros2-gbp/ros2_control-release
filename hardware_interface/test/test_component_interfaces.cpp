@@ -53,6 +53,7 @@ namespace test_components
 {
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
+// BEGIN (Handle export change): for backward compatibility
 class DummyActuator : public hardware_interface::ActuatorInterface
 {
   CallbackReturn on_init(
@@ -64,12 +65,12 @@ class DummyActuator : public hardware_interface::ActuatorInterface
 
   CallbackReturn on_configure(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
-    std::ignore = position_state_->set_value(0.0);
-    std::ignore = velocity_state_->set_value(0.0);
+    position_state_ = 0.0;
+    velocity_state_ = 0.0;
 
     if (recoverable_error_happened_)
     {
-      std::ignore = velocity_command_->set_value(0.0);
+      velocity_command_ = 0.0;
     }
 
     read_calls_ = 0;
@@ -78,29 +79,32 @@ class DummyActuator : public hardware_interface::ActuatorInterface
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<hardware_interface::StateInterface::ConstSharedPtr> on_export_state_interfaces()
-    override
+  std::vector<hardware_interface::StateInterface> export_state_interfaces() override
   {
     // We can read a position and a velocity
-    std::vector<hardware_interface::StateInterface::ConstSharedPtr> state_interfaces;
-    position_state_ = std::make_shared<hardware_interface::StateInterface>(
-      "joint1", hardware_interface::HW_IF_POSITION);
-    velocity_state_ = std::make_shared<hardware_interface::StateInterface>(
-      "joint1", hardware_interface::HW_IF_VELOCITY);
-    state_interfaces.push_back(position_state_);
-    state_interfaces.push_back(velocity_state_);
+    std::vector<hardware_interface::StateInterface> state_interfaces;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint1", hardware_interface::HW_IF_POSITION, &position_state_));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint1", hardware_interface::HW_IF_VELOCITY, &velocity_state_));
+#pragma GCC diagnostic pop
     return state_interfaces;
   }
 
-  std::vector<hardware_interface::CommandInterface::SharedPtr> on_export_command_interfaces()
-    override
+  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override
   {
     // We can command in velocity
-    std::vector<hardware_interface::CommandInterface::SharedPtr> command_interfaces;
-    velocity_command_ = std::make_shared<hardware_interface::CommandInterface>(
-      "joint1", hardware_interface::HW_IF_VELOCITY);
-    std::ignore = velocity_command_->set_value(0.0);
-    command_interfaces.push_back(velocity_command_);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    std::vector<hardware_interface::CommandInterface> command_interfaces;
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        "joint1", hardware_interface::HW_IF_VELOCITY, &velocity_command_));
+#pragma GCC diagnostic pop
     return command_interfaces;
   }
 
@@ -126,19 +130,15 @@ class DummyActuator : public hardware_interface::ActuatorInterface
       return hardware_interface::return_type::ERROR;
     }
 
-    double velocity_cmd = 0.0;
-    std::ignore = velocity_command_->get_value(velocity_cmd, false);
-    double position = 0.0;
-    std::ignore = position_state_->get_value(position, false);
-    std::ignore = position_state_->set_value(position + velocity_cmd);
-    std::ignore = velocity_state_->set_value(velocity_cmd);
+    position_state_ += velocity_command_;
+    velocity_state_ = velocity_command_;
 
     return hardware_interface::return_type::OK;
   }
 
   CallbackReturn on_shutdown(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
-    std::ignore = velocity_state_->set_value(0.0);
+    velocity_state_ = 0;
     return CallbackReturn::SUCCESS;
   }
 
@@ -157,15 +157,16 @@ class DummyActuator : public hardware_interface::ActuatorInterface
   }
 
 private:
-  hardware_interface::StateInterface::SharedPtr position_state_;
-  hardware_interface::StateInterface::SharedPtr velocity_state_;
-  hardware_interface::CommandInterface::SharedPtr velocity_command_;
+  double position_state_ = std::numeric_limits<double>::quiet_NaN();
+  double velocity_state_ = std::numeric_limits<double>::quiet_NaN();
+  double velocity_command_ = 0.0;
 
   // Helper variables to initiate error on read
   unsigned int read_calls_ = 0;
   unsigned int write_calls_ = 0;
   bool recoverable_error_happened_ = false;
 };
+// END
 
 class DummyActuatorDefault : public hardware_interface::ActuatorInterface
 {
@@ -265,6 +266,7 @@ private:
   bool recoverable_error_happened_ = false;
 };
 
+// BEGIN (Handle export change): for backward compatibility
 class DummySensor : public hardware_interface::SensorInterface
 {
   CallbackReturn on_init(
@@ -276,18 +278,20 @@ class DummySensor : public hardware_interface::SensorInterface
 
   CallbackReturn on_configure(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
-    std::ignore = voltage_level_->set_value(0.0);
+    voltage_level_ = 0.0;
     read_calls_ = 0;
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<hardware_interface::StateInterface::ConstSharedPtr> on_export_state_interfaces()
-    override
+  std::vector<hardware_interface::StateInterface> export_state_interfaces() override
   {
     // We can read some voltage level
-    std::vector<hardware_interface::StateInterface::ConstSharedPtr> state_interfaces;
-    voltage_level_ = std::make_shared<hardware_interface::StateInterface>("sens1", "voltage");
-    state_interfaces.push_back(voltage_level_);
+    std::vector<hardware_interface::StateInterface> state_interfaces;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface("sens1", "voltage", &voltage_level_));
+#pragma GCC diagnostic pop
     return state_interfaces;
   }
 
@@ -301,7 +305,7 @@ class DummySensor : public hardware_interface::SensorInterface
     }
 
     // no-op, static value
-    std::ignore = voltage_level_->set_value(voltage_level_hw_value_);
+    voltage_level_ = voltage_level_hw_value_;
     return hardware_interface::return_type::OK;
   }
 
@@ -320,13 +324,14 @@ class DummySensor : public hardware_interface::SensorInterface
   }
 
 private:
-  hardware_interface::StateInterface::SharedPtr voltage_level_;
+  double voltage_level_ = std::numeric_limits<double>::quiet_NaN();
   double voltage_level_hw_value_ = 0x666;
 
   // Helper variables to initiate error on read
   int read_calls_ = 0;
   bool recoverable_error_happened_ = false;
 };
+// END
 
 class DummySensorDefault : public hardware_interface::SensorInterface
 {
@@ -454,6 +459,7 @@ private:
   bool recoverable_error_happened_ = false;
 };
 
+// BEGIN (Handle export change): for backward compatibility
 class DummySystem : public hardware_interface::SystemInterface
 {
   CallbackReturn on_init(
@@ -467,15 +473,15 @@ class DummySystem : public hardware_interface::SystemInterface
   {
     for (auto i = 0ul; i < 3; ++i)
     {
-      std::ignore = position_state_[i]->set_value(0.0);
-      std::ignore = velocity_state_[i]->set_value(0.0);
+      position_state_[i] = 0.0;
+      velocity_state_[i] = 0.0;
     }
     // reset command only if error is initiated
     if (recoverable_error_happened_)
     {
       for (auto i = 0ul; i < 3; ++i)
       {
-        std::ignore = velocity_command_[i]->set_value(0.0);
+        velocity_command_[i] = 0.0;
       }
     }
 
@@ -485,46 +491,50 @@ class DummySystem : public hardware_interface::SystemInterface
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<hardware_interface::StateInterface::ConstSharedPtr> on_export_state_interfaces()
-    override
+  std::vector<hardware_interface::StateInterface> export_state_interfaces() override
   {
     // We can read a position and a velocity
-    std::vector<hardware_interface::StateInterface::ConstSharedPtr> state_interfaces;
-    position_state_[0] = std::make_shared<hardware_interface::StateInterface>(
-      "joint1", hardware_interface::HW_IF_POSITION);
-    velocity_state_[0] = std::make_shared<hardware_interface::StateInterface>(
-      "joint1", hardware_interface::HW_IF_VELOCITY);
-    position_state_[1] = std::make_shared<hardware_interface::StateInterface>(
-      "joint2", hardware_interface::HW_IF_POSITION);
-    velocity_state_[1] = std::make_shared<hardware_interface::StateInterface>(
-      "joint2", hardware_interface::HW_IF_VELOCITY);
-    position_state_[2] = std::make_shared<hardware_interface::StateInterface>(
-      "joint3", hardware_interface::HW_IF_POSITION);
-    velocity_state_[2] = std::make_shared<hardware_interface::StateInterface>(
-      "joint3", hardware_interface::HW_IF_VELOCITY);
-    state_interfaces.push_back(position_state_[0]);
-    state_interfaces.push_back(velocity_state_[0]);
-    state_interfaces.push_back(position_state_[1]);
-    state_interfaces.push_back(velocity_state_[1]);
-    state_interfaces.push_back(position_state_[2]);
-    state_interfaces.push_back(velocity_state_[2]);
+    std::vector<hardware_interface::StateInterface> state_interfaces;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint1", hardware_interface::HW_IF_POSITION, &position_state_[0]));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint1", hardware_interface::HW_IF_VELOCITY, &velocity_state_[0]));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint2", hardware_interface::HW_IF_POSITION, &position_state_[1]));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint2", hardware_interface::HW_IF_VELOCITY, &velocity_state_[1]));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint3", hardware_interface::HW_IF_POSITION, &position_state_[2]));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        "joint3", hardware_interface::HW_IF_VELOCITY, &velocity_state_[2]));
+#pragma GCC diagnostic pop
     return state_interfaces;
   }
 
-  std::vector<hardware_interface::CommandInterface::SharedPtr> on_export_command_interfaces()
-    override
+  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override
   {
     // We can command in velocity
-    std::vector<hardware_interface::CommandInterface::SharedPtr> command_interfaces;
-    velocity_command_[0] = std::make_shared<hardware_interface::CommandInterface>(
-      "joint1", hardware_interface::HW_IF_VELOCITY);
-    velocity_command_[1] = std::make_shared<hardware_interface::CommandInterface>(
-      "joint2", hardware_interface::HW_IF_VELOCITY);
-    velocity_command_[2] = std::make_shared<hardware_interface::CommandInterface>(
-      "joint3", hardware_interface::HW_IF_VELOCITY);
-    command_interfaces.push_back(velocity_command_[0]);
-    command_interfaces.push_back(velocity_command_[1]);
-    command_interfaces.push_back(velocity_command_[2]);
+    std::vector<hardware_interface::CommandInterface> command_interfaces;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        "joint1", hardware_interface::HW_IF_VELOCITY, &velocity_command_[0]));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        "joint2", hardware_interface::HW_IF_VELOCITY, &velocity_command_[1]));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        "joint3", hardware_interface::HW_IF_VELOCITY, &velocity_command_[2]));
+#pragma GCC diagnostic pop
     return command_interfaces;
   }
 
@@ -550,14 +560,10 @@ class DummySystem : public hardware_interface::SystemInterface
       return hardware_interface::return_type::ERROR;
     }
 
-    double velocity_cmd = 0.0;
-    std::ignore = velocity_command_[0]->get_value(velocity_cmd, false);
     for (size_t i = 0; i < 3; ++i)
     {
-      double position = 0.0;
-      std::ignore = position_state_[i]->get_value(position, false);
-      std::ignore = position_state_[i]->set_value(position + velocity_cmd);
-      std::ignore = velocity_state_[i]->set_value(velocity_cmd);
+      position_state_[i] += velocity_command_[0];
+      velocity_state_[i] = velocity_command_[0];
     }
     return hardware_interface::return_type::OK;
   }
@@ -566,7 +572,7 @@ class DummySystem : public hardware_interface::SystemInterface
   {
     for (size_t i = 0; i < 3; ++i)
     {
-      std::ignore = velocity_state_[i]->set_value(0.0);
+      velocity_state_[i] = 0.0;
     }
     return CallbackReturn::SUCCESS;
   }
@@ -586,15 +592,20 @@ class DummySystem : public hardware_interface::SystemInterface
   }
 
 private:
-  std::array<hardware_interface::StateInterface::SharedPtr, 3> position_state_;
-  std::array<hardware_interface::StateInterface::SharedPtr, 3> velocity_state_;
-  std::array<hardware_interface::CommandInterface::SharedPtr, 3> velocity_command_;
+  std::array<double, 3> position_state_ = {
+    {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN(),
+     std::numeric_limits<double>::quiet_NaN()}};
+  std::array<double, 3> velocity_state_ = {
+    {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN(),
+     std::numeric_limits<double>::quiet_NaN()}};
+  std::array<double, 3> velocity_command_ = {{0.0, 0.0, 0.0}};
 
   // Helper variables to initiate error on read
   unsigned int read_calls_ = 0;
   unsigned int write_calls_ = 0;
   bool recoverable_error_happened_ = false;
 };
+// END
 
 class DummySystemDefault : public hardware_interface::SystemInterface
 {
