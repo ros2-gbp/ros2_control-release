@@ -104,11 +104,6 @@ TEST_F(ResourceManagerTest, initialization_with_urdf)
 TEST_F(ResourceManagerTest, post_initialization_with_urdf)
 {
   TestableResourceManager rm(node_);
-// TODO(saikishor) : remove after the cleanup of deprecated API
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  ASSERT_NO_THROW(rm.load_and_initialize_components(ros2_control_test_assets::minimal_robot_urdf));
-#pragma GCC diagnostic pop
   hardware_interface::ResourceManagerParams rm_params;
   rm_params.robot_description = ros2_control_test_assets::minimal_robot_urdf;
   rm_params.update_rate = 100;
@@ -119,11 +114,10 @@ void test_load_and_initialized_components_failure(const std::string & urdf)
 {
   rclcpp::Node node = rclcpp::Node("TestableResourceManager");
   TestableResourceManager rm(node);
-// TODO(saikishor) : remove after the cleanup of deprecated API
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  ASSERT_FALSE(rm.load_and_initialize_components(urdf));
-#pragma GCC diagnostic pop
+  hardware_interface::ResourceManagerParams rm_params;
+  rm_params.robot_description = urdf;
+  rm_params.update_rate = 100;
+  ASSERT_NO_THROW(rm.load_and_initialize_components(rm_params));
 
   ASSERT_FALSE(rm.are_components_initialized());
 
@@ -282,18 +276,6 @@ TEST_F(ResourceManagerTest, load_and_initialize_components_called_if_async_urdf_
   ASSERT_TRUE(rm.are_components_initialized());
 }
 
-TEST_F(ResourceManagerTest, can_load_and_initialize_components_later)
-{
-  TestableResourceManager rm(node_);
-  ASSERT_FALSE(rm.are_components_initialized());
-// TODO(saikishor) : remove after the cleanup of deprecated API
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  rm.load_and_initialize_components(ros2_control_test_assets::minimal_robot_urdf);
-#pragma GCC diagnostic pop
-  ASSERT_TRUE(rm.are_components_initialized());
-}
-
 TEST_F(ResourceManagerTest, resource_claiming)
 {
   TestableResourceManager rm(node_, ros2_control_test_assets::minimal_robot_urdf);
@@ -374,21 +356,23 @@ TEST_F(ResourceManagerTest, resource_claiming)
 
 class ExternalComponent : public hardware_interface::ActuatorInterface
 {
-  std::vector<hardware_interface::StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::StateInterface::ConstSharedPtr> on_export_state_interfaces()
+    override
   {
-    std::vector<hardware_interface::StateInterface> state_interfaces;
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface("external_joint", "external_state_interface", nullptr));
-
+    std::vector<hardware_interface::StateInterface::ConstSharedPtr> state_interfaces;
+    state_interface_ = std::make_shared<hardware_interface::StateInterface>(
+      "external_joint", "external_state_interface");
+    state_interfaces.emplace_back(state_interface_);
     return state_interfaces;
   }
 
-  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override
+  std::vector<hardware_interface::CommandInterface::SharedPtr> on_export_command_interfaces()
+    override
   {
-    std::vector<hardware_interface::CommandInterface> command_interfaces;
-    command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(
-        "external_joint", "external_command_interface", nullptr));
+    std::vector<hardware_interface::CommandInterface::SharedPtr> command_interfaces;
+    command_interface_ = std::make_shared<hardware_interface::CommandInterface>(
+      "external_joint", "external_command_interface");
+    command_interfaces.emplace_back(command_interface_);
 
     return command_interfaces;
   }
@@ -404,6 +388,9 @@ class ExternalComponent : public hardware_interface::ActuatorInterface
   {
     return hardware_interface::return_type::OK;
   }
+
+  hardware_interface::StateInterface::SharedPtr state_interface_;
+  hardware_interface::CommandInterface::SharedPtr command_interface_;
 };
 
 TEST_F(ResourceManagerTest, post_initialization_add_components)
