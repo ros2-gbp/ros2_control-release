@@ -1,1 +1,1 @@
-{"base": "1fe0ec861117", "parent": "release/rolling/controller_manager/6.6.0-1", "previous": "8bcc844e868b", "trim": "", "trimbase": ""}
+{"base": "0bd5514410", "parent": "release/rolling/controller_manager/6.7.0-1", "previous": "48d9004f02", "trim": "", "trimbase": ""}
