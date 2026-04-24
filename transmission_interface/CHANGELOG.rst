@@ -2,53 +2,53 @@
 Changelog for package transmission_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-6.7.0 (2026-04-23)
+5.14.1 (2026-04-24)
+-------------------
+
+5.14.0 (2026-04-17)
+-------------------
+* Unify transmission tests using shared minimal robot URDF in test assets (backport `#3031 <https://github.com/ros-controls/ros2_control/issues/3031>`_) (`#3218 <https://github.com/ros-controls/ros2_control/issues/3218>`_)
+* Contributors: mergify[bot]
+
+5.13.0 (2026-04-02)
+-------------------
+* Export information of supported interfaces from transmissions (`#3049 <https://github.com/ros-controls/ros2_control/issues/3049>`_) (`#3156 <https://github.com/ros-controls/ros2_control/issues/3156>`_)
+* Contributors: mergify[bot]
+
+5.12.0 (2026-02-03)
+-------------------
+
+5.11.3 (2026-01-10)
+-------------------
+
+5.11.2 (2026-01-07)
+-------------------
+
+5.11.1 (2025-12-30)
+-------------------
+
+5.11.0 (2025-12-29)
+-------------------
+
+5.10.0 (2025-12-09)
+-------------------
+
+5.9.0 (2025-12-01)
+------------------
+* Improving differential_transmission configure checks (`#2812 <https://github.com/ros-controls/ros2_control/issues/2812>`_) (`#2815 <https://github.com/ros-controls/ros2_control/issues/2815>`_)
+* Contributors: mergify[bot]
+
+5.8.2 (2025-11-09)
 ------------------
 
-6.6.0 (2026-04-17)
-------------------
-* Unify transmission tests using shared minimal robot URDF in test assets (`#3031 <https://github.com/ros-controls/ros2_control/issues/3031>`_)
-* Contributors: Naitik
-
-6.5.1 (2026-04-05)
+5.8.1 (2025-11-03)
 ------------------
 
-6.5.0 (2026-04-02)
+5.8.0 (2025-10-27)
 ------------------
-* Export information of supported interfaces from transmissions (`#3049 <https://github.com/ros-controls/ros2_control/issues/3049>`_)
-* Contributors: Sai Kishor Kothakota
-
-6.4.0 (2026-02-03)
-------------------
-
-6.3.2 (2026-01-10)
-------------------
-
-6.3.1 (2025-12-30)
-------------------
-
-6.3.0 (2025-12-29)
-------------------
-
-6.2.0 (2025-12-10)
-------------------
-
-6.1.0 (2025-12-01)
-------------------
-* Improving differential_transmission configure checks (`#2812 <https://github.com/ros-controls/ros2_control/issues/2812>`_)
-* Contributors: Jordan Palacios
-
-6.0.2 (2025-11-09)
-------------------
-
-6.0.1 (2025-11-03)
-------------------
-
-6.0.0 (2025-10-27)
-------------------
-* [Transmission] Fix the differential transmission configure checks (`#2682 <https://github.com/ros-controls/ros2_control/issues/2682>`_)
-* [Transmissions] Add `force`  interface (`#2588 <https://github.com/ros-controls/ros2_control/issues/2588>`_)
-* Contributors: Jordan Palacios, Sai Kishor Kothakota
+* [Transmission] Fix the differential transmission configure checks (`#2682 <https://github.com/ros-controls/ros2_control/issues/2682>`_) (`#2688 <https://github.com/ros-controls/ros2_control/issues/2688>`_)
+* [Transmissions] Add `force`  interface (backport `#2588 <https://github.com/ros-controls/ros2_control/issues/2588>`_) (`#2679 <https://github.com/ros-controls/ros2_control/issues/2679>`_)
+* Contributors: mergify[bot]
 
 5.7.0 (2025-10-03)
 ------------------
