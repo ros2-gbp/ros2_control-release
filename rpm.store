@@ -1,1 +1,1 @@
-{"base": "f6e3c095ea17", "parent": "release/rolling/ros2controlcli/6.7.0-2", "previous": "4a02dd972be6", "trim": "", "trimbase": ""}
+{"base": "7ca0d5dccc", "parent": "release/rolling/ros2controlcli", "previous": "5b67441581", "trim": "", "trimbase": ""}
