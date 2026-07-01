@@ -605,6 +605,25 @@ TEST_F(TestLoadController, unload_on_kill_activate_as_group)
   ASSERT_EQ(cm_->get_loaded_controllers().size(), 0ul);
 }
 
+TEST_F(TestLoadController, unload_on_kill_with_sigterm)
+{
+  // When a launch file shuts down because a required sibling process crashes,
+  // it sends SIGINT and escalates to SIGTERM, --unload-on-kill must still
+  // deactivate and unload the controller when SIGTERM is delivered.
+  ControllerManagerRunner cm_runner(this);
+  cm_->set_parameter(rclcpp::Parameter("ctrl_3.type", test_controller::TEST_CONTROLLER_CLASS_NAME));
+  std::stringstream ss;
+  ss << "timeout --signal=TERM 5 "
+     << std::string(coveragepy_script) +
+          " $(ros2 pkg prefix controller_manager)/lib/controller_manager/spawner "
+     << "ctrl_3 -c test_controller_manager --unload-on-kill";
+
+  EXPECT_NE(std::system(ss.str().c_str()), 0)
+    << "timeout should have killed spawner and returned non 0 code";
+
+  ASSERT_EQ(cm_->get_loaded_controllers().size(), 0ul);
+}
+
 TEST_F(TestLoadController, spawner_test_to_check_parameter_overriding)
 {
   const std::string main_test_file_path =
@@ -917,6 +936,15 @@ public:
     // This sleep is needed to prevent a too fast test from ending before the
     // executor has began to spin, which causes it to hang
     std::this_thread::sleep_for(50ms);
+
+    // If a robot_description is already being published in the environment (e.g., by
+    // robot_state_publisher), the CM's transient_local subscription will receive it immediately
+    // and initialize the RM.  These tests require an uninitialized CM, so skip in that case.
+    if (cm_->is_resource_manager_initialized())
+    {
+      GTEST_SKIP() << "Skipping WithoutRobotDescription tests: robot_description already received "
+                      "from the environment (e.g. robot_state_publisher is running).";
+    }
   }
 
   void TearDown() override { update_executor_->cancel(); }
@@ -1194,97 +1222,6 @@ TEST_F(TestLoadControllerWithNamespacedCM, spawner_test_type_in_params_file)
     cm_->get_parameter(ctrl_2.info.name + ".params_file").as_string_array()[0], test_file_path);
 }
 
-TEST_F(
-  TestLoadControllerWithNamespacedCM, spawner_test_type_in_params_file_deprecated_namespace_arg)
-{
-  const std::string test_file_path =
-    std::string(PARAMETERS_FILE_PATH) + std::string("test_controller_spawner_with_type.yaml");
-
-  ControllerManagerRunner cm_runner(this);
-  // Provide controller type via the parsed file
-  EXPECT_EQ(
-    call_spawner(
-      "ns_ctrl_with_parameters_and_type ns_chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --controller-manager-timeout 1.0 -p " +
-      test_file_path),
-    256)
-    << "Should fail without the namespacing it";
-  EXPECT_EQ(
-    call_spawner(
-      "ns_ctrl_with_parameters_and_type ns_chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --namespace foo_namespace --controller-manager-timeout 1.0 -p " +
-      test_file_path + " --ros-args -r __ns:=/random_namespace"),
-    256)
-    << "Should fail when parsed namespace through both way with different namespaces";
-  EXPECT_EQ(
-    call_spawner(
-      "ns_ctrl_with_parameters_and_type ns_chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --namespace foo_namespace --controller-manager-timeout 1.0 -p" +
-      test_file_path + " --ros-args -r __ns:=/foo_namespace"),
-    256)
-    << "Should fail when parsed namespace through both ways even with same namespacing name";
-  EXPECT_EQ(
-    call_spawner(
-      "ns_ctrl_with_parameters_and_type ns_chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --namespace foo_namespace -p " +
-      test_file_path),
-    0)
-    << "Should work when parsed through the deprecated arg";
-
-  ASSERT_EQ(cm_->get_loaded_controllers().size(), 2ul);
-
-  auto ctrl_with_parameters_and_type = cm_->get_loaded_controllers()[0];
-  ASSERT_EQ(ctrl_with_parameters_and_type.info.name, "ns_ctrl_with_parameters_and_type");
-  ASSERT_EQ(ctrl_with_parameters_and_type.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-  ASSERT_EQ(
-    ctrl_with_parameters_and_type.c->get_lifecycle_state().id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
-  ASSERT_EQ(
-    cm_->get_parameter(ctrl_with_parameters_and_type.info.name + ".params_file")
-      .as_string_array()[0],
-    test_file_path);
-
-  auto chain_ctrl_with_parameters_and_type = cm_->get_loaded_controllers()[1];
-  ASSERT_EQ(
-    chain_ctrl_with_parameters_and_type.info.name, "ns_chainable_ctrl_with_parameters_and_type");
-  ASSERT_EQ(
-    chain_ctrl_with_parameters_and_type.info.type,
-    test_chainable_controller::TEST_CONTROLLER_CLASS_NAME);
-  ASSERT_EQ(
-    chain_ctrl_with_parameters_and_type.c->get_lifecycle_state().id(),
-    lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
-  ASSERT_EQ(
-    cm_->get_parameter(chain_ctrl_with_parameters_and_type.info.name + ".params_file")
-      .as_string_array()[0],
-    test_file_path);
-
-  EXPECT_EQ(
-    call_spawner(
-      "ns_ctrl_with_parameters_and_no_type -c test_controller_manager --namespace foo_namespace "
-      "-p " +
-      test_file_path),
-    256)
-    << "Should fail as no type is defined!";
-  // Will still be same as the current call will fail
-  ASSERT_EQ(cm_->get_loaded_controllers().size(), 2ul);
-
-  auto ctrl_1 = cm_->get_loaded_controllers()[0];
-  ASSERT_EQ(ctrl_1.info.name, "ns_ctrl_with_parameters_and_type");
-  ASSERT_EQ(ctrl_1.info.type, test_controller::TEST_CONTROLLER_CLASS_NAME);
-  ASSERT_EQ(
-    ctrl_1.c->get_lifecycle_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
-  ASSERT_EQ(
-    cm_->get_parameter(ctrl_1.info.name + ".params_file").as_string_array()[0], test_file_path);
-
-  auto ctrl_2 = cm_->get_loaded_controllers()[1];
-  ASSERT_EQ(ctrl_2.info.name, "ns_chainable_ctrl_with_parameters_and_type");
-  ASSERT_EQ(ctrl_2.info.type, test_chainable_controller::TEST_CONTROLLER_CLASS_NAME);
-  ASSERT_EQ(
-    ctrl_2.c->get_lifecycle_state().id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
-  ASSERT_EQ(
-    cm_->get_parameter(ctrl_2.info.name + ".params_file").as_string_array()[0], test_file_path);
-}
-
 TEST_F(TestLoadControllerWithNamespacedCM, spawner_test_with_wildcard_entries_in_params_file)
 {
   const std::string test_file_path =
@@ -1368,16 +1305,14 @@ TEST_F(
     << "Should fail without the namespacing it";
   EXPECT_EQ(
     call_spawner(
-      "ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --namespace foo_namespace -p " +
-      test_file_path),
+      "ctrl_with_parameters_and_type --load-only -c test_controller_manager -p " + test_file_path +
+      " --ros-args -r __ns:=/foo_namespace"),
     256)
     << "Should fail even namespacing it as ctrl_with_parameters_and_type is not a wildcard entry";
   EXPECT_EQ(
     call_spawner(
-      "chainable_ctrl_with_parameters_and_type --load-only -c "
-      "test_controller_manager --namespace foo_namespace -p " +
-      test_file_path),
+      "chainable_ctrl_with_parameters_and_type --load-only -c test_controller_manager -p " +
+      test_file_path + " --ros-args -r __ns:=/foo_namespace"),
     0)
     << "Should work as chainable_ctrl_with_parameters_and_type is a wildcard entry";
 

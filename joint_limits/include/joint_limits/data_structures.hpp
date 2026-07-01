@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// \author Sai Kishor Kothakota
+/// @author Sai Kishor Kothakota
 
 #ifndef JOINT_LIMITS__DATA_STRUCTURES_HPP_
 #define JOINT_LIMITS__DATA_STRUCTURES_HPP_
@@ -38,10 +38,10 @@
 namespace joint_limits
 {
 
-DEFINE_LIMIT_STRUCT(PositionLimits);
-DEFINE_LIMIT_STRUCT(VelocityLimits);
-DEFINE_LIMIT_STRUCT(EffortLimits);
-DEFINE_LIMIT_STRUCT(AccelerationLimits);
+DEFINE_LIMIT_STRUCT(PositionLimits)
+DEFINE_LIMIT_STRUCT(VelocityLimits)
+DEFINE_LIMIT_STRUCT(EffortLimits)
+DEFINE_LIMIT_STRUCT(AccelerationLimits)
 
 struct JointControlInterfacesData
 {

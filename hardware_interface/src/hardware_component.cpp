@@ -46,25 +46,12 @@ HardwareComponent::HardwareComponent(HardwareComponent && other) noexcept
   last_write_cycle_time_ = rclcpp::Time(0, 0, RCL_CLOCK_UNINITIALIZED);
 }
 
-const rclcpp_lifecycle::State & HardwareComponent::initialize(
-  const HardwareInfo & hardware_info, rclcpp::Logger logger,
-  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
+HardwareComponent::~HardwareComponent()
 {
-  // This is done for backward compatibility with the old initialize method.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  return this->initialize(hardware_info, logger, clock_interface->get_clock());
-#pragma GCC diagnostic pop
-}
-
-const rclcpp_lifecycle::State & HardwareComponent::initialize(
-  const HardwareInfo & hardware_info, rclcpp::Logger logger, rclcpp::Clock::SharedPtr clock)
-{
-  hardware_interface::HardwareComponentParams params;
-  params.hardware_info = hardware_info;
-  params.logger = logger;
-  params.clock = clock;
-  return initialize(params);
+  if (impl_)
+  {
+    impl_->stop_async_handler();
+  }
 }
 
 const rclcpp_lifecycle::State & HardwareComponent::initialize(

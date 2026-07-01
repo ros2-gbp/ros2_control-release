@@ -23,6 +23,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -90,20 +91,34 @@ std::string interfaces_to_string(
   }
   ss << "]" << std::endl;
   return ss.str();
-};
+}
 
-void get_hardware_related_interfaces(
+void find_common_hardware_interfaces(
   const std::vector<std::string> & hw_command_itfs,
   const std::vector<std::string> & start_stop_interfaces_list,
   std::vector<std::string> & hw_interfaces)
 {
   hw_interfaces.clear();
-  for (const auto & interface : start_stop_interfaces_list)
+
+  // decide which input vector is shorter.
+  const auto & shorter_vec = hw_command_itfs.size() < start_stop_interfaces_list.size()
+                               ? hw_command_itfs
+                               : start_stop_interfaces_list;
+  const auto & longer_vec =
+    &shorter_vec == &hw_command_itfs ? start_stop_interfaces_list : hw_command_itfs;
+
+  // reserve exactly the worst-case result size (all of the smaller one).
+  hw_interfaces.reserve(shorter_vec.size());
+
+  // build a hash set from the smaller vector.
+  std::unordered_set<std::string> lookup(shorter_vec.begin(), shorter_vec.end());
+
+  // iterate through the larger vector; test membership in constant time.
+  for (const auto & name : longer_vec)
   {
-    if (
-      std::find(hw_command_itfs.begin(), hw_command_itfs.end(), interface) != hw_command_itfs.end())
+    if (lookup.find(name) != lookup.end())
     {
-      hw_interfaces.push_back(interface);
+      hw_interfaces.push_back(name);
     }
   }
 }
@@ -155,6 +170,9 @@ public:
   explicit ResourceStorage(const hardware_interface::ResourceManagerParams & rm_param)
   : ResourceStorage(rm_param.clock, rm_param.logger)
   {
+    handle_exception_ = rm_param.handle_exceptions;
+    robot_description_ = rm_param.robot_description;
+    cm_update_rate_ = rm_param.update_rate;
     handle_exception_ = rm_param.handle_exceptions;
   }
 
@@ -666,17 +684,34 @@ public:
   template <class HardwareT>
   void import_state_interfaces(HardwareT & hardware)
   {
-    auto interfaces = hardware.export_state_interfaces();
-    const auto interface_names = add_state_interfaces(interfaces);
-    hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
+    try
+    {
+      auto interfaces = hardware.export_state_interfaces();
+      const auto interface_names = add_state_interfaces(interfaces);
+      hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
 
-    RCLCPP_WARN_EXPRESSION(
-      get_logger(), interface_names.empty(),
-      "Importing state interfaces for the hardware '%s' returned no state interfaces.",
-      hardware.get_name().c_str());
-    hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
-    available_state_interfaces_.reserve(
-      available_state_interfaces_.capacity() + interface_names.size());
+      RCLCPP_WARN_EXPRESSION(
+        get_logger(), interface_names.empty(),
+        "Importing state interfaces for the hardware '%s' returned no state interfaces.",
+        hardware.get_name().c_str());
+    }
+    catch (const std::exception & ex)
+    {
+      RCLCPP_ERROR(
+        get_logger(),
+        "Exception of type : %s occurred while importing state interfaces for the hardware '%s' "
+        ": %s",
+        typeid(ex).name(), hardware.get_name().c_str(), ex.what());
+      handle_exception_ ? void() : throw;
+    }
+    catch (...)
+    {
+      RCLCPP_ERROR(
+        get_logger(),
+        "Unknown exception occurred while importing state interfaces for the hardware '%s'",
+        hardware.get_name().c_str());
+      handle_exception_ ? void() : throw;
+    }
   }
 
   void insert_command_interface(const CommandInterface::SharedPtr command_interface)
@@ -1350,8 +1385,6 @@ public:
   // Logger and Clock interfaces
   rclcpp::Clock::SharedPtr rm_clock_;
   rclcpp::Logger rm_logger_;
-  rclcpp::Executor::WeakPtr executor_;
-  std::string node_namespace_;
   bool handle_exception_ = true;
 
   std::vector<Actuator> actuators_;
@@ -1443,7 +1476,7 @@ ResourceManager::ResourceManager(
 
 ResourceManager::ResourceManager(
   const hardware_interface::ResourceManagerParams & params, bool load)
-: resource_storage_(std::make_unique<ResourceStorage>(params.clock, params.logger)), params_(params)
+: resource_storage_(std::make_unique<ResourceStorage>(params)), params_(params)
 {
   RCLCPP_WARN_EXPRESSION(
     params.logger, params.allow_controller_activation_with_inactive_hardware,
@@ -1494,26 +1527,29 @@ bool ResourceManager::shutdown_components()
 
 // CM API: Called in "callback/slow"-thread
 bool ResourceManager::load_and_initialize_components(
-  const std::string & urdf, const unsigned int update_rate)
+  const hardware_interface::ResourceManagerParams & params)
 {
-  components_are_loaded_and_initialized_ = true;
+  resource_storage_->robot_description_ = params.robot_description;
+  resource_storage_->cm_update_rate_ = params.update_rate;
+  params_.robot_description = params.robot_description;
+  params_.update_rate = params.update_rate;
+  params_.handle_exceptions = params.handle_exceptions;
+  resource_storage_->handle_exception_ = params.handle_exceptions;
 
-  resource_storage_->robot_description_ = urdf;
-  resource_storage_->cm_update_rate_ = update_rate;
-  params_.robot_description = urdf;
-  params_.update_rate = update_rate;
-
-  auto hardware_info = hardware_interface::parse_control_resources_from_urdf(urdf);
+  auto hardware_info =
+    hardware_interface::parse_control_resources_from_urdf(params.robot_description);
   // Set the update rate for all hardware components
   for (auto & hw : hardware_info)
   {
-    hw.rw_rate = (hw.rw_rate == 0 || hw.rw_rate > update_rate) ? update_rate : hw.rw_rate;
+    hw.rw_rate =
+      (hw.rw_rate == 0 || hw.rw_rate > params.update_rate) ? params.update_rate : hw.rw_rate;
   }
 
   const std::string system_type = "system";
   const std::string sensor_type = "sensor";
   const std::string actuator_type = "actuator";
 
+  components_are_loaded_and_initialized_ = true;
   std::lock_guard<std::recursive_mutex> resource_guard(resources_lock_);
   std::lock_guard<std::recursive_mutex> limiters_guard(joint_limiters_lock_);
   for (const auto & individual_hardware_info : hardware_info)
@@ -1533,10 +1569,10 @@ bool ResourceManager::load_and_initialize_components(
     }
     hardware_interface::HardwareComponentParams interface_params;
     interface_params.hardware_info = individual_hardware_info;
-    interface_params.executor = resource_storage_->executor_;
-    interface_params.clock = resource_storage_->rm_clock_;
-    interface_params.logger = resource_storage_->rm_logger_;
-    interface_params.node_namespace = resource_storage_->node_namespace_;
+    interface_params.executor = params.executor;
+    interface_params.clock = params.clock;
+    interface_params.logger = params.logger;
+    interface_params.node_namespace = params.node_namespace;
 
     if (individual_hardware_info.type == actuator_type)
     {
@@ -1583,21 +1619,6 @@ bool ResourceManager::load_and_initialize_components(
   }
 
   return components_are_loaded_and_initialized_;
-}
-
-bool ResourceManager::load_and_initialize_components(
-  const hardware_interface::ResourceManagerParams & params)
-{
-  resource_storage_->rm_clock_ = params.clock;
-  resource_storage_->rm_logger_ = params.logger;
-  resource_storage_->robot_description_ = params.robot_description;
-  resource_storage_->cm_update_rate_ = params.update_rate;
-  resource_storage_->executor_ = params.executor;
-  resource_storage_->node_namespace_ = params.node_namespace;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  return load_and_initialize_components(params.robot_description, params.update_rate);
-#pragma GCC diagnostic pop
 }
 
 void ResourceManager::import_joint_limiters(const std::string & urdf)
@@ -1929,30 +1950,6 @@ std::string ResourceManager::get_command_interface_data_type(const std::string &
 }
 
 void ResourceManager::import_component(
-  std::unique_ptr<ActuatorInterface> actuator, const HardwareInfo & hardware_info)
-{
-  HardwareComponentParams params;
-  params.hardware_info = hardware_info;
-  import_component(std::move(actuator), params);
-}
-
-void ResourceManager::import_component(
-  std::unique_ptr<SensorInterface> sensor, const HardwareInfo & hardware_info)
-{
-  HardwareComponentParams params;
-  params.hardware_info = hardware_info;
-  import_component(std::move(sensor), params);
-}
-
-void ResourceManager::import_component(
-  std::unique_ptr<SystemInterface> system, const HardwareInfo & hardware_info)
-{
-  HardwareComponentParams params;
-  params.hardware_info = hardware_info;
-  import_component(std::move(system), params);
-}
-
-void ResourceManager::import_component(
   std::unique_ptr<ActuatorInterface> actuator, const HardwareComponentParams & params)
 {
   std::lock_guard<std::recursive_mutex> guard(resources_lock_);
@@ -2089,8 +2086,8 @@ bool ResourceManager::prepare_command_mode_switch(
     for (auto & component : components)
     {
       const auto & hw_command_itfs = hardware_info_map.at(component.get_name()).command_interfaces;
-      get_hardware_related_interfaces(hw_command_itfs, start_interfaces, start_interfaces_buffer);
-      get_hardware_related_interfaces(hw_command_itfs, stop_interfaces, stop_interfaces_buffer);
+      find_common_hardware_interfaces(hw_command_itfs, start_interfaces, start_interfaces_buffer);
+      find_common_hardware_interfaces(hw_command_itfs, stop_interfaces, stop_interfaces_buffer);
       if (start_interfaces_buffer.empty() && stop_interfaces_buffer.empty())
       {
         RCLCPP_DEBUG(
@@ -2194,8 +2191,8 @@ bool ResourceManager::perform_command_mode_switch(
     for (auto & component : components)
     {
       const auto & hw_command_itfs = hardware_info_map.at(component.get_name()).command_interfaces;
-      get_hardware_related_interfaces(hw_command_itfs, start_interfaces, start_interfaces_buffer);
-      get_hardware_related_interfaces(hw_command_itfs, stop_interfaces, stop_interfaces_buffer);
+      find_common_hardware_interfaces(hw_command_itfs, start_interfaces, start_interfaces_buffer);
+      find_common_hardware_interfaces(hw_command_itfs, stop_interfaces, stop_interfaces_buffer);
       if (start_interfaces_buffer.empty() && stop_interfaces_buffer.empty())
       {
         RCLCPP_DEBUG(

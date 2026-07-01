@@ -105,17 +105,10 @@ def parse_args_advanced(args):
         help="Switch controllers as soon as possible",
     )
     global_parser.add_argument(
-        "-n",
-        "--namespace",
-        help="DEPRECATED Namespace for the controller_manager and the controller(s)",
-        default=None,
-        required=False,
-    )
-    global_parser.add_argument(
         "-u",
         "--unload-on-kill",
         action="store_true",
-        help="Deactivate the active controllers and unload them on kill",
+        help="Deactivate the active controllers and unload them on SIGINT or SIGTERM",
     )
     global_parser.add_argument("-h", "--help", action="store_true", help="Show help")
 
@@ -232,13 +225,6 @@ def parse_native_args(args):
         required=False,
     )
     parser.add_argument(
-        "-n",
-        "--namespace",
-        help="DEPRECATED Namespace for the controller_manager and the controller(s)",
-        default=None,
-        required=False,
-    )
-    parser.add_argument(
         "--load-only",
         help="Only load the controller and leave unconfigured.",
         action="store_true",
@@ -253,7 +239,7 @@ def parse_native_args(args):
     parser.add_argument(
         "-u",
         "--unload-on-kill",
-        help="Wait until this application is interrupted and unload controller",
+        help="Wait until this application is interrupted (SIGINT or SIGTERM) and deactivate/unload controllers",
         action="store_true",
     )
     parser.add_argument(
@@ -290,7 +276,7 @@ def parse_native_args(args):
         "--switch-asap",
         help="Option to switch the controllers in the realtime loop at the earliest possible time or in the non-realtime loop.",
         required=False,
-        default=True,
+        default=False,
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
@@ -372,6 +358,13 @@ def main(args=None):
     activate_as_group = global_args.activate_as_group
     unload_on_kill = global_args.unload_on_kill
     node = None
+    lock = None
+
+    def _on_shutdown_signal(signum, frame):
+        raise KeyboardInterrupt()
+
+    signal.signal(signal.SIGINT, _on_shutdown_signal)
+    signal.signal(signal.SIGTERM, _on_shutdown_signal)
 
     if spawner_ros_params_files:
         for controller in controllers:
@@ -436,23 +429,7 @@ def main(args=None):
         node = Node(spawner_node_name)
         logger = node.get_logger()
 
-        if node.get_namespace() != "/" and global_args.namespace:
-            raise RuntimeError(
-                f"Setting namespace through both '--namespace {global_args.namespace}' arg and the ROS 2 standard way "
-                f"'--ros-args -r __ns:={node.get_namespace()}' is not allowed!"
-            )
-
-        if global_args.namespace:
-            warnings.filterwarnings("always")
-            warnings.warn(
-                "The '--namespace' argument is deprecated and will be removed in future releases."
-                " Use the ROS 2 standard way of setting the node namespacing using --ros-args -r __ns:=<namespace>",
-                DeprecationWarning,
-            )
-
-        spawner_namespace = (
-            global_args.namespace if global_args.namespace else node.get_namespace()
-        )
+        spawner_namespace = node.get_namespace()
 
         if not spawner_namespace.startswith("/"):
             spawner_namespace = f"/{spawner_namespace}"
@@ -604,6 +581,7 @@ def main(args=None):
         # second KeyboardInterrupt during the signal.signal() call itself.
         try:
             signal.signal(signal.SIGINT, signal.SIG_IGN)
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
         except (KeyboardInterrupt, Exception):
             pass
         if unload_on_kill:
@@ -662,7 +640,7 @@ def main(args=None):
     finally:
         if node:
             node.destroy_node()
-        if lock.is_locked:
+        if lock is not None and lock.is_locked:
             lock.release()
         rclpy.shutdown()
 
