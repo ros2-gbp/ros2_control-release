@@ -1,0 +1,12 @@
+Source: ros-lyrical-controller-manager
+Section: misc
+Priority: optional
+Maintainer: "Bence Magyar" <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libfmt-dev, python3-coverage <!nocheck>, ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-gen-version-h, ros-lyrical-ament-cmake-gmock <!nocheck>, ros-lyrical-ament-cmake-pytest <!nocheck>, ros-lyrical-ament-cmake-python, ros-lyrical-backward-ros, ros-lyrical-controller-interface, ros-lyrical-controller-manager-msgs, ros-lyrical-diagnostic-updater, ros-lyrical-example-interfaces <!nocheck>, ros-lyrical-generate-parameter-library, ros-lyrical-hardware-interface, ros-lyrical-hardware-interface-testing <!nocheck>, ros-lyrical-launch-testing <!nocheck>, ros-lyrical-libstatistics-collector, ros-lyrical-lifecycle-msgs, ros-lyrical-pluginlib, ros-lyrical-rclcpp, ros-lyrical-realtime-tools, ros-lyrical-robot-state-publisher <!nocheck>, ros-lyrical-ros2-control-cmake, ros-lyrical-ros2-control-test-assets <!nocheck>, ros-lyrical-ros2pkg <!nocheck>, ros-lyrical-std-msgs, ros-lyrical-ros-workspace
+Homepage: https://index.ros.org/p/controller_manager/#lyrical
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-controller-manager
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libfmt-dev, python3-filelock, python3-yaml, ros-lyrical-backward-ros, ros-lyrical-controller-interface, ros-lyrical-controller-manager-msgs, ros-lyrical-diagnostic-updater, ros-lyrical-generate-parameter-library, ros-lyrical-hardware-interface, ros-lyrical-launch, ros-lyrical-launch-ros, ros-lyrical-launch-testing-ros, ros-lyrical-libstatistics-collector, ros-lyrical-lifecycle-msgs, ros-lyrical-pluginlib, ros-lyrical-rcl-interfaces, ros-lyrical-rclcpp, ros-lyrical-rclpy, ros-lyrical-realtime-tools, ros-lyrical-ros2param, ros-lyrical-sensor-msgs, ros-lyrical-std-msgs, ros-lyrical-ros-workspace
+Description: The main runnable entrypoint of ros2_control and home of controller management and resource management.
