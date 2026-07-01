@@ -21,7 +21,6 @@ Currently supported commands are
     - ros2 control unload_controller
     - ros2 control cleanup_controller
     - ros2 control view_controller_chains
-    - ros2 control view_hardware_status
 
 
 list_controllers
@@ -30,8 +29,8 @@ list_controllers
 .. code-block:: console
 
     $ ros2 control list_controllers -h
-    usage: ros2 control list_controllers [-h] [--spin-time SPIN_TIME] [-s] [--claimed-interfaces] [--required-state-interfaces] [--required-command-interfaces] [--chained-interfaces] [--exported-interfaces] [--verbose] [-c CONTROLLER_MANAGER] [--include-hidden-nodes]
-                                     [--ros-args ...]
+    usage: ros2 control list_controllers [-h] [--spin-time SPIN_TIME] [-s] [--claimed-interfaces] [--required-state-interfaces] [--required-command-interfaces] [--chained-interfaces] [--reference-interfaces] [--verbose]
+                                        [-c CONTROLLER_MANAGER] [--include-hidden-nodes] [--ros-args ...]
 
     Output the list of loaded controllers, their type and status
 
@@ -46,8 +45,8 @@ list_controllers
       --required-command-interfaces
                             List controller's required command interfaces
       --chained-interfaces  List interfaces that the controllers are chained to
-      --exported-interfaces
-                            List controller's exported state and reference interfaces
+      --reference-interfaces
+                            List controller's exported references
       --verbose, -v         List controller's claimed interfaces, required state interfaces and required command interfaces
       -c CONTROLLER_MANAGER, --controller-manager CONTROLLER_MANAGER
                             Name of the controller manager ROS node (default: controller_manager)
@@ -390,24 +389,3 @@ view_controller_chains
       --include-hidden-nodes
                             Consider hidden nodes as well
       --ros-args ...        Pass arbitrary arguments to the executable
-
-
-view_hardware_status
-----------------------
-
-.. code-block:: console
-
-    $ ros2 control view_hardware_status -h
-    usage: ros2 control view_hardware_status [-h] [--spin-time SPIN_TIME] [-s] [-i HARDWARE_ID] [-d DEVICE_ID]
-
-    Echo hardware status messages with filtering capabilities
-
-    options:
-      -h, --help            show this help message and exit
-      --spin-time SPIN_TIME
-                            Spin time in seconds to wait for discovery (only applies when not using an already running daemon)
-      -s, --use-sim-time    Enable ROS simulation time
-      -i HARDWARE_ID, --hardware-id HARDWARE_ID
-                            Filter by a specific hardware component ID.
-      -d DEVICE_ID, --device-id DEVICE_ID
-                            Filter by a specific device ID within a hardware component.
