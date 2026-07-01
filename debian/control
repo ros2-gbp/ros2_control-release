@@ -1,0 +1,12 @@
+Source: ros-lyrical-hardware-interface
+Section: misc
+Priority: optional
+Maintainer: "Bence Magyar" <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libfmt-dev, libtinyxml2-dev, ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-gen-version-h, ros-lyrical-ament-cmake-gmock <!nocheck>, ros-lyrical-backward-ros, ros-lyrical-control-msgs, ros-lyrical-joint-limits, ros-lyrical-lifecycle-msgs, ros-lyrical-pal-statistics, ros-lyrical-pluginlib, ros-lyrical-rclcpp-lifecycle, ros-lyrical-rcpputils, ros-lyrical-rcutils, ros-lyrical-realtime-tools, ros-lyrical-ros2-control-cmake, ros-lyrical-ros2-control-test-assets <!nocheck>, ros-lyrical-sdformat-urdf, ros-lyrical-urdf, ros-lyrical-ros-workspace
+Homepage: https://index.ros.org/p/hardware_interface/#lyrical
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-hardware-interface
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libfmt-dev, libtinyxml2-dev, ros-lyrical-backward-ros, ros-lyrical-control-msgs, ros-lyrical-joint-limits, ros-lyrical-lifecycle-msgs, ros-lyrical-pal-statistics, ros-lyrical-pluginlib, ros-lyrical-rclcpp-lifecycle, ros-lyrical-rcpputils, ros-lyrical-rcutils, ros-lyrical-realtime-tools, ros-lyrical-sdformat-urdf, ros-lyrical-urdf, ros-lyrical-ros-workspace
+Description: Base classes for hardware abstraction and tooling for them
