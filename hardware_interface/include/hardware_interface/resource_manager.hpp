@@ -23,11 +23,8 @@
 #include "hardware_interface/actuator.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/hardware_info.hpp"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
-#pragma GCC diagnostic pop
 #include "hardware_interface/sensor.hpp"
 #include "hardware_interface/system.hpp"
 #include "hardware_interface/system_interface.hpp"
@@ -123,21 +120,6 @@ public:
    * @return true if all hardware components are successfully shutdown, false otherwise.
    */
   bool shutdown_components();
-
-  /// Load resources from on a given URDF.
-  /**
-   * The resource manager can be post-initialized with a given URDF.
-   * This is mainly used in conjunction with the default constructor
-   * in which the URDF might not be present at first initialization.
-   *
-   * \param[in] urdf string containing the URDF.
-   * \param[in] update_rate update rate of  the main control loop, i.e., of the controller manager.
-   * \returns false if URDF validation has failed.
-   */
-  [[deprecated(
-    "Use load_and_initialize_components(const ResourceManagerParams & params) "
-    "instead")]] virtual bool
-  load_and_initialize_components(const std::string & urdf, const unsigned int update_rate = 100);
 
   /// Load resources from on a given URDF.
   /**
@@ -413,49 +395,11 @@ public:
    * not be called when a controller is running.
    * \note given that no hardware_info is available, the component has to be configured
    * externally and prior to the call to import.
-   * \param[in] actuator pointer to the actuator interface.
-   * \param[in] hardware_info hardware info
-   */
-  [[deprecated(
-    "Use import_component(std::unique_ptr<ActuatorInterface> actuator, "
-    "const HardwareComponentParams & params) instead")]] void
-  import_component(std::unique_ptr<ActuatorInterface> actuator, const HardwareInfo & hardware_info);
-
-  /// Import a hardware component which is not listed in the URDF
-  /**
-   * Components which are initialized outside a URDF can be added post initialization.
-   * Nevertheless, there should still be `HardwareInfo` available for this component,
-   * either parsed from a URDF string (easiest) or filled manually.
-   *
-   * \note this might invalidate existing state and command interfaces and should thus
-   * not be called when a controller is running.
-   * \note given that no hardware_info is available, the component has to be configured
-   * externally and prior to the call to import.
-   * \param[in] sensor pointer to the sensor interface.
-   * \param[in] hardware_info hardware info
-   */
-  [[deprecated(
-    "Use import_component(std::unique_ptr<SensorInterface> sensor, "
-    "const HardwareComponentParams & params) instead")]] void
-  import_component(std::unique_ptr<SensorInterface> sensor, const HardwareInfo & hardware_info);
-
-  /// Import a hardware component which is not listed in the URDF
-  /**
-   * Components which are initialized outside a URDF can be added post initialization.
-   * Nevertheless, there should still be `HardwareInfo` available for this component,
-   * either parsed from a URDF string (easiest) or filled manually.
-   *
-   * \note this might invalidate existing state and command interfaces and should thus
-   * not be called when a controller is running.
-   * \note given that no hardware_info is available, the component has to be configured
-   * externally and prior to the call to import.
    * \param[in] system pointer to the system interface.
    * \param[in] hardware_info hardware info
    */
-  [[deprecated(
-    "Use import_component(std::unique_ptr<SystemInterface> system, "
-    "const HardwareComponentParams & params) instead")]] void
-  import_component(std::unique_ptr<SystemInterface> system, const HardwareInfo & hardware_info);
+  void import_component(
+    std::unique_ptr<SystemInterface> system, const HardwareComponentParams & params);
 
   /// Import a hardware component which is not listed in the URDF
   /**
@@ -490,23 +434,6 @@ public:
    */
   void import_component(
     std::unique_ptr<SensorInterface> sensor, const HardwareComponentParams & params);
-
-  /// Import a hardware component which is not listed in the URDF
-  /**
-   * Components which are initialized outside a URDF can be added post initialization.
-   * Nevertheless, there should still be `HardwareInfo` available for this component,
-   * either parsed from a URDF string (easiest) or filled manually.
-   *
-   * \note this might invalidate existing state and command interfaces and should thus
-   * not be called when a controller is running.
-   * \note given that no hardware_info is available, the component has to be configured
-   * externally and prior to the call to import.
-   * \param[in] system pointer to the system interface.
-   * \param[in] params Struct of type HardwareComponentParams containing the hardware info
-   * and other parameters for the component.
-   */
-  void import_component(
-    std::unique_ptr<SystemInterface> system, const HardwareComponentParams & params);
 
   /// Return status for all components.
   /**
