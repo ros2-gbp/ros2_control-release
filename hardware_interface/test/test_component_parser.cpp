@@ -884,7 +884,7 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_system_robot_with_gpio
     hardware_info.hardware_plugin_name, "ros2_control_demo_hardware/RRBotSystemWithGPIOHardware");
 
   ASSERT_FALSE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.async_params.thread_priority, std::numeric_limits<int>::max());
+  ASSERT_EQ(hardware_info.thread_priority, std::numeric_limits<int>::max());
   ASSERT_THAT(hardware_info.joints, SizeIs(2));
 
   EXPECT_EQ(hardware_info.joints[0].name, "joint1");
@@ -956,7 +956,7 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_system_with_size_and_d
   ASSERT_THAT(hardware_info.joints, SizeIs(1));
 
   ASSERT_FALSE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.async_params.thread_priority, std::numeric_limits<int>::max());
+  ASSERT_EQ(hardware_info.thread_priority, std::numeric_limits<int>::max());
   EXPECT_EQ(hardware_info.joints[0].name, "joint1");
   EXPECT_EQ(hardware_info.joints[0].type, "joint");
   EXPECT_THAT(hardware_info.joints[0].command_interfaces, SizeIs(1));
@@ -1006,7 +1006,7 @@ TEST_F(
 
   ASSERT_THAT(hardware_info.joints, SizeIs(1));
   ASSERT_FALSE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.async_params.thread_priority, std::numeric_limits<int>::max());
+  ASSERT_EQ(hardware_info.thread_priority, std::numeric_limits<int>::max());
   EXPECT_EQ(hardware_info.joints[0].name, "joint1");
   EXPECT_EQ(hardware_info.joints[0].type, "joint");
   EXPECT_THAT(hardware_info.joints[0].command_interfaces, SizeIs(2));
@@ -1442,6 +1442,7 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_async_components)
   ASSERT_THAT(hardware_info.group, IsEmpty());
   ASSERT_THAT(hardware_info.joints, SizeIs(1));
   ASSERT_TRUE(hardware_info.is_async);
+  ASSERT_EQ(hardware_info.thread_priority, 30);
   ASSERT_EQ(hardware_info.async_params.thread_priority, 30);
   ASSERT_EQ(hardware_info.async_params.scheduling_policy, "detached");
   ASSERT_FALSE(hardware_info.async_params.print_warnings);
@@ -1461,6 +1462,7 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_async_components)
   ASSERT_THAT(hardware_info.joints, IsEmpty());
   ASSERT_THAT(hardware_info.sensors, SizeIs(1));
   ASSERT_TRUE(hardware_info.is_async);
+  ASSERT_EQ(hardware_info.thread_priority, 50);
   ASSERT_EQ(hardware_info.async_params.thread_priority, 50);
   ASSERT_EQ(hardware_info.async_params.scheduling_policy, "synchronized");
   ASSERT_TRUE(hardware_info.async_params.print_warnings);
@@ -1488,6 +1490,7 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_async_components)
   EXPECT_EQ(hardware_info.gpios[0].name, "configuration");
   EXPECT_EQ(hardware_info.gpios[0].type, "gpio");
   ASSERT_TRUE(hardware_info.is_async);
+  ASSERT_EQ(hardware_info.thread_priority, 70);
   ASSERT_EQ(hardware_info.async_params.thread_priority, 70);
   ASSERT_EQ(hardware_info.async_params.scheduling_policy, "synchronized");
   ASSERT_EQ(1u, hardware_info.async_params.cpu_affinity_cores.size());
