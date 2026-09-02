@@ -38,7 +38,9 @@ def edges(graph):
 
 
 class TestViewControllerChains(unittest.TestCase):
+
     def test_expected(self):
+
         list_controllers_response = ListControllers.Response()
         list_hardware_response = ListHardwareComponents.Response()
 
@@ -105,7 +107,6 @@ class TestViewControllerChains(unittest.TestCase):
         tm_status_controller.name = "tm_status_controller"
         tm_status_controller.state = "active"
         tm_status_controller.type = "tm_controllers/TmStatusController"
-        tm_status_controller.update_rate = 500
         tm_status_controller.claimed_interfaces = [
             "play/press",
             "stop/press",
@@ -136,7 +137,6 @@ class TestViewControllerChains(unittest.TestCase):
         joint_trajectory_controller.name = "joint_trajectory_controller"
         joint_trajectory_controller.state = "active"
         joint_trajectory_controller.type = "joint_trajectory_controller/JointTrajectoryController"
-        joint_trajectory_controller.update_rate = 500
         joint_trajectory_controller.claimed_interfaces = [
             f"joint_{i}/position" for i in range(1, 7)
         ]
@@ -152,7 +152,6 @@ class TestViewControllerChains(unittest.TestCase):
         joint_state_broadcaster.name = "joint_state_broadcaster"
         joint_state_broadcaster.state = "active"
         joint_state_broadcaster.type = "joint_state_broadcaster/JointStateBroadcaster"
-        joint_state_broadcaster.update_rate = 500
         joint_state_broadcaster.required_state_interfaces = [
             "joint_6/effort",
             "joint_5/velocity",
@@ -192,8 +191,6 @@ class TestViewControllerChains(unittest.TestCase):
         hardware_component = HardwareComponentState()
         hardware_component.name = "tm_robot"
         hardware_component.type = "system"
-        hardware_component.rw_rate = 500
-        hardware_component.plugin_name = "tm_hardware_interface/TmPositionHardwareInterface"
 
         hardware_component.command_interfaces = [
             HardwareInterface(name=interface)
@@ -289,7 +286,6 @@ class TestViewControllerChains(unittest.TestCase):
             pid_controller.is_chained = True
             # the controller manager reports these without the controller name prefix
             pid_controller.reference_interfaces = [f"{side}_wheel_joint/velocity"]
-            pid_controller.exported_state_interfaces = [f"{side}_wheel_joint/velocity"]
             pid_controller.required_command_interfaces = [f"{side}_wheel_joint/velocity"]
             pid_controller.required_state_interfaces = [f"{side}_wheel_joint/velocity"]
             pid_controllers.append(pid_controller)
@@ -330,6 +326,10 @@ class TestViewControllerChains(unittest.TestCase):
             graph_edges,
         )
 
+    @unittest.skipUnless(
+        hasattr(ControllerState(), "exported_state_interfaces"),
+        "ControllerState does not expose exported state interfaces on this ROS distribution",
+    )
     def test_exported_state_interfaces(self):
         """A controller reading a state interface exported by another controller."""
         list_controllers_response = ListControllers.Response()

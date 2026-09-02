@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from controller_manager import (
-    cleanup_controller,
-    configure_controller,
-    list_controllers,
-    switch_controllers,
-)
+from controller_manager import configure_controller, list_controllers, switch_controllers
 
 from ros2cli.node.direct import add_arguments
 from ros2cli.node.strategy import NodeStrategy
@@ -35,13 +30,14 @@ class SetControllerStateVerb(VerbExtension):
         arg.completer = LoadedControllerNameCompleter()
         arg = parser.add_argument(
             "state",
-            choices=["unconfigured", "inactive", "active"],
+            # choices=['unconfigured', 'inactive', 'active'], TODO(destogl): when cleanup is impl
+            choices=["inactive", "active"],
             help="State in which the controller should be changed to",
         )
         add_controller_mgr_parsers(parser)
 
     def main(self, *, args):
-        with NodeStrategy(args).direct_node as node:
+        with NodeStrategy(args) as node:
             controllers = list_controllers(node, args.controller_manager).controller
 
             try:
@@ -49,18 +45,26 @@ class SetControllerStateVerb(VerbExtension):
             except IndexError:
                 return f"controller {args.controller_name} does not seem to be loaded"
 
-            if args.state == "unconfigured":
-                if matched_controller.state != "inactive":
-                    return (
-                        f"cannot cleanup {matched_controller.name} "
-                        f"from its current state {matched_controller.state}"
-                    )
-                response = cleanup_controller(node, args.controller_manager, args.controller_name)
-                if not response.ok:
-                    return "Error cleaning up controller, check controller_manager logs"
+            # TODO(destogl): This has to be implemented in CLI and controller manager
+            # if args.state == 'unconfigured':
+            #     if matched_controller.state != 'inactive':
+            #         return f'cannot cleanup {matched_controller.name} ' \
+            #                f'from its current state {matched_controller.state}'
+            #     response = cleanup_controller(
+            #         node, args.controller_manager, args.controller_name
+            #     )
+            #     if not response.ok:
+            #         return 'Error cleaning up controller, check controller_manager logs'
+            #          #      print(f'successfully cleaned up {args.controller_name}')
+            #     return 0
 
-                print(f"successfully cleaned up {args.controller_name}")
-                return 0
+            if args.state == "configure":
+                args.state = "inactive"
+                print('Setting state "configure" is deprecated, use "inactive" instead!')
+
+            if args.state == "stop":
+                args.state = "inactive"
+                print('Setting state "stop" is deprecated, use "inactive" instead!')
 
             if args.state == "inactive":
                 if matched_controller.state == "unconfigured":
@@ -88,6 +92,10 @@ class SetControllerStateVerb(VerbExtension):
                         f"cannot put {matched_controller.name} in 'inactive' state "
                         f"from its current state {matched_controller.state}"
                     )
+
+            if args.state == "start":
+                args.state = "active"
+                print('Setting state "start" is deprecated, use "active" instead!')
 
             if args.state == "active":
                 if matched_controller.state != "inactive":
