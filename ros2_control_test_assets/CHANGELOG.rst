@@ -2,66 +2,68 @@
 Changelog for package ros2_control_test_assets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-5.17.0 (2026-08-10)
+6.10.0 (2026-09-02)
 -------------------
 
-5.16.0 (2026-07-14)
--------------------
-
-5.15.0 (2026-07-01)
--------------------
-* Add read_only attribute to JointInfo and ActuatorInfo (`#3426 <https://github.com/ros-controls/ros2_control/issues/3426>`_) (`#3430 <https://github.com/ros-controls/ros2_control/issues/3430>`_)
-* Controller Manager recovery from invalid URDF errors (backport `#2775 <https://github.com/ros-controls/ros2_control/issues/2775>`_) (`#3395 <https://github.com/ros-controls/ros2_control/issues/3395>`_)
-* Contributors: mergify[bot]
-
-5.14.2 (2026-05-12)
--------------------
-
-5.14.1 (2026-04-24)
--------------------
-
-5.14.0 (2026-04-17)
--------------------
-* Unify transmission tests using shared minimal robot URDF in test assets (backport `#3031 <https://github.com/ros-controls/ros2_control/issues/3031>`_) (`#3218 <https://github.com/ros-controls/ros2_control/issues/3218>`_)
-* Add 6D robot description to ros2_control_test_assets (backport `#3032 <https://github.com/ros-controls/ros2_control/issues/3032>`_) (`#3227 <https://github.com/ros-controls/ros2_control/issues/3227>`_)
-* Contributors: mergify[bot]
-
-5.13.0 (2026-04-02)
--------------------
-* Fix forwarding handle_exceptions parameter to resource manager (`#3107 <https://github.com/ros-controls/ros2_control/issues/3107>`_) (`#3118 <https://github.com/ros-controls/ros2_control/issues/3118>`_)
-* Contributors: mergify[bot]
-
-5.12.0 (2026-02-03)
--------------------
-* Fix disabling joint limits via URDF (`#2992 <https://github.com/ros-controls/ros2_control/issues/2992>`_) (`#2997 <https://github.com/ros-controls/ros2_control/issues/2997>`_)
-* Strip leading and trailing whitespaces while parsing components (`#2974 <https://github.com/ros-controls/ros2_control/issues/2974>`_) (`#2977 <https://github.com/ros-controls/ros2_control/issues/2977>`_)
-* Contributors: mergify[bot]
-
-5.11.3 (2026-01-10)
--------------------
-
-5.11.2 (2026-01-07)
--------------------
-
-5.11.1 (2025-12-30)
--------------------
-
-5.11.0 (2025-12-29)
--------------------
-
-5.10.0 (2025-12-09)
--------------------
-
-5.9.0 (2025-12-01)
+6.9.0 (2026-08-10)
 ------------------
 
-5.8.2 (2025-11-09)
+6.8.0 (2026-07-01)
+------------------
+* Add read_only attribute to JointInfo and ActuatorInfo (`#3426 <https://github.com/ros-controls/ros2_control/issues/3426>`_)
+* Controller Manager recovery from invalid URDF errors (`#2775 <https://github.com/ros-controls/ros2_control/issues/2775>`_)
+* Contributors: Sai Kishor Kothakota, VitezGabriela
+
+6.7.1 (2026-05-12)
+------------------
+* Bump C++ version to C++20 (`#3253 <https://github.com/ros-controls/ros2_control/issues/3253>`_)
+* Contributors: Christoph Fröhlich
+
+6.7.0 (2026-04-23)
 ------------------
 
-5.8.1 (2025-11-03)
+6.6.0 (2026-04-17)
+------------------
+* Add 6D robot description to ros2_control_test_assets (`#3032 <https://github.com/ros-controls/ros2_control/issues/3032>`_)
+* Unify transmission tests using shared minimal robot URDF in test assets (`#3031 <https://github.com/ros-controls/ros2_control/issues/3031>`_)
+* Contributors: Naitik
+
+6.5.1 (2026-04-05)
 ------------------
 
-5.8.0 (2025-10-27)
+6.5.0 (2026-04-02)
+------------------
+* Fix forwarding handle_exceptions parameter to resource manager (`#3107 <https://github.com/ros-controls/ros2_control/issues/3107>`_)
+* Contributors: Sai Kishor Kothakota
+
+6.4.0 (2026-02-03)
+------------------
+* Fix disabling joint limits via URDF (`#2992 <https://github.com/ros-controls/ros2_control/issues/2992>`_)
+* Strip leading and trailing whitespaces while parsing components (`#2974 <https://github.com/ros-controls/ros2_control/issues/2974>`_)
+* Contributors: Sai Kishor Kothakota
+
+6.3.2 (2026-01-10)
+------------------
+
+6.3.1 (2025-12-30)
+------------------
+
+6.3.0 (2025-12-29)
+------------------
+
+6.2.0 (2025-12-10)
+------------------
+
+6.1.0 (2025-12-01)
+------------------
+
+6.0.2 (2025-11-09)
+------------------
+
+6.0.1 (2025-11-03)
+------------------
+
+6.0.0 (2025-10-27)
 ------------------
 
 5.7.0 (2025-10-03)
