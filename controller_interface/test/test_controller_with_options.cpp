@@ -41,13 +41,9 @@ TEST(ControllerWithOption, init_with_overrides)
   rclcpp::init(argc, argv);
   // creates the controller
   FriendControllerWithOptions controller;
-  controller_interface::ControllerInterfaceParams params;
-  params.controller_name = "controller_name";
-  params.robot_description = "";
-  params.update_rate = 50;
-  params.node_namespace = "";
-  params.node_options = controller.define_custom_node_options();
-  ASSERT_EQ(controller.init(params), controller_interface::return_type::OK);
+  ASSERT_EQ(
+    controller.init("controller_name", "", 50.0, "", controller.define_custom_node_options()),
+    controller_interface::return_type::OK);
   // checks that the node options have been updated
   const auto & node_options = controller.get_node()->get_node_options();
   EXPECT_TRUE(node_options.allow_undeclared_parameters());
@@ -74,13 +70,9 @@ TEST(ControllerWithOption, init_with_node_options_arguments_parameters)
   controller_node_options.arguments(
     {"--ros-args", "-p", "parameter_list.parameter1:=1.", "-p", "parameter_list.parameter2:=2.",
      "-p", "parameter_list.parameter3:=3."});
-  controller_interface::ControllerInterfaceParams params;
-  params.controller_name = "controller_name";
-  params.robot_description = "";
-  params.update_rate = 50;
-  params.node_namespace = "";
-  params.node_options = controller_node_options;
-  ASSERT_EQ(controller.init(params), controller_interface::return_type::OK);
+  ASSERT_EQ(
+    controller.init("controller_name", "", 50.0, "", controller_node_options),
+    controller_interface::return_type::OK);
   // checks that the node options have been updated
   const auto & node_options = controller.get_node()->get_node_options();
   EXPECT_TRUE(node_options.allow_undeclared_parameters());
@@ -108,13 +100,9 @@ TEST(ControllerWithOption, init_with_node_options_arguments_parameters_file)
   std::cerr << params_file_path << std::endl;
   auto controller_node_options = controller.define_custom_node_options();
   controller_node_options.arguments({"--ros-args", "--params-file", params_file_path});
-  controller_interface::ControllerInterfaceParams params;
-  params.controller_name = "controller_name";
-  params.robot_description = "";
-  params.update_rate = 50;
-  params.node_namespace = "";
-  params.node_options = controller_node_options;
-  ASSERT_EQ(controller.init(params), controller_interface::return_type::OK);
+  ASSERT_EQ(
+    controller.init("controller_name", "", 50.0, "", controller_node_options),
+    controller_interface::return_type::OK);
   // checks that the node options have been updated
   const auto & node_options = controller.get_node()->get_node_options();
   EXPECT_TRUE(node_options.allow_undeclared_parameters());
@@ -148,13 +136,9 @@ TEST(
   controller_node_options.arguments(
     {"--ros-args", "--params-file", params_file_path, "-p", "parameter_list.parameter1:=562.785",
      "-p", "use_sim_time:=true"});
-  controller_interface::ControllerInterfaceParams params;
-  params.controller_name = "controller_name";
-  params.robot_description = "";
-  params.update_rate = 50;
-  params.node_namespace = "";
-  params.node_options = controller_node_options;
-  ASSERT_EQ(controller.init(params), controller_interface::return_type::OK);
+  ASSERT_EQ(
+    controller.init("controller_name", "", 50.0, "", controller_node_options),
+    controller_interface::return_type::OK);
   // checks that the node options have been updated
   const auto & node_options = controller.get_node()->get_node_options();
   EXPECT_TRUE(node_options.allow_undeclared_parameters());
@@ -181,13 +165,9 @@ TEST(ControllerWithOption, init_without_overrides)
   rclcpp::init(argc, argv);
   // creates the controller
   FriendControllerWithOptions controller;
-  controller_interface::ControllerInterfaceParams params;
-  params.controller_name = "controller_name";
-  params.robot_description = "";
-  params.update_rate = 50;
-  params.node_namespace = "";
-  params.node_options = controller.define_custom_node_options();
-  ASSERT_EQ(controller.init(params), controller_interface::return_type::ERROR);
+  ASSERT_EQ(
+    controller.init("controller_name", "", 50.0, "", controller.define_custom_node_options()),
+    controller_interface::return_type::ERROR);
   // checks that the node options have been updated
   const auto & node_options = controller.get_node()->get_node_options();
   EXPECT_TRUE(node_options.allow_undeclared_parameters());
