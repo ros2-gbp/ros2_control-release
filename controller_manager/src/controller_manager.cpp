@@ -548,6 +548,7 @@ ControllerManager::ControllerManager(
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
       kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  cm_node_options_(options),
   robot_description_(urdf),
   activate_all_hw_components_(activate_all_hw_components)
 {
@@ -574,7 +575,8 @@ ControllerManager::ControllerManager(
       kControllerInterfaceNamespace, kControllerInterfaceClassName)),
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
-      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  cm_node_options_(options)
 {
   if (resource_manager_ == nullptr)
   {
@@ -623,8 +625,7 @@ bool ControllerManager::shutdown_controllers()
 {
   RCLCPP_INFO(get_logger(), "Shutting down all controllers in the controller manager.");
   // Shutdown all controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   std::vector<ControllerSpec> controllers_list = rt_controllers_wrapper_.get_updated_list(guard);
   bool ctrls_shutdown_status = true;
   for (auto & controller : controllers_list)
@@ -1416,8 +1417,7 @@ controller_interface::return_type ControllerManager::unload_controller(
   const std::string & controller_name)
 {
   RCLCPP_INFO(get_logger(), "Unloading controller: '%s'", controller_name.c_str());
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   std::vector<ControllerSpec> & to = rt_controllers_wrapper_.get_unused_list(guard);
   const std::vector<ControllerSpec> & from = rt_controllers_wrapper_.get_updated_list(guard);
 
@@ -1589,8 +1589,7 @@ void ControllerManager::shutdown_controller(
 
 std::vector<ControllerSpec> ControllerManager::get_loaded_controllers() const
 {
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   return rt_controllers_wrapper_.get_updated_list(guard);
 }
 
@@ -1615,15 +1614,27 @@ controller_interface::return_type ControllerManager::configure_controller(
   }
   auto controller = found_it->c;
 
-  if (!is_controller_unconfigured(*controller))
+  const auto & state = controller->get_lifecycle_state();
+  if (
+    state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE ||
+    state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED)
   {
     RCLCPP_ERROR(
       get_logger(), "Controller '%s' can not be configured from '%s' state.",
-      controller_name.c_str(), controller->get_lifecycle_state().label().c_str());
+      controller_name.c_str(), state.label().c_str());
     return controller_interface::return_type::ERROR;
   }
 
-  // Remove any stale exported interfaces from a prior configure cycle before re-configuring.
+  if (state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+  {
+    RCLCPP_DEBUG(
+      get_logger(), "Controller '%s' is cleaned-up before configuring", controller_name.c_str());
+    if (cleanup_controller(*found_it) != controller_interface::return_type::OK)
+    {
+      return controller_interface::return_type::ERROR;
+    }
+  }
+  // For cases, when the controller ends up in the unconfigured state from any other state
   cleanup_controller_exported_interfaces(*found_it);
 
   try
@@ -1759,8 +1770,7 @@ controller_interface::return_type ControllerManager::configure_controller(
 
   // Now let's reorder the controllers
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   std::vector<ControllerSpec> & to = rt_controllers_wrapper_.get_unused_list(guard);
   const std::vector<ControllerSpec> & from = rt_controllers_wrapper_.get_updated_list(guard);
 
@@ -1952,8 +1962,7 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
       const std::string & action, std::string & msg) -> controller_interface::return_type
   {
     // lock controllers
-    std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-      rt_controllers_wrapper_.controllers_lock_);
+    std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
     auto result = controller_interface::return_type::OK;
 
     // list all controllers to (de)activate
@@ -2022,8 +2031,7 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
   message.clear();
 
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
 
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
 
@@ -2437,8 +2445,7 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::add_co
   const ControllerSpec & controller)
 {
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
 
   std::vector<ControllerSpec> & to = rt_controllers_wrapper_.get_unused_list(guard);
   const std::vector<ControllerSpec> & from = rt_controllers_wrapper_.get_updated_list(guard);
@@ -2836,8 +2843,7 @@ void ControllerManager::list_controllers_srv_cb(
   RCLCPP_DEBUG(get_logger(), "list controller service locked");
 
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
   // create helper containers to create chained controller connections
   std::unordered_map<std::string, std::vector<std::string>> controller_chain_interface_map;
@@ -3005,8 +3011,7 @@ void ControllerManager::reload_controller_libraries_service_cb(
   loaded_controllers = get_controller_names();
   {
     // lock controllers
-    std::lock_guard<RTControllerListWrapper::controllers_lock_type> ctrl_guard(
-      rt_controllers_wrapper_.controllers_lock_);
+    std::lock_guard<std::recursive_mutex> ctrl_guard(rt_controllers_wrapper_.controllers_lock_);
     for (const auto & controller : rt_controllers_wrapper_.get_updated_list(ctrl_guard))
     {
       if (is_controller_active(*controller.c))
@@ -3260,8 +3265,7 @@ std::vector<std::string> ControllerManager::get_controller_names()
   std::vector<std::string> names;
 
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   for (const auto & controller : rt_controllers_wrapper_.get_updated_list(guard))
   {
     names.push_back(controller.info.name);
@@ -3714,7 +3718,7 @@ ControllerManager::RTControllerListWrapper::update_and_get_used_by_rt_list()
 }
 
 std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::get_unused_list(
-  const std::lock_guard<controllers_lock_type> &)
+  const std::lock_guard<std::recursive_mutex> &)
 {
   if (!controllers_lock_.try_lock())
   {
@@ -3730,7 +3734,7 @@ std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::get_un
 }
 
 const std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::get_updated_list(
-  const std::lock_guard<controllers_lock_type> &) const
+  const std::lock_guard<std::recursive_mutex> &) const
 {
   if (!controllers_lock_.try_lock())
   {
@@ -3741,7 +3745,7 @@ const std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::
 }
 
 void ControllerManager::RTControllerListWrapper::switch_updated_list(
-  const std::lock_guard<controllers_lock_type> &)
+  const std::lock_guard<std::recursive_mutex> &)
 {
   if (!controllers_lock_.try_lock())
   {
@@ -3760,7 +3764,7 @@ void ControllerManager::RTControllerListWrapper::switch_updated_list(
 void ControllerManager::RTControllerListWrapper::set_on_switch_callback(
   std::function<void()> callback)
 {
-  std::lock_guard<controllers_lock_type> guard(controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(controllers_lock_);
   on_switch_callback_ = callback;
 }
 
@@ -4280,8 +4284,7 @@ void ControllerManager::publish_activity()
   status_msg.header.stamp = get_clock()->now();
   {
     // lock controllers
-    std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-      rt_controllers_wrapper_.controllers_lock_);
+    std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
     const std::vector<ControllerSpec> & controllers =
       rt_controllers_wrapper_.get_updated_list(guard);
     for (const auto & controller : controllers)
@@ -4426,8 +4429,7 @@ void ControllerManager::controller_activity_diagnostic_callback(
     }
   }
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
   bool all_active = true;
   const std::string periodicity_suffix = ".periodicity";
@@ -4638,6 +4640,14 @@ void ControllerManager::hardware_components_diagnostic_callback(
   for (const auto & [component_name, component_info] : hw_components_info)
   {
     stat.add(component_name + state_suffix, component_info.state.label());
+    if (component_info.state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+    {
+      all_active = false;
+    }
+    else
+    {
+      atleast_one_hw_active = true;
+    }
     if (component_info.state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
     {
       auto update_stats =
@@ -4955,13 +4965,47 @@ void ControllerManager::build_controllers_topology_info(
 rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   const ControllerSpec & controller) const
 {
+  auto check_for_element = [](const auto & list, const auto & element)
+  { return std::find(list.begin(), list.end(), element) != list.end(); };
+
   rclcpp::NodeOptions controller_node_options = controller.c->define_custom_node_options();
   std::vector<std::string> node_options_arguments = controller_node_options.arguments();
 
-  // add parameter files specified in controller's info
+  for (const std::string & arg : cm_node_options_.arguments())
+  {
+    if (
+      arg.find("__ns") != std::string::npos || arg.find("__node") != std::string::npos ||
+      arg.find("robot_description") != std::string::npos)
+    {
+      if (
+        node_options_arguments.back() == RCL_REMAP_FLAG ||
+        node_options_arguments.back() == RCL_SHORT_REMAP_FLAG ||
+        node_options_arguments.back() == RCL_PARAM_FLAG ||
+        node_options_arguments.back() == RCL_SHORT_PARAM_FLAG)
+      {
+        node_options_arguments.pop_back();
+      }
+      continue;
+    }
+
+    node_options_arguments.push_back(arg);
+  }
+
+  // Add deprecation notice if the arguments are from the controller_manager node
+  if (
+    check_for_element(node_options_arguments, RCL_REMAP_FLAG) ||
+    check_for_element(node_options_arguments, RCL_SHORT_REMAP_FLAG))
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "The use of remapping arguments to the controller_manager node is deprecated. Please use the "
+      "'--controller-ros-args' argument of the spawner to pass remapping arguments to the "
+      "controller node.");
+  }
+
   for (const auto & parameters_file : controller.info.parameters_files)
   {
-    if (!ros2_control::has_item(node_options_arguments, std::string(RCL_ROS_ARGS_FLAG)))
+    if (!check_for_element(node_options_arguments, RCL_ROS_ARGS_FLAG))
     {
       node_options_arguments.push_back(RCL_ROS_ARGS_FLAG);
     }
@@ -4972,7 +5016,7 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   // ensure controller's `use_sim_time` parameter matches controller_manager's
   if (use_sim_time_)
   {
-    if (!ros2_control::has_item(node_options_arguments, std::string(RCL_ROS_ARGS_FLAG)))
+    if (!check_for_element(node_options_arguments, RCL_ROS_ARGS_FLAG))
     {
       node_options_arguments.push_back(RCL_ROS_ARGS_FLAG);
     }
@@ -4983,7 +5027,7 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   // Add options parsed through the spawner
   if (
     !controller.info.node_options_args.empty() &&
-    !ros2_control::has_item(controller.info.node_options_args, std::string(RCL_ROS_ARGS_FLAG)))
+    !check_for_element(controller.info.node_options_args, RCL_ROS_ARGS_FLAG))
   {
     node_options_arguments.push_back(RCL_ROS_ARGS_FLAG);
   }
@@ -4992,12 +5036,16 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
     node_options_arguments.push_back(arg);
   }
 
-  RCLCPP_INFO_EXPRESSION(
-    get_logger(), !node_options_arguments.empty(), "%s",
-    fmt::format(
-      FMT_COMPILE("Controller '{}' node arguments: '{}'"), controller.info.name,
-      fmt::join(node_options_arguments, " "))
-      .c_str());
+  std::string arguments;
+  arguments.reserve(1000);
+  for (const auto & arg : node_options_arguments)
+  {
+    arguments.append(arg);
+    arguments.append(" ");
+  }
+  RCLCPP_INFO(
+    get_logger(), "Controller '%s' node arguments: %s", controller.info.name.c_str(),
+    arguments.c_str());
 
   controller_node_options = controller_node_options.arguments(node_options_arguments);
   controller_node_options.use_global_arguments(false);

@@ -164,8 +164,8 @@ class TestActuator : public ActuatorInterface
   }
 
   hardware_interface::return_type prepare_command_mode_switch(
-    const std::vector<std::string> & start_interfaces,
-    const std::vector<std::string> & stop_interfaces) override
+    const std::vector<std::string> & /*start_interfaces*/,
+    const std::vector<std::string> & /*stop_interfaces*/) override
   {
     check_injected_failure("prepare_command_mode_switch");
     double pos = 0.0;
@@ -175,8 +175,8 @@ class TestActuator : public ActuatorInterface
   }
 
   hardware_interface::return_type perform_command_mode_switch(
-    const std::vector<std::string> & start_interfaces,
-    const std::vector<std::string> & stop_interfaces) override
+    const std::vector<std::string> & /*start_interfaces*/,
+    const std::vector<std::string> & /*stop_interfaces*/) override
   {
     check_injected_failure("perform_command_mode_switch");
     if (get_hardware_info().hardware_parameters.count("fail_on_perform_mode_switch"))
