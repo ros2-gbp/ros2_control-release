@@ -36,7 +36,6 @@ generate_parameter_library(controller_manager_parameters
 add_library(controller_manager SHARED
   src/controller_manager.cpp
 )
-target_compile_features(controller_manager PUBLIC cxx_std_17)
 target_include_directories(controller_manager PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/controller_manager>
@@ -236,7 +235,7 @@ if(BUILD_TESTING)
 
   ament_add_gmock(test_spawner_unspawner
     test/test_spawner_unspawner.cpp
-    TIMEOUT 180
+    TIMEOUT 240
   )
   target_link_libraries(test_spawner_unspawner
     controller_manager

@@ -381,10 +381,6 @@ struct HardwareInfo
   unsigned int rw_rate;
   /// Component is async
   bool is_async;
-  // TODO(anyone): deprecate after branching for kilted
-  /// [[deprecated("Use async_params instead.")]]
-  /// Async thread priority
-  int thread_priority;
   /// Async Parameters
   HardwareAsyncParams async_params;
   /// Name of the pluginlib plugin of the hardware that will be loaded.
