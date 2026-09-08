@@ -1,0 +1,12 @@
+Source: ros-lyrical-transmission-interface
+Section: misc
+Priority: optional
+Maintainer: "Bence Magyar" <bence.magyar.robotics@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libfmt-dev, ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-gen-version-h, ros-lyrical-ament-cmake-gmock <!nocheck>, ros-lyrical-hardware-interface, ros-lyrical-pluginlib, ros-lyrical-ros2-control-cmake, ros-lyrical-ros2-control-test-assets <!nocheck>, ros-lyrical-ros-workspace
+Homepage: https://index.ros.org/p/transmission_interface/#lyrical
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-transmission-interface
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libfmt-dev, ros-lyrical-hardware-interface, ros-lyrical-pluginlib, ros-lyrical-ros-workspace
+Description: data structures for representing mechanical transmissions, methods for propagating values between actuator and joint spaces and tooling to support this.
