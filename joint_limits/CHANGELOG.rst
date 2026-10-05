@@ -2,112 +2,115 @@
 Changelog for package joint_limits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.49.0 (2026-10-05)
+6.11.0 (2026-10-05)
 -------------------
-* [joint_limits] Fix the changed flag over the whole parameter batch (`#3576 <https://github.com/ros-controls/ros2_control/issues/3576>`_) (`#3661 <https://github.com/ros-controls/ros2_control/issues/3661>`_)
-* Replace RT buffer with realtime thread safe box (`#3633 <https://github.com/ros-controls/ros2_control/issues/3633>`_) (`#3652 <https://github.com/ros-controls/ros2_control/issues/3652>`_)
-* Contributors: mergify[bot]
+* [joint_limits] Fix the changed flag over the whole parameter batch (`#3576 <https://github.com/ros-controls/ros2_control/issues/3576>`_)
+* Replace RT buffer with realtime thread safe box (`#3633 <https://github.com/ros-controls/ros2_control/issues/3633>`_)
+* Contributors: Christoph Fröhlich, Dylan Pulver
 
-4.48.1 (2026-09-08)
--------------------
-
-4.48.0 (2026-09-02)
+6.10.1 (2026-09-08)
 -------------------
 
-4.47.0 (2026-08-10)
--------------------
-* Fix joint limits namespace wording (`#3445 <https://github.com/ros-controls/ros2_control/issues/3445>`_) (`#3447 <https://github.com/ros-controls/ros2_control/issues/3447>`_)
-* Contributors: mergify[bot]
-
-4.46.0 (2026-07-01)
--------------------
-* Fix disable velocity and effort limiting feature (`#3425 <https://github.com/ros-controls/ros2_control/issues/3425>`_) (`#3436 <https://github.com/ros-controls/ros2_control/issues/3436>`_)
-* fixed docstring of joint_limits (`#3414 <https://github.com/ros-controls/ros2_control/issues/3414>`_) (`#3433 <https://github.com/ros-controls/ros2_control/issues/3433>`_)
-* Improve docstring of joint_limits for consistency (`#3391 <https://github.com/ros-controls/ros2_control/issues/3391>`_) (`#3423 <https://github.com/ros-controls/ros2_control/issues/3423>`_)
-* Fix bad optional access in the joint limiters (`#3319 <https://github.com/ros-controls/ros2_control/issues/3319>`_) (`#3332 <https://github.com/ros-controls/ros2_control/issues/3332>`_)
-* Handle NaNs properly in the joint limiters (`#3320 <https://github.com/ros-controls/ros2_control/issues/3320>`_) (`#3324 <https://github.com/ros-controls/ros2_control/issues/3324>`_)
-* Contributors: mergify[bot]
-
-4.45.2 (2026-05-12)
--------------------
-* Fix std::clamp regression on Ubuntu 26.04 (`#3275 <https://github.com/ros-controls/ros2_control/issues/3275>`_) (`#3280 <https://github.com/ros-controls/ros2_control/issues/3280>`_)
-* Contributors: mergify[bot]
-
-4.45.1 (2026-04-24)
--------------------
-* Fix LNK2005 in joint*limiter (`#3243 <https://github.com/ros-controls/ros2_control/issues/3243>`_) (`#3245 <https://github.com/ros-controls/ros2_control/issues/3245>`_)
-* Contributors: mergify[bot]
-
-4.45.0 (2026-04-17)
+6.10.0 (2026-09-02)
 -------------------
 
-4.44.0 (2026-04-02)
--------------------
-* Consistently add <cmath> include with define for windows (backport `#3061 <https://github.com/ros-controls/ros2_control/issues/3061>`_) (`#3066 <https://github.com/ros-controls/ros2_control/issues/3066>`_)
-* Contributors: mergify[bot]
+6.9.0 (2026-08-10)
+------------------
+* Fix joint limits namespace wording (`#3445 <https://github.com/ros-controls/ros2_control/issues/3445>`_)
+* Contributors: Mohammad Hossein Fakouri
 
-4.43.0 (2026-02-03)
--------------------
-* Fix disabling joint limits via URDF (`#2992 <https://github.com/ros-controls/ros2_control/issues/2992>`_) (`#2996 <https://github.com/ros-controls/ros2_control/issues/2996>`_)
-* Don't throw on position joint limits in case of velocity command (`#2978 <https://github.com/ros-controls/ros2_control/issues/2978>`_) (`#2979 <https://github.com/ros-controls/ros2_control/issues/2979>`_)
-* Contributors: mergify[bot]
+6.8.0 (2026-07-01)
+------------------
+* Fix disable velocity and effort limiting feature (`#3425 <https://github.com/ros-controls/ros2_control/issues/3425>`_)
+* fixed docstring of joint_limits (`#3414 <https://github.com/ros-controls/ros2_control/issues/3414>`_)
+* Improve docstring of joint_limits for consistency (`#3391 <https://github.com/ros-controls/ros2_control/issues/3391>`_)
+* Fix bad optional access in the joint limiters (`#3319 <https://github.com/ros-controls/ros2_control/issues/3319>`_)
+* Handle NaNs properly in the joint limiters (`#3320 <https://github.com/ros-controls/ros2_control/issues/3320>`_)
+* Contributors: Arhan Chavare, Sai Kishor Kothakota, mcereda
 
-4.42.2 (2026-01-10)
--------------------
+6.7.1 (2026-05-12)
+------------------
+* Fix std::clamp regression on Ubuntu 26.04 (`#3275 <https://github.com/ros-controls/ros2_control/issues/3275>`_)
+* Bump C++ version to C++20 (`#3253 <https://github.com/ros-controls/ros2_control/issues/3253>`_)
+* Contributors: Christoph Fröhlich, Sai Kishor Kothakota
 
-4.42.1 (2025-12-30)
--------------------
+6.7.0 (2026-04-23)
+------------------
+* Fix LNK2005 in joint*limiter (`#3243 <https://github.com/ros-controls/ros2_control/issues/3243>`_)
+* Contributors: Christoph Fröhlich
 
-4.42.0 (2025-12-29)
--------------------
+6.6.0 (2026-04-17)
+------------------
 
-4.41.0 (2025-12-10)
--------------------
+6.5.1 (2026-04-05)
+------------------
 
-4.40.0 (2025-12-01)
--------------------
+6.5.0 (2026-04-02)
+------------------
+* Consistently add <cmath> include with define for windows (`#3061 <https://github.com/ros-controls/ros2_control/issues/3061>`_)
+* Contributors: Christoph Fröhlich
 
-4.39.2 (2025-11-09)
--------------------
+6.4.0 (2026-02-03)
+------------------
+* Fix disabling joint limits via URDF (`#2992 <https://github.com/ros-controls/ros2_control/issues/2992>`_)
+* Don't throw on position joint limits in case of velocity command (`#2978 <https://github.com/ros-controls/ros2_control/issues/2978>`_)
+* Contributors: Christoph Fröhlich, Sai Kishor Kothakota
 
-4.39.1 (2025-11-03)
--------------------
+6.3.2 (2026-01-10)
+------------------
 
-4.39.0 (2025-10-27)
--------------------
+6.3.1 (2025-12-30)
+------------------
 
-4.38.0 (2025-10-03)
--------------------
+6.3.0 (2025-12-29)
+------------------
 
-4.37.0 (2025-09-12)
--------------------
+6.2.0 (2025-12-10)
+------------------
 
-4.36.0 (2025-08-26)
--------------------
+6.1.0 (2025-12-01)
+------------------
 
-4.35.0 (2025-07-31)
--------------------
+6.0.2 (2025-11-09)
+------------------
 
-4.34.0 (2025-07-21)
--------------------
-* Fix the crashing joint limiters when used with multiple interfaces (`#2371 <https://github.com/ros-controls/ros2_control/issues/2371>`_) (`#2398 <https://github.com/ros-controls/ros2_control/issues/2398>`_)
-* Contributors: mergify[bot]
+6.0.1 (2025-11-03)
+------------------
 
-4.33.0 (2025-07-02)
--------------------
+6.0.0 (2025-10-27)
+------------------
 
-4.32.0 (2025-06-06)
--------------------
+5.7.0 (2025-10-03)
+------------------
 
-4.31.0 (2025-05-24)
--------------------
-* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_) (`#2271 <https://github.com/ros-controls/ros2_control/issues/2271>`_)
-* Contributors: mergify[bot]
+5.6.0 (2025-08-26)
+------------------
+* Remove extra semicolons (`#2478 <https://github.com/ros-controls/ros2_control/issues/2478>`_)
+* Contributors: Tapia Danish
 
-4.30.0 (2025-05-21)
--------------------
-* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_) (`#2249 <https://github.com/ros-controls/ros2_control/issues/2249>`_)
-* Contributors: mergify[bot]
+5.5.0 (2025-07-31)
+------------------
+
+5.4.0 (2025-07-21)
+------------------
+* Fix the crashing joint limiters when used with multiple interfaces (`#2371 <https://github.com/ros-controls/ros2_control/issues/2371>`_)
+* Contributors: Sai Kishor Kothakota
+
+5.3.0 (2025-07-02)
+------------------
+
+5.2.0 (2025-06-07)
+------------------
+
+5.1.0 (2025-05-24)
+------------------
+* Use target_link_libraries instead of ament_target_dependencies (`#2266 <https://github.com/ros-controls/ros2_control/issues/2266>`_)
+* Contributors: Sai Kishor Kothakota
+
+5.0.0 (2025-05-21)
+------------------
+* Statically allocate string concatenations using FMT formatting (`#2205 <https://github.com/ros-controls/ros2_control/issues/2205>`_)
+* Contributors: mini-1235
 
 4.29.0 (2025-05-04)
 -------------------

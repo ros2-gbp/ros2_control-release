@@ -51,6 +51,10 @@
 #include "rclcpp/node.hpp"
 #include "std_msgs/msg/string.hpp"
 
+#if !defined(_WIN32)
+#include "realtime_tools/mutex.hpp"
+#endif
+
 namespace controller_manager
 {
 class ParamListener;
@@ -591,6 +595,11 @@ private:
     // *INDENT-OFF*
   public:
     // *INDENT-ON*
+#if !defined(_WIN32)
+    using controllers_lock_type = realtime_tools::prio_inherit_recursive_mutex;
+#else
+    using controllers_lock_type = std::recursive_mutex;
+#endif
     /// update_and_get_used_by_rt_list Makes the "updated" list the "used by rt" list
     /**
      * \warning Should only be called by the RT thread, no one should modify the
@@ -608,7 +617,7 @@ private:
      * rt list
      */
     std::vector<ControllerSpec> & get_unused_list(
-      const std::lock_guard<std::recursive_mutex> & guard);
+      const std::lock_guard<controllers_lock_type> & guard);
 
     /// get_updated_list Returns a const reference to the most updated list.
     /**
@@ -617,7 +626,7 @@ private:
      * rt list
      */
     const std::vector<ControllerSpec> & get_updated_list(
-      const std::lock_guard<std::recursive_mutex> & guard) const;
+      const std::lock_guard<controllers_lock_type> & guard) const;
 
     /**
      * switch_updated_list Switches the "updated" and "outdated" lists, and waits
@@ -625,7 +634,7 @@ private:
      * \param[in] guard Guard needed to make sure the caller is the only one accessing the unused by
      * rt list
      */
-    void switch_updated_list(const std::lock_guard<std::recursive_mutex> & guard);
+    void switch_updated_list(const std::lock_guard<controllers_lock_type> & guard);
 
     /// A method to register a callback to be called when the list is switched
     /**
@@ -635,7 +644,7 @@ private:
 
     // Mutex protecting the controllers list
     // must be acquired before using any list other than the "used by rt"
-    mutable std::recursive_mutex controllers_lock_;
+    mutable controllers_lock_type controllers_lock_;
 
     // *INDENT-OFF*
   private:
@@ -695,7 +704,6 @@ private:
   std::map<std::string, std::vector<std::string>> controller_chained_reference_interfaces_cache_;
   std::map<std::string, std::vector<std::string>> controller_chained_state_interfaces_cache_;
 
-  rclcpp::NodeOptions cm_node_options_;
   std::string robot_description_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscription_;
   rclcpp::TimerBase::SharedPtr robot_description_notification_timer_;
