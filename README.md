@@ -1,3 +1,37 @@
+## ros2_control (kilted) - 5.19.0-1
+
+The packages in the `ros2_control` repository were released into the `kilted` distro by running `/home/bmagyar/.local/bin/bloom-release -r kilted ros2_control` on `Mon, 05 Oct 2026 16:31:08 -0000`
+
+These packages were released:
+- `controller_interface`
+- `controller_manager`
+- `controller_manager_msgs`
+- `hardware_interface`
+- `hardware_interface_testing`
+- `joint_limits`
+- `ros2_control`
+- `ros2_control_test_assets`
+- `ros2controlcli`
+- `rqt_controller_manager`
+- `transmission_interface`
+
+Version of package(s) in repository `ros2_control`:
+
+- upstream repository: https://github.com/ros-controls/ros2_control.git
+- release repository: https://github.com/ros2-gbp/ros2_control-release.git
+- rosdistro version: `5.18.1-1`
+- old version: `5.18.1-1`
+- new version: `5.19.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.14.3`
+- catkin_pkg version: `1.1.0`
+- rosdep version: `0.25.1`
+- rosdistro version: `1.0.1`
+- vcstools version: `0.1.42`
+
+
 ## ros2_control (humble) - 2.54.3-1
 
 The packages in the `ros2_control` repository were released into the `humble` distro by running `/home/bmagyar/.local/bin/bloom-release -r humble ros2_control` on `Mon, 05 Oct 2026 15:29:38 -0000`
