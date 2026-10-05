@@ -14,13 +14,10 @@
 
 /// \author Adolfo Rodriguez Tsouroukdissian
 
-#include <memory>
-
-#include "gtest/gtest.h"
-
 #include "joint_limits/joint_limits_rosparam.hpp"
+
+#include "gmock/gmock.h"
 #include "lifecycle_msgs/msg/state.hpp"
-#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 class JointLimitsRosParamTest : public ::testing::Test
@@ -31,6 +28,10 @@ public:
     rclcpp::NodeOptions node_options;
     node_options.allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(
       true);
+    const std::vector<std::string> node_option_arguments = {
+      "--ros-args", "--params-file",
+      std::string(PARAMETERS_FILE_PATH) + std::string("joint_limits_rosparam.yaml")};
+    node_options.arguments(node_option_arguments);
 
     node_ = rclcpp::Node::make_shared("JointLimitsRosparamTestNode", node_options);
   }
@@ -55,6 +56,8 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(std::isnan(limits.max_velocity));
     EXPECT_FALSE(limits.has_acceleration_limits);
     EXPECT_TRUE(std::isnan(limits.max_acceleration));
+    EXPECT_FALSE(limits.has_deceleration_limits);
+    EXPECT_TRUE(std::isnan(limits.max_deceleration));
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_TRUE(std::isnan(limits.max_jerk));
     EXPECT_FALSE(limits.has_effort_limits);
@@ -77,6 +80,8 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(std::isnan(limits.max_velocity));
     EXPECT_FALSE(limits.has_acceleration_limits);
     EXPECT_TRUE(std::isnan(limits.max_acceleration));
+    EXPECT_FALSE(limits.has_deceleration_limits);
+    EXPECT_TRUE(std::isnan(limits.max_deceleration));
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_TRUE(std::isnan(limits.max_jerk));
     EXPECT_FALSE(limits.has_effort_limits);
@@ -101,6 +106,9 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(limits.has_acceleration_limits);
     EXPECT_EQ(5.0, limits.max_acceleration);
 
+    EXPECT_TRUE(limits.has_deceleration_limits);
+    EXPECT_EQ(7.5, limits.max_deceleration);
+
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_EQ(100.0, limits.max_jerk);
 
@@ -121,6 +129,7 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_FALSE(limits.has_position_limits);
     EXPECT_FALSE(limits.has_velocity_limits);
     EXPECT_FALSE(limits.has_acceleration_limits);
+    EXPECT_FALSE(limits.has_deceleration_limits);
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_FALSE(limits.has_effort_limits);
   }
@@ -135,6 +144,7 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_FALSE(limits.has_position_limits);
     EXPECT_FALSE(limits.has_velocity_limits);
     EXPECT_FALSE(limits.has_acceleration_limits);
+    EXPECT_FALSE(limits.has_deceleration_limits);
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_FALSE(limits.has_effort_limits);
   }
@@ -148,6 +158,7 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_TRUE(limits.has_position_limits);
     EXPECT_TRUE(limits.has_velocity_limits);
     EXPECT_TRUE(limits.has_acceleration_limits);
+    EXPECT_TRUE(limits.has_deceleration_limits);
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_TRUE(limits.has_effort_limits);
 
@@ -157,6 +168,7 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
     EXPECT_FALSE(limits.has_position_limits);
     EXPECT_FALSE(limits.has_velocity_limits);
     EXPECT_FALSE(limits.has_acceleration_limits);
+    EXPECT_FALSE(limits.has_deceleration_limits);
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_FALSE(limits.has_effort_limits);
     EXPECT_TRUE(limits.angle_wraparound);
@@ -191,6 +203,9 @@ TEST_F(JointLimitsRosParamTest, parse_joint_limits)
 
     EXPECT_FALSE(limits.has_acceleration_limits);
     EXPECT_TRUE(std::isnan(limits.max_acceleration));
+
+    EXPECT_FALSE(limits.has_deceleration_limits);
+    EXPECT_TRUE(std::isnan(limits.max_deceleration));
 
     EXPECT_FALSE(limits.has_jerk_limits);
     EXPECT_TRUE(std::isnan(limits.max_jerk));
@@ -268,7 +283,16 @@ TEST_F(JointLimitsRosParamTest, parse_soft_joint_limits)
 class JointLimitsUndeclaredRosParamTest : public ::testing::Test
 {
 public:
-  void SetUp() { node_ = rclcpp::Node::make_shared("JointLimitsRosparamTestNode"); }
+  void SetUp()
+  {
+    rclcpp::NodeOptions node_options;
+    const std::vector<std::string> node_option_arguments = {
+      "--ros-args", "--params-file",
+      std::string(PARAMETERS_FILE_PATH) + std::string("joint_limits_rosparam.yaml")};
+    node_options.arguments(node_option_arguments);
+
+    node_ = rclcpp::Node::make_shared("JointLimitsRosparamTestNode", node_options);
+  }
 
   void TearDown() { node_.reset(); }
 
@@ -281,7 +305,14 @@ class JointLimitsLifecycleNodeUndeclaredRosParamTest : public ::testing::Test
 public:
   void SetUp()
   {
-    lifecycle_node_ = rclcpp_lifecycle::LifecycleNode::make_shared("JointLimitsRosparamTestNode");
+    rclcpp::NodeOptions node_options;
+    const std::vector<std::string> node_option_arguments = {
+      "--ros-args", "--params-file",
+      std::string(PARAMETERS_FILE_PATH) + std::string("joint_limits_rosparam.yaml")};
+    node_options.arguments(node_option_arguments);
+
+    lifecycle_node_ =
+      rclcpp_lifecycle::LifecycleNode::make_shared("JointLimitsRosparamTestNode", node_options);
   }
 
   void TearDown()
@@ -328,6 +359,9 @@ TEST_F(JointLimitsUndeclaredRosParamTest, parse_declared_joint_limits_node)
     EXPECT_TRUE(limits.has_acceleration_limits);
     EXPECT_EQ(5.0, limits.max_acceleration);
 
+    EXPECT_TRUE(limits.has_deceleration_limits);
+    EXPECT_EQ(7.5, limits.max_deceleration);
+
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_EQ(100.0, limits.max_jerk);
 
@@ -366,6 +400,9 @@ TEST_F(JointLimitsLifecycleNodeUndeclaredRosParamTest, parse_declared_joint_limi
 
     EXPECT_TRUE(limits.has_acceleration_limits);
     EXPECT_EQ(5.0, limits.max_acceleration);
+
+    EXPECT_TRUE(limits.has_deceleration_limits);
+    EXPECT_EQ(7.5, limits.max_deceleration);
 
     EXPECT_TRUE(limits.has_jerk_limits);
     EXPECT_EQ(100.0, limits.max_jerk);
@@ -421,10 +458,58 @@ TEST_F(
   }
 }
 
+TEST_F(JointLimitsRosParamTest, check_for_limits_update_accumulates_over_the_whole_batch)
+{
+  // A parameter event delivers the whole set at once. A change to any one of them has to
+  // be reported, no matter what follows it in the batch.
+  {
+    joint_limits::JointLimits limits;
+    limits.min_position = -1.0;
+    limits.max_position = 1.0;
+    limits.max_velocity = 2.0;
+
+    const std::vector<rclcpp::Parameter> parameters{
+      rclcpp::Parameter("joint_limits.foo_joint.min_position", -5.0),  // changed
+      rclcpp::Parameter("joint_limits.foo_joint.max_velocity", 2.0)};  // unchanged
+
+    joint_limits::JointLimits updated_limits = limits;
+    EXPECT_TRUE(
+      joint_limits::check_for_limits_update(
+        "foo_joint", parameters, node_->get_node_logging_interface(), updated_limits));
+    EXPECT_EQ(-5.0, updated_limits.min_position);
+
+    // ... and a batch that changes nothing still has to report no change
+    const std::vector<rclcpp::Parameter> unchanged_parameters{
+      rclcpp::Parameter("joint_limits.foo_joint.min_position", -5.0),
+      rclcpp::Parameter("joint_limits.foo_joint.max_velocity", 2.0)};
+    EXPECT_FALSE(
+      joint_limits::check_for_limits_update(
+        "foo_joint", unchanged_parameters, node_->get_node_logging_interface(), updated_limits));
+  }
+
+  {
+    joint_limits::SoftJointLimits soft_limits;
+    soft_limits.k_position = 10.0;
+    soft_limits.k_velocity = 20.0;
+    soft_limits.min_position = 0.1;
+    soft_limits.max_position = 0.9;
+
+    const std::vector<rclcpp::Parameter> parameters{
+      rclcpp::Parameter("joint_limits.foo_joint.k_position", 30.0),   // changed
+      rclcpp::Parameter("joint_limits.foo_joint.k_velocity", 20.0)};  // unchanged
+
+    joint_limits::SoftJointLimits updated_limits = soft_limits;
+    EXPECT_TRUE(
+      joint_limits::check_for_limits_update(
+        "foo_joint", parameters, node_->get_node_logging_interface(), updated_limits));
+    EXPECT_EQ(30.0, updated_limits.k_position);
+  }
+}
+
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  testing::InitGoogleTest(&argc, argv);
+  testing::InitGoogleMock(&argc, argv);
   int ret = RUN_ALL_TESTS();
   rclcpp::shutdown();
   return ret;
