@@ -14,6 +14,11 @@
 
 #include "test_controller_with_interfaces.hpp"
 
+#include <memory>
+#include <string>
+
+#include "lifecycle_msgs/msg/transition.hpp"
+
 namespace test_controller_with_interfaces
 {
 TestControllerWithInterfaces::TestControllerWithInterfaces()
@@ -28,12 +33,8 @@ TestControllerWithInterfaces::on_init()
 }
 
 controller_interface::return_type TestControllerWithInterfaces::update(
-  const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  if (time.get_clock_type() != RCL_ROS_TIME)
-  {
-    throw std::runtime_error("ROS Time is required for the controller to operate.");
-  }
   return controller_interface::return_type::OK;
 }
 
@@ -45,12 +46,6 @@ TestControllerWithInterfaces::on_configure(const rclcpp_lifecycle::State & /*pre
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
 TestControllerWithInterfaces::on_cleanup(const rclcpp_lifecycle::State & /*previous_state*/)
-{
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
-}
-
-rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-TestControllerWithInterfaces::on_shutdown(const rclcpp_lifecycle::State & /*previous_state*/)
 {
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }

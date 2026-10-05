@@ -27,35 +27,30 @@ namespace semantic_components
 class RangeSensor : public SemanticComponentInterface<sensor_msgs::msg::Range>
 {
 public:
-  explicit RangeSensor(const std::string & name)
-  : SemanticComponentInterface(name, {name + "/" + "range"})
+  explicit RangeSensor(const std::string & name) : SemanticComponentInterface(name, 1)
   {
-  }
-  /**
-   * @brief Return Range reported by a sensor
-   *
-   * @return value of the range in meters
-   */
-  float get_range() const
-  {
-    const auto data = state_interfaces_[0].get().get_optional();
-    if (data.has_value())
-    {
-      return static_cast<float>(data.value());
-    }
-    return std::numeric_limits<float>::quiet_NaN();
+    interface_names_.emplace_back(name_ + "/" + "range");
   }
 
+  virtual ~RangeSensor() = default;
+
   /**
-   * @brief Return Range message with range in meters
+   * Return Range reported by a sensor
    *
-   * Constructs and return a Range message from the current values.
-   * @param[out] message Range message from values
-   * @return always returns true
+   * \return value of the range in meters
    */
-  bool get_values_as_message(sensor_msgs::msg::Range & message) const
+  float get_range() { return state_interfaces_[0].get().get_value(); }
+
+  /// Return Range message with range in meters
+  /**
+   * Constructs and return a Range message from the current values.
+   * \return Range message from values;
+   */
+  bool get_values_as_message(sensor_msgs::msg::Range & message)
   {
+    // update the message values
     message.range = get_range();
+
     return true;
   }
 };

@@ -212,7 +212,8 @@ def parse_response(list_controllers_response, list_hardware_response, view=True,
         x.name: set(x.reference_interfaces) for x in list_controllers_response.controller
     }
     exported_state_interfaces = {
-        x.name: set(x.exported_state_interfaces) for x in list_controllers_response.controller
+        x.name: set(getattr(x, "exported_state_interfaces", []))
+        for x in list_controllers_response.controller
     }
 
     # Lookups from the full interface name, as claimed by the *following* controller, to the
@@ -227,7 +228,7 @@ def parse_response(list_controllers_response, list_hardware_response, view=True,
                 controller.name,
                 interface,
             )
-        for interface in controller.exported_state_interfaces:
+        for interface in getattr(controller, "exported_state_interfaces", []):
             exported_state_owners[f"{controller.name}/{interface}"] = (controller.name, interface)
 
     command_connections = {
@@ -265,7 +266,7 @@ class ViewControllerChainsVerb(VerbExtension):
         add_controller_mgr_parsers(parser)
 
     def main(self, *, args):
-        with NodeStrategy(args).direct_node as node:
+        with NodeStrategy(args) as node:
             list_controllers_response = list_controllers(node, args.controller_manager)
             list_hardware_response = list_hardware_components(node, args.controller_manager)
             parse_response(list_controllers_response, list_hardware_response, view=not args.save)
