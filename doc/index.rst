@@ -1,22 +1,21 @@
-:github_url: https://github.com/ros-controls/ros2_control/blob/{REPOS_FILE_BRANCH}/doc/index.rst
+Welcome to the documentation for transmission_interface
+=======================================================
 
-.. _ros2_control_framework:
+``transmission_interface`` contains data structures for representing mechanical transmissions, methods for propagating values between actuator and joint spaces and tooling to support this.
 
-#################
-ros2_control
-#################
+For more information of the ros2_control framework see `control.ros.org <https://control.ros.org/>`__.
 
-This is the documentation of the ros2_control framework core.
+API documentation
+------------------
 
 .. toctree::
-   :titlesonly:
+   :maxdepth: 2
 
-   Controller manager <../controller_manager/doc/userdoc>
-   Concepts <concepts>
-   Hardware Components <../hardware_interface/doc/hardware_components_userdoc>
-   Guidelines and Best Practices <guidelines_and_best_practices>
+   C++ API <generated/index>
 
-See also:
 
-- `GitHub Repository <https://github.com/ros-controls/ros2_control>`_
-- `API Documentation <../../api/index.html>`_
+Indices and Search
+==================
+
+* :ref:`genindex`
+* :ref:`search`
