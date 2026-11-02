@@ -11,22 +11,18 @@ target_include_directories(ros2_control_test_assets INTERFACE
 )
 
 install(
+  DIRECTORY include/
+  DESTINATION include/ros2_control_test_assets
+)
+install(
   FILES urdf/test_hardware_components.urdf
   DESTINATION share/ros2_control_test_assets/urdf
 )
-
-install(
-  DIRECTORY include/
-  DESTINATION include
-)
-
 install(TARGETS ros2_control_test_assets
   EXPORT export_ros2_control_test_assets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-  INCLUDES
-  DESTINATION include
 )
 
 ament_export_targets(export_ros2_control_test_assets HAS_LIBRARY_TARGET)

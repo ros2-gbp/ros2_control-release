@@ -19,12 +19,12 @@
 #ifndef TEST_FORCE_TORQUE_SENSOR_HPP_
 #define TEST_FORCE_TORQUE_SENSOR_HPP_
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "gmock/gmock.h"
-
 #include "semantic_components/force_torque_sensor.hpp"
 
 // implementing and friending so we can access member variables
@@ -33,6 +33,7 @@ class TestableForceTorqueSensor : public semantic_components::ForceTorqueSensor
   FRIEND_TEST(ForceTorqueSensorTest, validate_all_with_default_names);
   FRIEND_TEST(ForceTorqueSensorTest, validate_all_with_custom_names);
   FRIEND_TEST(ForceTorqueSensorTest, validate_all_custom_names);
+  FRIEND_TEST(ForceTorqueSensorTest, get_values_after_release_interfaces);
 
 public:
   // Use generation of interface names
@@ -68,13 +69,13 @@ public:
 protected:
   const size_t size_ = 6;
   const std::string sensor_name_ = "test_FTS";
-  std::array<double, 3> force_values_ = {1.1, 2.2, 3.3};
-  std::array<double, 3> torque_values_ = {4.4, 5.5, 6.6};
+  std::array<double, 3> force_values_ = {{1.1, 2.2, 3.3}};
+  std::array<double, 3> torque_values_ = {{4.4, 5.5, 6.6}};
   std::unique_ptr<TestableForceTorqueSensor> force_torque_sensor_;
 
   std::vector<std::string> full_interface_names_;
-  const std::vector<std::string> fts_interface_names_ = {"force.x",  "force.y",  "force.z",
-                                                         "torque.x", "torque.y", "torque.z"};
+  const std::vector<std::string> fts_interface_names_ = {
+    {"force.x", "force.y", "force.z", "torque.x", "torque.y", "torque.z"}};
 };
 
 #endif  // TEST_FORCE_TORQUE_SENSOR_HPP_

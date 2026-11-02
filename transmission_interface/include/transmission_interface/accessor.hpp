@@ -16,7 +16,9 @@
 #define TRANSMISSION_INTERFACE__ACCESSOR_HPP_
 
 #include <algorithm>
+#include <iterator>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 

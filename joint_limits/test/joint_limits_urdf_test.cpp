@@ -13,9 +13,12 @@
 // limitations under the License.
 
 /// \author Adolfo Rodriguez Tsouroukdissian
-#include <gtest/gtest.h>
 
 #include "joint_limits/joint_limits_urdf.hpp"
+
+#include <string>
+
+#include "gmock/gmock.h"
 
 using std::string;
 
@@ -170,6 +173,6 @@ TEST_F(JointLimitsUrdfTest, GetSoftJointLimits)
 
 int main(int argc, char ** argv)
 {
-  testing::InitGoogleTest(&argc, argv);
+  testing::InitGoogleMock(&argc, argv);
   return RUN_ALL_TESTS();
 }

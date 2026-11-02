@@ -18,11 +18,14 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from controller_manager.controller_manager_services import (
+    cleanup_controller,
     configure_controller,
     list_controllers,
     list_hardware_components,
     set_hardware_component_state,
     load_controller,
+    service_caller,
+    ServiceNotFoundError,
     switch_controllers,
     unload_controller,
 )
@@ -35,7 +38,7 @@ from python_qt_binding.QtCore import QAbstractTableModel, Qt, QTimer
 from python_qt_binding.QtGui import QCursor, QFont, QIcon, QStandardItem, QStandardItemModel
 from python_qt_binding.QtWidgets import QHeaderView, QMenu, QStyledItemDelegate, QWidget
 from qt_gui.plugin import Plugin
-from ros2param.api import call_get_parameters, call_list_parameters
+from rcl_interfaces.srv import GetParameters, ListParameters
 from ros2service.api import get_service_names_and_types
 
 from .update_combo import update_combo
@@ -45,6 +48,11 @@ class ControllerManager(Plugin):
     """Graphical frontend for interacting with the controller manager."""
 
     _cm_update_freq = 1  # Hz
+    # Timeout (in seconds) for finding a service and for its response, used by the periodic
+    # queries of controllers, hardware components and parameters
+    _service_timeout = 2.0 / _cm_update_freq
+    # Timeout (in seconds) for the controller manager to perform a controller switch
+    _switch_timeout = 0.3
 
     def __init__(self, context):
         super().__init__(context)
@@ -93,9 +101,9 @@ class ControllerManager(Plugin):
         path = get_package_share_directory("rqt_controller_manager")
         self._icons = {
             "active": QIcon(f"{path}/resource/led_green.png"),
-            "finalized": QIcon(f"{path}/resource/led_off.png"),
-            "inactive": QIcon(f"{path}/resource/led_red.png"),
-            "unconfigured": QIcon(f"{path}/resource/led_off.png"),
+            "inactive": QIcon(f"{path}/resource/led_cyan.png"),
+            "unconfigured": QIcon(f"{path}/resource/led_yellow.png"),
+            "unloaded": QIcon(f"{path}/resource/led_off.png"),
         }
 
         # Controllers display
@@ -178,9 +186,20 @@ class ControllerManager(Plugin):
         if cm_name:
             self._update_controllers()
             self._update_hw_components()
+        else:
+            self._controllers = []
+            self._show_controllers()
+            self._hw_components = []
+            self._show_hw_components()
+
+    def _deselect_cm(self, error):
+        """Deselect the controller manager, e.g., because it is not reachable anymore."""
+        self._node.get_logger().warning(
+            f"Deselecting controller manager '{self._cm_name}': {error}"
+        )
+        self._widget.cm_combo.setCurrentIndex(-1)
 
     def _update_controllers(self):
-
         if not self._cm_name:
             return
 
@@ -190,6 +209,9 @@ class ControllerManager(Plugin):
         except Exception as e:
             if "destruction was requested" in str(e) or "context is not valid" in str(e):
                 self._update_ctrl_list_timer.stop()
+                return
+            if isinstance(e, (ServiceNotFoundError, RuntimeError)):
+                self._deselect_cm(e)
                 return
             raise
 
@@ -209,22 +231,17 @@ class ControllerManager(Plugin):
         @rtype [str]
         """
         # Add loaded controllers first
-        try:
-            controllers = list_controllers(
-                self._node, self._cm_name, 2.0 / self._cm_update_freq
-            ).controller
+        timeout = self._service_timeout
+        controllers = list_controllers(self._node, self._cm_name, timeout, timeout).controller
 
-            # Append potential controller configs found in the node's parameters
-            for name in _get_parameter_controller_names(self._node, self._cm_name):
-                add_ctrl = all(name != ctrl.name for ctrl in controllers)
-                if add_ctrl:
-                    type_str = _get_controller_type(self._node, self._cm_name, name)
-                    uninit_ctrl = ControllerState(name=name, type=type_str)
-                    controllers.append(uninit_ctrl)
-            return controllers
-        except RuntimeError as e:
-            print(e)
-            return []
+        # Append potential controller configs found in the node's parameters
+        for name in _get_parameter_controller_names(self._node, self._cm_name, timeout):
+            add_ctrl = all(name != ctrl.name for ctrl in controllers)
+            if add_ctrl:
+                type_str = _get_controller_type(self._node, self._cm_name, name, timeout)
+                uninit_ctrl = ControllerState(name=name, type=type_str)
+                controllers.append(uninit_ctrl)
+        return controllers
 
     def _show_controllers(self):
         ctrl_table_view = self._widget.ctrl_table_view
@@ -242,19 +259,21 @@ class ControllerManager(Plugin):
         # Show context menu
         menu = QMenu(self._widget.ctrl_table_view)
         if ctrl.state == "active":
-            action_deactivate = menu.addAction(self._icons["inactive"], "Deactivate")
-            action_kill = menu.addAction(self._icons["finalized"], "Deactivate and Unload")
+            action_deactivate = menu.addAction(self._icons["inactive"], "Deactivate (inactive)")
+            action_kill = menu.addAction(
+                self._icons["unloaded"], "Deactivate and Unload (unloaded)"
+            )
         elif ctrl.state == "inactive":
-            action_activate = menu.addAction(self._icons["active"], "Activate")
-            action_unload = menu.addAction(self._icons["unconfigured"], "Unload")
+            action_activate = menu.addAction(self._icons["active"], "Activate (active)")
+            action_cleanup = menu.addAction(self._icons["unconfigured"], "Cleanup (unconfigured)")
+            action_unload = menu.addAction(self._icons["unloaded"], "Unload (unloaded)")
         elif ctrl.state == "unconfigured":
-            action_configure = menu.addAction(self._icons["inactive"], "Configure")
-            action_spawn = menu.addAction(self._icons["active"], "Configure and Activate")
+            action_spawn = menu.addAction(self._icons["active"], "Configure and Activate (active)")
+            action_configure = menu.addAction(self._icons["inactive"], "Configure (inactive)")
+            action_unload = menu.addAction(self._icons["unloaded"], "Unload (unloaded)")
         else:
             # Controller isn't loaded
-            action_load = menu.addAction(self._icons["unconfigured"], "Load")
-            action_configure = menu.addAction(self._icons["inactive"], "Load and Configure")
-            action_activate = menu.addAction(self._icons["active"], "Load, Configure and Activate")
+            action_load = menu.addAction(self._icons["unconfigured"], "Load (unconfigured)")
 
         action = menu.exec_(self._widget.ctrl_table_view.mapToGlobal(pos))
 
@@ -265,9 +284,11 @@ class ControllerManager(Plugin):
             elif action is action_kill:
                 self._deactivate_controller(ctrl.name)
                 unload_controller(self._node, self._cm_name, ctrl.name)
-        elif ctrl.state in ("finalized", "inactive"):
+        elif ctrl.state == "inactive":
             if action is action_activate:
                 self._activate_controller(ctrl.name)
+            elif action is action_cleanup:
+                cleanup_controller(self._node, self._cm_name, ctrl.name)
             elif action is action_unload:
                 unload_controller(self._node, self._cm_name, ctrl.name)
         elif ctrl.state == "unconfigured":
@@ -276,25 +297,26 @@ class ControllerManager(Plugin):
             elif action is action_spawn:
                 configure_controller(self._node, self._cm_name, ctrl.name)
                 self._activate_controller(ctrl.name)
+            elif action is action_unload:
+                unload_controller(self._node, self._cm_name, ctrl.name)
         else:
             # Assume controller isn't loaded
             if action is action_load:
                 load_controller(self._node, self._cm_name, ctrl.name)
-            elif action is action_configure:
-                load_controller(self._node, self._cm_name, ctrl.name)
-                configure_controller(self._node, self._cm_name, ctrl.name)
-            elif action is action_activate:
-                load_controller(self._node, self._cm_name, ctrl.name)
-                configure_controller(self._node, self._cm_name, ctrl.name)
-                self._activate_controller(ctrl.name)
 
     def _on_ctrl_info(self, index):
         popup = self._popup_widget
         popup.setWindowTitle("Controller Information")
 
+        # Reset fields to prevent stale data when switching between popups
+        popup.ctrl_update_rate.setText("N/A")
+        popup.ctrl_is_async.setText("N/A")
+
         ctrl = self._controllers[index.row()]
         popup.ctrl_name.setText(ctrl.name)
         popup.ctrl_type.setText(ctrl.type)
+        popup.ctrl_update_rate.setText(f"{ctrl.update_rate} Hz")
+        popup.ctrl_is_async.setText(str(ctrl.is_async))
 
         res_model = QStandardItemModel()
         model_root = QStandardItem("Claimed Interfaces")
@@ -335,6 +357,9 @@ class ControllerManager(Plugin):
             if "destruction was requested" in str(e) or "context is not valid" in str(e):
                 self._update_hw_components_list_timer.stop()
                 return
+            if isinstance(e, (ServiceNotFoundError, RuntimeError)):
+                self._deselect_cm(e)
+                return
             raise
 
         # Update controller display, if necessary
@@ -351,15 +376,8 @@ class ControllerManager(Plugin):
         the C{list_hardware_components} service
         @rtype [str]
         """
-        # Add loaded hw_components first
-        try:
-            hw_components = list_hardware_components(
-                self._node, self._cm_name, 2.0 / self._cm_update_freq
-            ).component
-            return hw_components
-        except RuntimeError as e:
-            print(e)
-            return []
+        timeout = self._service_timeout
+        return list_hardware_components(self._node, self._cm_name, timeout, timeout).component
 
     def _show_hw_components(self):
         hw_table_view = self._widget.hw_table_view
@@ -378,7 +396,7 @@ class ControllerManager(Plugin):
         menu = QMenu(self._widget.hw_table_view)
         if hw_component.state.label == "active":
             action_deactivate = menu.addAction(self._icons["inactive"], "Deactivate")
-            action_cleanup = menu.addAction(self._icons["finalized"], "Deactivate and Cleanup")
+            action_cleanup = menu.addAction(self._icons["unconfigured"], "Deactivate and Cleanup")
         elif hw_component.state.label == "inactive":
             action_activate = menu.addAction(self._icons["active"], "Activate")
             action_cleanup = menu.addAction(self._icons["unconfigured"], "Cleanup")
@@ -409,9 +427,15 @@ class ControllerManager(Plugin):
         popup = self._popup_widget
         popup.setWindowTitle("Hardware Component Info")
 
+        # Reset fields to prevent stale data when switching between popups
+        popup.ctrl_update_rate.setText("N/A")
+        popup.ctrl_is_async.setText("N/A")
+
         hw_component = self._hw_components[index.row()]
         popup.ctrl_name.setText(hw_component.name)
         popup.ctrl_type.setText(hw_component.type)
+        popup.ctrl_update_rate.setText(f"{hw_component.rw_rate} Hz")
+        popup.ctrl_is_async.setText(str(hw_component.is_async))
 
         res_model = QStandardItemModel()
         model_root = QStandardItem("Command Interfaces")
@@ -460,9 +484,9 @@ class ControllerManager(Plugin):
                 controller_manager_name=self._cm_name,
                 activate_controllers=activate,
                 deactivate_controllers=deactivate,
-                strict=SwitchController.Request.STRICT,
+                strictness=SwitchController.Request.STRICT,
                 activate_asap=False,
-                timeout=0.3,
+                timeout=self._switch_timeout,
             )
         except Exception as e:
             print(e)
@@ -534,10 +558,11 @@ class ControllerTable(QAbstractTableModel):
             if index.column() == 0:
                 return ctrl.name
             elif index.column() == 1:
-                return ctrl.state or "not loaded"
+                return ctrl.state or "unloaded"
 
         if role == Qt.DecorationRole and index.column() == 0:
-            return self._icons.get(ctrl.state)
+            state_key = ctrl.state if ctrl.state else "unloaded"
+            return self._icons.get(state_key)
 
         if role == Qt.FontRole and index.column() == 0:
             bf = QFont()
@@ -585,7 +610,7 @@ class HwComponentTable(QAbstractTableModel):
             if index.column() == 0:
                 return hw_component.name
             elif index.column() == 1:
-                return hw_component.state.label or "not loaded"
+                return hw_component.state.label or "unloaded"
 
         if role == Qt.DecorationRole and index.column() == 0:
             return self._icons.get(hw_component.state.label)
@@ -618,7 +643,7 @@ class FontDelegate(QStyledItemDelegate):
         QStyledItemDelegate.paint(self, painter, option, index)
 
 
-def _get_controller_type(node, node_name, ctrl_name):
+def _get_controller_type(node, node_name, ctrl_name, timeout):
     """
     Get the controller's type from the controller manager node with the call_get_parameter service.
 
@@ -626,10 +651,26 @@ def _get_controller_type(node, node_name, ctrl_name):
     @type node_name str
     @param ctrl_name Controller name
     @type ctrl_name str
-    @return Controller type
+    @param timeout Timeout (in seconds) for finding the service and for the response
+    @type timeout float
+    @return Controller type, empty if the service call failed
     @rtype str
     """
-    response = call_get_parameters(node=node, node_name=node_name, parameter_names=[ctrl_name])
+    # TODO(someone): Port to AsyncParameterClient once Humble support is dropped.
+    request = GetParameters.Request()
+    request.names = [f"{ctrl_name}.type"]
+    try:
+        response = service_caller(
+            node,
+            f"{node_name}/get_parameters",
+            GetParameters,
+            request,
+            service_timeout=timeout,
+            call_timeout=timeout,
+            max_attempts=1,
+        )
+    except (ServiceNotFoundError, RuntimeError):
+        return ""
     return response.values[0].string_value if response.values else ""
 
 
@@ -654,8 +695,22 @@ def _list_controller_managers(node):
         raise
 
 
-def _get_parameter_controller_names(node, node_name):
+def _get_parameter_controller_names(node, node_name, timeout):
     """Get list of ROS parameter names that potentially represent a controller configuration."""
-    parameter_names = call_list_parameters(node=node, node_name=node_name)
+    # TODO(someone): Port to AsyncParameterClient once Humble support is dropped.
+    try:
+        response = service_caller(
+            node,
+            f"{node_name}/list_parameters",
+            ListParameters,
+            ListParameters.Request(),
+            service_timeout=timeout,
+            call_timeout=timeout,
+            max_attempts=1,
+        )
+    except (ServiceNotFoundError, RuntimeError):
+        return []
+    names = response.result.names
+
     suffix = ".type"
-    return [n[: -len(suffix)] for n in parameter_names if n.endswith(suffix)]
+    return [n[: -len(suffix)] for n in names if n.endswith(suffix)]
