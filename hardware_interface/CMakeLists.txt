@@ -16,7 +16,6 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rcutils
   realtime_tools
   TinyXML2
-  tinyxml2_vendor
   joint_limits
   urdf
   pal_statistics
@@ -37,7 +36,6 @@ add_library(hardware_interface SHARED
   src/hardware_component_interface.cpp
   src/lexical_casts.cpp
 )
-target_compile_features(hardware_interface PUBLIC cxx_std_17)
 target_include_directories(hardware_interface PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/hardware_interface>
@@ -53,7 +51,6 @@ target_link_libraries(hardware_interface PUBLIC
                       rcpputils::rcpputils
                       ${joint_limits_TARGETS}
                       ${TinyXML2_LIBRARIES}
-                      ${tinyxml2_vendor_LIBRARIES}
                       ${pal_statistics_LIBRARIES}
                       ${control_msgs_TARGETS}
                       ${lifecycle_msgs_TARGETS}
@@ -63,7 +60,6 @@ target_link_libraries(hardware_interface PUBLIC
 add_library(mock_components SHARED
   src/mock_components/generic_system.cpp
 )
-target_compile_features(mock_components PUBLIC cxx_std_17)
 target_include_directories(mock_components PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/hardware_interface>

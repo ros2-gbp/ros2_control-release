@@ -254,9 +254,10 @@ return_type HardwareComponentInterface::update_hardware_status_message(
   return return_type::OK;
 }
 
-CallbackReturn HardwareComponentInterface::on_init(const HardwareInfo & hardware_info)
+CallbackReturn HardwareComponentInterface::on_init(
+  const hardware_interface::HardwareComponentInterfaceParams & params)
 {
-  info_ = hardware_info;
+  info_ = params.hardware_info;
   if (info_.type == "actuator")
   {
     parse_state_interface_descriptions(info_.joints, joint_state_interfaces_);
@@ -278,16 +279,6 @@ CallbackReturn HardwareComponentInterface::on_init(const HardwareInfo & hardware
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn HardwareComponentInterface::on_init(
-  const hardware_interface::HardwareComponentInterfaceParams & params)
-{
-  // This is done for backward compatibility with the old on_init method.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  return on_init(params.hardware_info);
-#pragma GCC diagnostic pop
-}
-
 rclcpp::NodeOptions HardwareComponentInterface::define_custom_node_options() const
 {
   rclcpp::NodeOptions node_options;
@@ -296,14 +287,6 @@ rclcpp::NodeOptions HardwareComponentInterface::define_custom_node_options() con
   node_options.enable_logger_service(true);
 #endif
   return node_options;
-}
-
-std::vector<StateInterface> HardwareComponentInterface::export_state_interfaces()
-{
-  // return empty vector by default. For backward compatibility we try calling
-  // export_state_interfaces() and only when empty vector is returned call
-  // on_export_state_interfaces()
-  return {};
 }
 
 std::vector<hardware_interface::InterfaceDescription>
@@ -358,14 +341,6 @@ std::vector<StateInterface::ConstSharedPtr> HardwareComponentInterface::on_expor
     state_interfaces.push_back(std::const_pointer_cast<const StateInterface>(state_interface));
   }
   return state_interfaces;
-}
-
-std::vector<CommandInterface> HardwareComponentInterface::export_command_interfaces()
-{
-  // return empty vector by default. For backward compatibility we try calling
-  // export_command_interfaces() and only when empty vector is returned call
-  // on_export_command_interfaces()
-  return {};
 }
 
 std::vector<hardware_interface::InterfaceDescription>

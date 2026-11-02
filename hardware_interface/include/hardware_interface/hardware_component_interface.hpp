@@ -84,27 +84,6 @@ public:
   /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
   /// clock and logger interfaces.
   /**
-   * \param[in] hardware_info structure with data from URDF.
-   * \param[in] clock pointer to the resource manager clock.
-   * \param[in] logger Logger for the hardware component.
-   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
-   * \returns CallbackReturn::ERROR if any error happens or data are missing.
-   */
-  [[deprecated(
-    "Replaced by CallbackReturn init(const hardware_interface::HardwareComponentParams & "
-    "params). Initialization is handled by the Framework.")]] CallbackReturn
-  init(const HardwareInfo & hardware_info, rclcpp::Logger logger, rclcpp::Clock::SharedPtr clock)
-  {
-    hardware_interface::HardwareComponentParams params;
-    params.hardware_info = hardware_info;
-    params.clock = clock;
-    params.logger = logger;
-    return init(params);
-  };
-
-  /// Initialization of the hardware interface from data parsed from the robot's URDF and also the
-  /// clock and logger interfaces.
-  /**
    * \param[in] params  A struct of type HardwareComponentParams containing all necessary
    * parameters for initializing this specific hardware component,
    * including its HardwareInfo, a dedicated logger, a clock, and a
@@ -142,15 +121,6 @@ public:
 
   /// Initialization of the hardware interface from data parsed from the robot's URDF.
   /**
-   * \param[in] hardware_info structure with data from URDF.
-   * \returns CallbackReturn::SUCCESS if required data are provided and can be parsed.
-   * \returns CallbackReturn::ERROR if any error happens or data are missing.
-   */
-  [[deprecated("Use on_init(const HardwareComponentInterfaceParams & params) instead.")]]
-  virtual CallbackReturn on_init(const HardwareInfo & hardware_info);
-
-  /// Initialization of the hardware interface from data parsed from the robot's URDF.
-  /**
    * \param[in] params  A struct of type hardware_interface::HardwareComponentInterfaceParams
    * containing all necessary parameters for initializing this specific hardware component,
    * specifically its HardwareInfo, and a weak_ptr to the executor.
@@ -169,23 +139,6 @@ public:
    */
   virtual rclcpp::NodeOptions define_custom_node_options() const;
 
-  /// Exports all state interfaces for this hardware interface.
-  /**
-   * Old way of exporting the StateInterfaces. If a empty vector is returned then
-   * the on_export_state_interfaces() method is called. If a vector with StateInterfaces is returned
-   * then the exporting of the StateInterfaces is only done with this function and the ownership is
-   * transferred to the resource manager. The set_command(...), get_command(...), ..., can then not
-   * be used.
-   *
-   * Note the ownership over the state interfaces is transferred to the caller.
-   *
-   * \return vector of state interfaces
-   */
-  [[deprecated(
-    "Replaced by vector<StateInterface::ConstSharedPtr> on_export_state_interfaces() method. "
-    "Exporting is handled by the Framework.")]] virtual std::vector<StateInterface>
-  export_state_interfaces();
-
   /**
    * Override this method to export custom StateInterfaces which are not defined in the URDF file.
    * Those interfaces will be added to the unlisted_state_interfaces_ map.
@@ -203,23 +156,6 @@ public:
    * \return vector of shared pointers to the created and stored StateInterfaces
    */
   virtual std::vector<StateInterface::ConstSharedPtr> on_export_state_interfaces();
-
-  /// Exports all command interfaces for this hardware interface.
-  /**
-   * Old way of exporting the CommandInterfaces. If a empty vector is returned then
-   * the on_export_command_interfaces() method is called. If a vector with CommandInterfaces is
-   * returned then the exporting of the CommandInterfaces is only done with this function and the
-   * ownership is transferred to the resource manager. The set_command(...), get_command(...), ...,
-   * can then not be used.
-   *
-   * Note the ownership over the state interfaces is transferred to the caller.
-   *
-   * \return vector of state interfaces
-   */
-  [[deprecated(
-    "Replaced by vector<CommandInterface::SharedPtr> on_export_command_interfaces() method. "
-    "Exporting is handled by the Framework.")]] virtual std::vector<CommandInterface>
-  export_command_interfaces();
 
   /**
    * Override this method to export custom CommandInterfaces which are not defined in the URDF file.
