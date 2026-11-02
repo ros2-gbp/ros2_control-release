@@ -1,5 +1,3 @@
-:github_url: https://github.com/ros-controls/ros2_control/blob/{REPOS_FILE_BRANCH}/doc/debugging.rst
-
 Debugging
 ^^^^^^^^^
 
@@ -52,21 +50,6 @@ How-To
 
     ld.add_action(controller_manager)
 
-Catching Exceptions
-************************
-
-* The controller manager by default catches most of the exceptions thrown by controllers and hardware components to avoid crashing the whole system. However, it does print the exception type and message to the console.
-  This can make debugging difficult as the debugger might not catch the exception and also when the exception message is not clear enough to identify the root cause.
-  This behaviour can be disabled by setting the parameter ``handle_exceptions`` to ``false`` in the controller manager node, this way the exceptions will propagate up to the controller manager and can be caught by the debugger (or) crash by printing the stacktrace during normal execution.
-
-  Example controller manager config file:
-
-  .. code-block:: yaml
-
-    controller_manager:
-      ros__parameters:
-        update_rate: 1000
-        handle_exceptions: false
 
 Additional notes
 *****************
@@ -82,11 +65,10 @@ Additional notes
 
 * Realtime
 
-  .. warning::
+.. warning::
+  The ``update/on_activate/on_deactivate`` method of a controller and the ``read/write/on_activate/perform_command_mode_switch`` methods of a hardware component all run in the context of the realtime update loop. Setting breakpoints there can and will cause issues that might even break your hardware in the worst case.
 
-    The ``update/on_activate/on_deactivate`` method of a controller and the ``read/write/on_activate/perform_command_mode_switch`` methods of a hardware component all run in the context of the realtime update loop. Setting breakpoints there can and will cause issues that might even break your hardware in the worst case.
-
-  From experience, it might be better to use meaningful logs for the real-time context (with caution) or to add additional debug state interfaces (or publishers in the case of a controller).
+From experience, it might be better to use meaningful logs for the real-time context (with caution) or to add additional debug state interfaces (or publishers in the case of a controller).
 
 However, running the controller_manager and your plugin with gdb can still be very useful for debugging errors such as segfaults, as you can gather a full backtrace.
 

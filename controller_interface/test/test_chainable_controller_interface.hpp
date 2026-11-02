@@ -15,33 +15,39 @@
 #ifndef TEST_CHAINABLE_CONTROLLER_INTERFACE_HPP_
 #define TEST_CHAINABLE_CONTROLLER_INTERFACE_HPP_
 
-#include <memory>
 #include <string>
 #include <vector>
 
-#include "controller_interface/chainable_controller_interface.hpp"
 #include "gmock/gmock.h"
+
+#include "controller_interface/chainable_controller_interface.hpp"
 #include "hardware_interface/handle.hpp"
+#include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
 constexpr char TEST_CONTROLLER_NAME[] = "testable_chainable_controller";
 constexpr double INTERFACE_VALUE = 1989.0;
 constexpr double INTERFACE_VALUE_SUBSCRIBER_ERROR = 12345.0;
 constexpr double INTERFACE_VALUE_UPDATE_ERROR = 67890.0;
 constexpr double INTERFACE_VALUE_INITIAL_REF = 1984.0;
-constexpr double EXPORTED_STATE_INTERFACE_VALUE = 21833.0;
-constexpr double EXPORTED_STATE_INTERFACE_VALUE_IN_CHAINMODE = 82802.0;
 
 class TestableChainableControllerInterface
 : public controller_interface::ChainableControllerInterface
 {
 public:
-  FRIEND_TEST(ChainableControllerInterfaceTest, export_state_interfaces);
-  FRIEND_TEST(ChainableControllerInterfaceTest, export_reference_interfaces);
+  FRIEND_TEST(ChainableControllerInterfaceTest, reference_interfaces_storage_not_correct_size);
   FRIEND_TEST(ChainableControllerInterfaceTest, test_update_logic);
+
+  TestableChainableControllerInterface()
+  {
+    reference_interfaces_.reserve(1);
+    reference_interfaces_.push_back(INTERFACE_VALUE);
+  }
 
   controller_interface::CallbackReturn on_init() override
   {
-    name_prefix_of_interfaces_ = get_node()->get_name();
+    // set default value
+    name_prefix_of_reference_interfaces_ = get_node()->get_name();
+
     return controller_interface::CallbackReturn::SUCCESS;
   }
 
@@ -57,62 +63,57 @@ public:
       controller_interface::interface_configuration_type::NONE};
   }
 
-  std::vector<hardware_interface::StateInterface::SharedPtr> on_export_state_interfaces_list()
-    override
+  // Implementation of ChainableController virtual methods
+  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override
   {
-    state_itf_ptr_ = std::make_shared<hardware_interface::StateInterface>(
-      name_prefix_of_interfaces_, "test_state");
-    std::ignore = state_itf_ptr_->set_value(EXPORTED_STATE_INTERFACE_VALUE);
-    return {state_itf_ptr_};
-  }
+    std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  std::vector<hardware_interface::CommandInterface::SharedPtr> on_export_reference_interfaces_list()
-    override
-  {
-    ref_itf_ptr_ = std::make_shared<hardware_interface::CommandInterface>(
-      name_prefix_of_interfaces_, "test_itf");
-    std::ignore = ref_itf_ptr_->set_value(INTERFACE_VALUE);
-    return {ref_itf_ptr_};
+    command_interfaces.push_back(
+      hardware_interface::CommandInterface(
+        name_prefix_of_reference_interfaces_, "test_itf", &reference_interfaces_[0]));
+
+    return command_interfaces;
   }
 
   bool on_set_chained_mode(bool /*chained_mode*/) override
   {
-    const auto ref_val = ref_itf_ptr_->get_optional();
-    if (ref_val.has_value() && ref_val.value() == 0.0)
+    if (reference_interfaces_[0] == 0.0)
     {
-      std::ignore = state_itf_ptr_->set_value(EXPORTED_STATE_INTERFACE_VALUE_IN_CHAINMODE);
       return true;
     }
-    return false;
+    else
+    {
+      return false;
+    }
   }
 
-  controller_interface::return_type update_reference_from_subscribers(
-    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
+  controller_interface::return_type update_reference_from_subscribers() override
   {
     if (reference_interface_value_ == INTERFACE_VALUE_SUBSCRIBER_ERROR)
     {
       return controller_interface::return_type::ERROR;
     }
-    std::ignore = ref_itf_ptr_->set_value(reference_interface_value_);
+
+    reference_interfaces_[0] = reference_interface_value_;
     return controller_interface::return_type::OK;
   }
 
   controller_interface::return_type update_and_write_commands(
     const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
-    const auto ref_val = ref_itf_ptr_->get_optional().value();
-    if (ref_val == INTERFACE_VALUE_UPDATE_ERROR)
+    if (reference_interfaces_[0] == INTERFACE_VALUE_UPDATE_ERROR)
     {
       return controller_interface::return_type::ERROR;
     }
-    std::ignore = ref_itf_ptr_->set_value(ref_val - 1.0);
-    std::ignore = state_itf_ptr_->set_value(state_itf_ptr_->get_optional().value() + 1.0);
+
+    reference_interfaces_[0] -= 1;
+
     return controller_interface::return_type::OK;
   }
 
   void set_name_prefix_of_reference_interfaces(const std::string & prefix)
   {
-    name_prefix_of_interfaces_ = prefix;
+    name_prefix_of_reference_interfaces_ = prefix;
   }
 
   void set_new_reference_interface_value(const double ref_itf_value)
@@ -120,9 +121,7 @@ public:
     reference_interface_value_ = ref_itf_value;
   }
 
-  hardware_interface::CommandInterface::SharedPtr ref_itf_ptr_;
-  hardware_interface::StateInterface::SharedPtr state_itf_ptr_;
-  std::string name_prefix_of_interfaces_;
+  std::string name_prefix_of_reference_interfaces_;
   double reference_interface_value_ = INTERFACE_VALUE_INITIAL_REF;
 };
 

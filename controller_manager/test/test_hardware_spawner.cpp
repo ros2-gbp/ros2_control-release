@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <gtest/gtest.h>
+
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -19,7 +21,6 @@
 
 #include "controller_manager/controller_manager.hpp"
 #include "controller_manager_test_common.hpp"
-#include "gmock/gmock.h"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "test_chainable_controller/test_chainable_controller.hpp"
 #include "test_controller/test_controller.hpp"
@@ -180,15 +181,6 @@ public:
     // This sleep is needed to prevent a too fast test from ending before the
     // executor has began to spin, which causes it to hang
     std::this_thread::sleep_for(50ms);
-
-    // If a robot_description is already being published in the environment (e.g., by
-    // robot_state_publisher), the CM's transient_local subscription will receive it immediately
-    // and initialize the RM.  These tests require an uninitialized CM, so skip in that case.
-    if (cm_->is_resource_manager_initialized())
-    {
-      GTEST_SKIP() << "Skipping WithoutRobotDescription tests: robot_description already received "
-                      "from the environment (e.g. robot_state_publisher is running).";
-    }
   }
 
   void TearDown() override { update_executor_->cancel(); }
@@ -218,13 +210,7 @@ TEST_F(TestHardwareSpawnerWithoutRobotDescription, spawner_with_later_load_of_ro
 {
   // Delay sending robot description
   robot_description_sending_timer_ = cm_->create_wall_timer(
-    std::chrono::milliseconds(4000),
-    [&]()
-    {
-      RCLCPP_INFO(
-        cm_->get_logger(), "Passing robot description to controller manager and resource manager");
-      pass_robot_description_to_cm_and_rm();
-    });
+    std::chrono::milliseconds(2500), [&]() { pass_robot_description_to_cm_and_rm(); });
 
   EXPECT_EQ(
     call_spawner(
@@ -247,7 +233,7 @@ class TestHardwareSpawnerWithNamespacedCM
 public:
   TestHardwareSpawnerWithNamespacedCM()
   : ControllerManagerFixture<controller_manager::ControllerManager>(
-      ros2_control_test_assets::minimal_robot_urdf, "foo_namespace"),
+      ros2_control_test_assets::minimal_robot_urdf, false, "foo_namespace"),
     RMServiceCaller("foo_namespace/" + std::string(TEST_CM_NAME))
   {
     cm_->set_parameter(

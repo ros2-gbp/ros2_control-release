@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// @author Adolfo Rodriguez Tsouroukdissian
+/// \author Adolfo Rodriguez Tsouroukdissian
 
 #ifndef JOINT_LIMITS__JOINT_LIMITS_HPP_
 #define JOINT_LIMITS__JOINT_LIMITS_HPP_
@@ -24,8 +24,7 @@
 namespace joint_limits
 {
 /**
- * @brief Store joint limits values from YAML definition or URDF `<limits>` tag.
- *
+ * JointLimits structure stores values from from yaml definition or `<limits>` tag in URDF.
  * The mapping from URDF attributes to members is the following:
  *   lower --> min_position
  *   upper --> max_position
@@ -39,13 +38,11 @@ struct JointLimits
     max_position(std::numeric_limits<double>::quiet_NaN()),
     max_velocity(std::numeric_limits<double>::quiet_NaN()),
     max_acceleration(std::numeric_limits<double>::quiet_NaN()),
-    max_deceleration(std::numeric_limits<double>::quiet_NaN()),
     max_jerk(std::numeric_limits<double>::quiet_NaN()),
     max_effort(std::numeric_limits<double>::quiet_NaN()),
     has_position_limits(false),
     has_velocity_limits(false),
     has_acceleration_limits(false),
-    has_deceleration_limits(false),
     has_jerk_limits(false),
     has_effort_limits(false),
     angle_wraparound(false)
@@ -56,36 +53,17 @@ struct JointLimits
   double max_position;
   double max_velocity;
   double max_acceleration;
-  double max_deceleration;
   double max_jerk;
   double max_effort;
 
   bool has_position_limits;
   bool has_velocity_limits;
   bool has_acceleration_limits;
-  bool has_deceleration_limits;
   bool has_jerk_limits;
   bool has_effort_limits;
   bool angle_wraparound;
 
-  void disable_all_limits()
-  {
-    has_position_limits = false;
-    has_velocity_limits = false;
-    has_acceleration_limits = false;
-    has_deceleration_limits = false;
-    has_jerk_limits = false;
-    has_effort_limits = false;
-    min_position = -std::numeric_limits<double>::max();
-    max_position = std::numeric_limits<double>::max();
-    max_velocity = std::numeric_limits<double>::max();
-    max_acceleration = std::numeric_limits<double>::max();
-    max_deceleration = std::numeric_limits<double>::max();
-    max_jerk = std::numeric_limits<double>::max();
-    max_effort = std::numeric_limits<double>::max();
-  }
-
-  std::string to_string() const
+  std::string to_string()
   {
     std::stringstream ss_output;
 
@@ -95,8 +73,6 @@ struct JointLimits
               << max_velocity << "]\n";
     ss_output << "  has acceleration limits: " << (has_acceleration_limits ? "true" : "false")
               << " [" << max_acceleration << "]\n";
-    ss_output << "  has deceleration limits: " << (has_deceleration_limits ? "true" : "false")
-              << " [" << max_deceleration << "]\n";
     ss_output << "  has jerk limits: " << (has_jerk_limits ? "true" : "false") << " [" << max_jerk
               << "]\n";
     ss_output << "  has effort limits: " << (has_effort_limits ? "true" : "false") << " ["
@@ -108,7 +84,8 @@ struct JointLimits
 };
 
 /**
- * @brief Store soft joint limits values from the URDF `<safety_controller>` tag.
+ * SoftJointLimits stores values from the `<safety_controller>` tag of URDF.
+ * The meaning of the fields are:
  *
  * An element can contain the following attributes:
  *
@@ -141,7 +118,7 @@ struct SoftJointLimits
   double k_position;
   double k_velocity;
 
-  std::string to_string() const
+  std::string to_string()
   {
     std::stringstream ss_output;
 
