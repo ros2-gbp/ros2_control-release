@@ -31,27 +31,13 @@ class LoanedStateInterface
 public:
   using Deleter = std::function<void(void)>;
 
-  [[deprecated("Replaced by the new version using shared_ptr")]] explicit LoanedStateInterface(
-    const StateInterface & state_interface)
-  : LoanedStateInterface(state_interface, nullptr)
-  {
-  }
-
-  [[deprecated("Replaced by the new version using shared_ptr")]] LoanedStateInterface(
-    const StateInterface & state_interface, Deleter && deleter)
-  : state_interface_(state_interface),
-    deleter_(std::forward<Deleter>(deleter)),
-    interface_name_(state_interface.get_name())
-  {
-  }
-
   explicit LoanedStateInterface(StateInterface::ConstSharedPtr state_interface)
   : LoanedStateInterface(state_interface, nullptr)
   {
   }
 
   explicit LoanedStateInterface(StateInterface::ConstSharedPtr state_interface, Deleter && deleter)
-  : state_interface_(*state_interface),
+  : state_interface_(state_interface),
     interface_name_(state_interface->get_name()),
     deleter_(std::forward<Deleter>(deleter))
   {
@@ -63,39 +49,35 @@ public:
 
   virtual ~LoanedStateInterface()
   {
-    auto logger = rclcpp::get_logger(interface_name_);
-    RCLCPP_WARN_EXPRESSION(
-      logger,
-      (get_value_statistics_.failed_counter > 0 || get_value_statistics_.timeout_counter > 0),
-      "LoanedStateInterface %s has %u (%.4f %%) timeouts and %u (%.4f %%) missed calls out of %u "
-      "get_value calls",
-      interface_name_.c_str(), get_value_statistics_.timeout_counter,
-      (get_value_statistics_.timeout_counter * 100.0) / get_value_statistics_.total_counter,
-      get_value_statistics_.failed_counter,
-      (get_value_statistics_.failed_counter * 100.0) / get_value_statistics_.total_counter,
-      get_value_statistics_.total_counter);
+    if (state_interface_)
+    {
+      auto logger = rclcpp::get_logger(interface_name_);
+      RCLCPP_WARN_EXPRESSION(
+        logger,
+        (get_value_statistics_.failed_counter > 0 || get_value_statistics_.timeout_counter > 0),
+        "LoanedStateInterface %s has %u (%.4f %%) timeouts and %u (%.4f %%) missed calls out of %u "
+        "get_value calls",
+        interface_name_.c_str(), get_value_statistics_.timeout_counter,
+        (get_value_statistics_.timeout_counter * 100.0) / get_value_statistics_.total_counter,
+        get_value_statistics_.failed_counter,
+        (get_value_statistics_.failed_counter * 100.0) / get_value_statistics_.total_counter,
+        get_value_statistics_.total_counter);
+    }
     if (deleter_)
     {
       deleter_();
     }
   }
 
-  const std::string & get_name() const { return state_interface_.get_name(); }
+  const std::string & get_name() const { return state_interface_->get_name(); }
 
-  const std::string & get_interface_name() const { return state_interface_.get_interface_name(); }
+  const std::string & get_interface_name() const { return state_interface_->get_interface_name(); }
 
-  [[deprecated(
-    "Replaced by get_name method, which is semantically more correct")]] const std::string
-  get_full_name() const
-  {
-    return state_interface_.get_name();
-  }
-
-  const std::string & get_prefix_name() const { return state_interface_.get_prefix_name(); }
+  const std::string & get_prefix_name() const { return state_interface_->get_prefix_name(); }
 
   [[deprecated(
     "Use std::optional<T> get_optional() instead to retrieve the value. This method will be "
-    "removed by the ROS 2 Kilted Kaiju release.")]]
+    "removed by the ROS 2 Lyrical Luth release.")]]
   double get_value() const
   {
     std::optional<double> opt_value = get_optional();
@@ -130,7 +112,7 @@ public:
     do
     {
       ++get_value_statistics_.total_counter;
-      const std::optional<T> data = state_interface_.get_optional<T>();
+      const std::optional<T> data = state_interface_->get_optional<T>();
       if (data.has_value())
       {
         return data;
@@ -145,45 +127,21 @@ public:
   }
 
   /**
-   * @brief Get the value of the state interface.
-   * @tparam T The type of the value to be retrieved.
-   * @param value The value of the state interface.
-   * @param max_tries The maximum number of tries to get the value.
-   * @return true if the value is accessed successfully, false otherwise.
-   *
-   * @note The method is thread-safe and non-blocking.
-   * @note When different threads access the same handle at same instance, and if they are unable to
-   * lock the handle to access the value, the handle returns false. If the operation is successful,
-   * the value is updated and returns true.
-   * @note The method will try to get the value max_tries times before returning false. The method
-   * will yield the thread between tries. If the value is retrieved successfully, the method updates
-   * the value and returns true immediately.
-   */
-  template <typename T>
-  [[deprecated(
-    "Use std::optional<T> get_optional() instead to retrieve the value. This method will be "
-    "removed by the ROS 2 Kilted Kaiju release.")]] [[nodiscard]] bool
-  get_value(T & value, unsigned int max_tries = 10) const
-  {
-    const auto opt_value = get_optional<T>(max_tries);
-    if (opt_value.has_value())
-    {
-      value = opt_value.value();
-      return true;
-    }
-    return false;
-  }
-
-  /**
    * @brief Get the data type of the state interface.
    * @return The data type of the state interface.
    */
-  HandleDataType get_data_type() const { return state_interface_.get_data_type(); }
+  HandleDataType get_data_type() const { return state_interface_->get_data_type(); }
+
+  /**
+   * @brief Check if the state interface can be casted to double.
+   * @return True if the state interface can be casted to double, false otherwise.
+   */
+  bool is_castable_to_double() const { return state_interface_->is_castable_to_double(); }
 
 protected:
-  const StateInterface & state_interface_;
-  Deleter deleter_;
+  StateInterface::ConstSharedPtr state_interface_;
   std::string interface_name_;
+  Deleter deleter_;
 
 private:
   struct HandleRTStatistics

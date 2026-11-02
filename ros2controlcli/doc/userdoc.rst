@@ -29,10 +29,7 @@ list_controllers
 .. code-block:: console
 
     $ ros2 control list_controllers -h
-    usage: ros2 control list_controllers [-h] [--spin-time SPIN_TIME] [-s] [--claimed-interfaces] [--required-state-interfaces]
-                                        [--required-command-interfaces] [--chained-interfaces] [--reference-interfaces]
-                                        [--exported-interfaces] [--verbose] [-c CONTROLLER_MANAGER] [--include-hidden-nodes]
-                                        [--ros-args ...]
+    usage: ros2 control list_controllers [-h] [--spin-time SPIN_TIME] [-s] [--claimed-interfaces] [--required-state-interfaces] [--required-command-interfaces] [--chained-interfaces] [--exported-interfaces] [--verbose] [-c CONTROLLER_MANAGER] [--include-hidden-nodes] [--ros-args ...]
 
     Output the list of loaded controllers, their type and status
 
@@ -47,8 +44,6 @@ list_controllers
       --required-command-interfaces
                             List controller's required command interfaces
       --chained-interfaces  List interfaces that the controllers are chained to
-      --reference-interfaces
-                            List controller's exported references
       --exported-interfaces
                             List controller's exported state and reference interfaces
       --verbose, -v         List controller's claimed interfaces, required state interfaces and required command interfaces
