@@ -1,3 +1,37 @@
+## ros2_control (humble) - 2.54.4-1
+
+The packages in the `ros2_control` repository were released into the `humble` distro by running `/usr/bin/bloom-release -r humble ros2_control -y` on `Mon, 02 Nov 2026 07:32:03 -0000`
+
+These packages were released:
+- `controller_interface`
+- `controller_manager`
+- `controller_manager_msgs`
+- `hardware_interface`
+- `hardware_interface_testing`
+- `joint_limits`
+- `ros2_control`
+- `ros2_control_test_assets`
+- `ros2controlcli`
+- `rqt_controller_manager`
+- `transmission_interface`
+
+Version of package(s) in repository `ros2_control`:
+
+- upstream repository: https://github.com/ros-controls/ros2_control.git
+- release repository: https://github.com/ros2-gbp/ros2_control-release.git
+- rosdistro version: `2.54.3-1`
+- old version: `2.54.3-1`
+- new version: `2.54.4-1`
+
+Versions of tools used:
+
+- bloom version: `0.14.4`
+- catkin_pkg version: `1.1.1`
+- rosdep version: `0.27.0`
+- rosdistro version: `1.1.0`
+- vcstools version: `0.1.42`
+
+
 ## ros2_control (lyrical) - 6.12.0-1
 
 The packages in the `ros2_control` repository were released into the `lyrical` distro by running `/home/bmagyar/.local/bin/bloom-release -r lyrical ros2_control` on `Wed, 07 Oct 2026 18:30:00 -0000`
