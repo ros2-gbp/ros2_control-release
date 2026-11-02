@@ -1,3 +1,37 @@
+## ros2_control (rolling) - 6.13.0-1
+
+The packages in the `ros2_control` repository were released into the `rolling` distro by running `/usr/bin/bloom-release -r rolling ros2_control -y` on `Mon, 02 Nov 2026 08:04:10 -0000`
+
+These packages were released:
+- `controller_interface`
+- `controller_manager`
+- `controller_manager_msgs`
+- `hardware_interface`
+- `hardware_interface_testing`
+- `joint_limits`
+- `ros2_control`
+- `ros2_control_test_assets`
+- `ros2controlcli`
+- `rqt_controller_manager`
+- `transmission_interface`
+
+Version of package(s) in repository `ros2_control`:
+
+- upstream repository: https://github.com/ros-controls/ros2_control.git
+- release repository: https://github.com/ros2-gbp/ros2_control-release.git
+- rosdistro version: `6.12.0-1`
+- old version: `6.12.0-1`
+- new version: `6.13.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.14.4`
+- catkin_pkg version: `1.1.1`
+- rosdep version: `0.27.0`
+- rosdistro version: `1.1.0`
+- vcstools version: `0.1.42`
+
+
 ## ros2_control (lyrical) - 6.13.0-1
 
 The packages in the `ros2_control` repository were released into the `lyrical` distro by running `/usr/bin/bloom-release -r lyrical ros2_control -y` on `Mon, 02 Nov 2026 07:56:13 -0000`
