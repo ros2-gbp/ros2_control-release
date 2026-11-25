@@ -294,6 +294,9 @@ There are two scripts to interact with controller manager from launch files:
     the resolved ``--params-file`` path(s) used by the spawner node are automatically forwarded to each controller along
     with any explicit ``--param-file`` arguments passed to the spawner command.
 
+    With ``--unload-on-kill``, the first SIGINT or SIGTERM starts the deactivate/unload sequence and any further
+    SIGINT/SIGTERM is ignored until it finishes, so pressing Ctrl-C repeatedly cannot leave controllers loaded.
+
 .. note::
   If a single parameter file is used for multiple controllers, the spawner will automatically forward the resolved path(s) to each controller. The following methods are recommended:
 
@@ -452,6 +455,18 @@ The parsed controller config file can follow the same conventions as the typical
         command_interfaces:
           - position
           .....
+
+The namespace can also be split across nested keys, with or without the leading slash (``/rrbot_1:`` or ``rrbot_1:``):
+
+ .. code-block:: yaml
+
+    /rrbot_1:
+      position_trajectory_controller:
+        ros__parameters:
+          type: joint_trajectory_controller/JointTrajectoryController
+          .....
+
+Entries are matched against the controller's fully qualified name with the same rules as ``rclcpp``: ``/*`` matches one namespace token and ``/**`` any number of them, anywhere in the name (e.g. ``/*/position_trajectory_controller`` or ``/rrbot_1/**/position_trajectory_controller``). When several entries match, they are applied in file order and later files override earlier ones, so the last match wins, as at runtime.
 
 ``unspawner``
 ^^^^^^^^^^^^^
