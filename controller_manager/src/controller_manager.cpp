@@ -31,6 +31,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -92,6 +93,11 @@ inline bool is_controller_inactive(
   const controller_interface::ControllerInterfaceBaseSharedPtr & controller)
 {
   return is_controller_inactive(*controller);
+}
+
+std::unordered_set<std::string> make_lookup_set(std::vector<std::string> && names)
+{
+  return {std::make_move_iterator(names.begin()), std::make_move_iterator(names.end())};
 }
 
 inline bool is_controller_active(const controller_interface::ControllerInterfaceBase & controller)
@@ -234,7 +240,7 @@ std::vector<std::string> get_command_interfaces_names(
       {
         if (std::regex_match(interface_name, regex_pattern))
         {
-          command_interface_names.push_back(interface_name);
+          ros2_control::add_item(command_interface_names, interface_name);
         }
       }
     }
@@ -287,7 +293,7 @@ std::vector<std::string> get_state_interfaces_names(
       {
         if (std::regex_match(interface_name, regex_pattern))
         {
-          state_interface_names.push_back(interface_name);
+          ros2_control::add_item(state_interface_names, interface_name);
         }
       }
     }
@@ -314,18 +320,25 @@ void get_active_controllers_using_command_interfaces_of_controller(
     return;
   }
   const auto cmd_itfs = get_command_interfaces_names(it->c, resource_manager);
+  // Resolve the command interfaces of the active controllers once, instead of once per command
+  // interface of the given controller
+  std::vector<std::pair<const std::string *, std::vector<std::string>>> active_ctrls_cmd_itfs;
+  for (const auto & controller : controllers)
+  {
+    if (is_controller_active(controller.c))
+    {
+      active_ctrls_cmd_itfs.emplace_back(
+        &controller.info.name, get_command_interfaces_names(controller.c, resource_manager));
+    }
+  }
   for (const auto & cmd_itf : cmd_itfs)
   {
-    for (const auto & controller : controllers)
+    for (const auto & [ctrl_name, ctrl_cmd_itfs] : active_ctrls_cmd_itfs)
     {
-      const auto ctrl_cmd_itfs = get_command_interfaces_names(controller.c, resource_manager);
-      // check if the controller is active and has the command interface and make sure that it
-      // doesn't exist in the list already
-      if (
-        is_controller_active(controller.c) &&
-        std::find(ctrl_cmd_itfs.begin(), ctrl_cmd_itfs.end(), cmd_itf) != ctrl_cmd_itfs.end())
+      // make sure that it doesn't exist in the list already
+      if (ros2_control::has_item(ctrl_cmd_itfs, cmd_itf))
       {
-        ros2_control::add_item(controllers_using_command_interfaces, controller.info.name);
+        ros2_control::add_item(controllers_using_command_interfaces, *ctrl_name);
       }
     }
   }
@@ -563,6 +576,7 @@ ControllerManager::ControllerManager(
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
       kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  cm_node_options_(options),
   robot_description_(urdf),
   activate_all_hw_components_(activate_all_hw_components)
 {
@@ -589,7 +603,8 @@ ControllerManager::ControllerManager(
       kControllerInterfaceNamespace, kControllerInterfaceClassName)),
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
-      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  cm_node_options_(options)
 {
   if (resource_manager_ == nullptr)
   {
@@ -638,8 +653,7 @@ bool ControllerManager::shutdown_controllers()
 {
   RCLCPP_INFO(get_logger(), "Shutting down all controllers in the controller manager.");
   // Shutdown all controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   std::vector<ControllerSpec> controllers_list = rt_controllers_wrapper_.get_updated_list(guard);
   bool ctrls_shutdown_status = true;
   for (auto & controller : controllers_list)
@@ -1433,8 +1447,7 @@ controller_interface::return_type ControllerManager::unload_controller(
   const std::string & controller_name)
 {
   RCLCPP_INFO(get_logger(), "Unloading controller: '%s'", controller_name.c_str());
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   std::vector<ControllerSpec> & to = rt_controllers_wrapper_.get_unused_list(guard);
   const std::vector<ControllerSpec> & from = rt_controllers_wrapper_.get_updated_list(guard);
 
@@ -1606,8 +1619,7 @@ void ControllerManager::shutdown_controller(
 
 std::vector<ControllerSpec> ControllerManager::get_loaded_controllers() const
 {
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   return rt_controllers_wrapper_.get_updated_list(guard);
 }
 
@@ -1632,15 +1644,27 @@ controller_interface::return_type ControllerManager::configure_controller(
   }
   auto controller = found_it->c;
 
-  if (!is_controller_unconfigured(*controller))
+  const auto & state = controller->get_lifecycle_state();
+  if (
+    state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE ||
+    state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED)
   {
     RCLCPP_ERROR(
       get_logger(), "Controller '%s' can not be configured from '%s' state.",
-      controller_name.c_str(), controller->get_lifecycle_state().label().c_str());
+      controller_name.c_str(), state.label().c_str());
     return controller_interface::return_type::ERROR;
   }
 
-  // Remove any stale exported interfaces from a prior configure cycle before re-configuring.
+  if (state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+  {
+    RCLCPP_DEBUG(
+      get_logger(), "Controller '%s' is cleaned-up before configuring", controller_name.c_str());
+    if (cleanup_controller(*found_it) != controller_interface::return_type::OK)
+    {
+      return controller_interface::return_type::ERROR;
+    }
+  }
+  // For cases, when the controller ends up in the unconfigured state from any other state
   cleanup_controller_exported_interfaces(*found_it);
 
   try
@@ -1776,8 +1800,7 @@ controller_interface::return_type ControllerManager::configure_controller(
 
   // Now let's reorder the controllers
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   std::vector<ControllerSpec> & to = rt_controllers_wrapper_.get_unused_list(guard);
   const std::vector<ControllerSpec> & from = rt_controllers_wrapper_.get_updated_list(guard);
 
@@ -1787,8 +1810,11 @@ controller_interface::return_type ControllerManager::configure_controller(
 
   // clear the list before reordering it again
   ordered_controllers_names_.clear();
-  for (const auto & [ctrl_name, chain_spec] : controller_chain_spec_)
+  // Iterate in load order (not over the unordered controller_chain_spec_) so that controllers
+  // without chain relationships keep a deterministic update order matching their load order
+  for (const auto & ctrl : to)
   {
+    const auto & ctrl_name = ctrl.info.name;
     auto it =
       std::find(ordered_controllers_names_.begin(), ordered_controllers_names_.end(), ctrl_name);
     if (it == ordered_controllers_names_.end())
@@ -1969,8 +1995,7 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
       const std::string & action, std::string & msg) -> controller_interface::return_type
   {
     // lock controllers
-    std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-      rt_controllers_wrapper_.controllers_lock_);
+    std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
     auto result = controller_interface::return_type::OK;
 
     // list all controllers to (de)activate
@@ -2039,8 +2064,7 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
   message.clear();
 
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
 
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
 
@@ -2094,8 +2118,9 @@ controller_interface::return_type ControllerManager::switch_controller_cb(
     }
     else
     {
-      status =
-        check_following_controllers_for_activate(controllers, strictness, controller_it, message);
+      std::vector<std::string> visited_controllers;
+      status = check_following_controllers_for_activate(
+        controllers, strictness, controller_it, visited_controllers, message);
     }
 
     if (status == controller_interface::return_type::OK)
@@ -2454,8 +2479,7 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::add_co
   const ControllerSpec & controller)
 {
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
 
   std::vector<ControllerSpec> & to = rt_controllers_wrapper_.get_unused_list(guard);
   const std::vector<ControllerSpec> & from = rt_controllers_wrapper_.get_updated_list(guard);
@@ -2853,8 +2877,7 @@ void ControllerManager::list_controllers_srv_cb(
   RCLCPP_DEBUG(get_logger(), "list controller service locked");
 
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
   // create helper containers to create chained controller connections
   std::unordered_map<std::string, std::vector<std::string>> controller_chain_interface_map;
@@ -3022,8 +3045,7 @@ void ControllerManager::reload_controller_libraries_service_cb(
   loaded_controllers = get_controller_names();
   {
     // lock controllers
-    std::lock_guard<RTControllerListWrapper::controllers_lock_type> ctrl_guard(
-      rt_controllers_wrapper_.controllers_lock_);
+    std::lock_guard<std::recursive_mutex> ctrl_guard(rt_controllers_wrapper_.controllers_lock_);
     for (const auto & controller : rt_controllers_wrapper_.get_updated_list(ctrl_guard))
     {
       if (is_controller_active(*controller.c))
@@ -3150,6 +3172,12 @@ void ControllerManager::list_hardware_components_srv_cb(
   RCLCPP_DEBUG(get_logger(), "list hardware components service locked");
 
   auto hw_components_info = resource_manager_->get_components_status();
+  // The *_interface_is_available() calls are a linear search over all available interfaces, which
+  // makes listing every interface quadratic, so build the lookup sets once per request.
+  const auto available_state_interfaces =
+    make_lookup_set(resource_manager_->available_state_interfaces());
+  const auto available_command_interfaces =
+    make_lookup_set(resource_manager_->available_command_interfaces());
 
   response->component.reserve(hw_components_info.size());
 
@@ -3170,7 +3198,7 @@ void ControllerManager::list_hardware_components_srv_cb(
       controller_manager_msgs::msg::HardwareInterface hwi;
       hwi.name = interface;
       hwi.data_type = resource_manager_->get_command_interface_data_type(interface);
-      hwi.is_available = resource_manager_->command_interface_is_available(interface);
+      hwi.is_available = available_command_interfaces.count(interface) > 0;
       hwi.is_claimed = resource_manager_->command_interface_is_claimed(interface);
       // TODO(destogl): Add here mapping to controller that has claimed or
       // can be claiming this interface
@@ -3195,7 +3223,7 @@ void ControllerManager::list_hardware_components_srv_cb(
       controller_manager_msgs::msg::HardwareInterface hwi;
       hwi.name = interface;
       hwi.data_type = resource_manager_->get_state_interface_data_type(interface);
-      hwi.is_available = resource_manager_->state_interface_is_available(interface);
+      hwi.is_available = available_state_interfaces.count(interface) > 0;
       hwi.is_claimed = false;
       component.state_interfaces.push_back(hwi);
     }
@@ -3214,12 +3242,18 @@ void ControllerManager::list_hardware_interfaces_srv_cb(
   std::lock_guard<std::mutex> guard(services_lock_);
   RCLCPP_DEBUG(get_logger(), "list hardware interfaces service locked");
 
+  // See list_hardware_components_srv_cb: avoids a linear search per listed interface
+  const auto available_state_interfaces =
+    make_lookup_set(resource_manager_->available_state_interfaces());
+  const auto available_command_interfaces =
+    make_lookup_set(resource_manager_->available_command_interfaces());
+
   auto state_interface_names = resource_manager_->state_interface_keys();
   for (const auto & state_interface_name : state_interface_names)
   {
     controller_manager_msgs::msg::HardwareInterface hwi;
     hwi.name = state_interface_name;
-    hwi.is_available = resource_manager_->state_interface_is_available(state_interface_name);
+    hwi.is_available = available_state_interfaces.count(state_interface_name) > 0;
     hwi.data_type = resource_manager_->get_state_interface_data_type(state_interface_name);
     hwi.is_claimed = false;
     response->state_interfaces.push_back(hwi);
@@ -3229,7 +3263,7 @@ void ControllerManager::list_hardware_interfaces_srv_cb(
   {
     controller_manager_msgs::msg::HardwareInterface hwi;
     hwi.name = command_interface_name;
-    hwi.is_available = resource_manager_->command_interface_is_available(command_interface_name);
+    hwi.is_available = available_command_interfaces.count(command_interface_name) > 0;
     hwi.is_claimed = resource_manager_->command_interface_is_claimed(command_interface_name);
     hwi.data_type = resource_manager_->get_command_interface_data_type(command_interface_name);
     response->command_interfaces.push_back(hwi);
@@ -3277,8 +3311,7 @@ std::vector<std::string> ControllerManager::get_controller_names()
   std::vector<std::string> names;
 
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   for (const auto & controller : rt_controllers_wrapper_.get_updated_list(guard))
   {
     names.push_back(controller.info.name);
@@ -3418,6 +3451,12 @@ controller_interface::return_type ControllerManager::update(
       "configuration (use_sim_time parameter) and if a valid clock source is available");
   }
 
+  // Cached per cycle to avoid per-controller shared_ptr refcount churn from getters
+  rclcpp::Clock & trigger_clock = *trigger_clock_;
+  rclcpp::Clock & node_clock = *get_clock();
+  const bool node_clock_started = node_clock.started();
+  const rclcpp::Time zero_time(0, 0, trigger_clock.get_clock_type());
+
   rt_buffer_.deactivate_controllers_list.clear();
   for (const auto & loaded_controller : rt_controller_list)
   {
@@ -3449,10 +3488,8 @@ controller_interface::return_type ControllerManager::update(
         run_controller_at_cm_rate ? period
                                   : rclcpp::Duration::from_seconds((1.0 / controller_update_rate));
 
-      const bool first_update_cycle =
-        (*loaded_controller.last_update_cycle_time ==
-         rclcpp::Time(0, 0, this->get_trigger_clock()->get_clock_type()));
-      const rclcpp::Time current_time = get_clock()->started() ? get_trigger_clock()->now() : time;
+      const bool first_update_cycle = (*loaded_controller.last_update_cycle_time == zero_time);
+      const rclcpp::Time current_time = node_clock_started ? trigger_clock.now() : time;
       const auto controller_actual_period =
         first_update_cycle ? controller_period
                            : (current_time - *loaded_controller.last_update_cycle_time);
@@ -3463,10 +3500,8 @@ controller_interface::return_type ControllerManager::update(
         ((controller_actual_period.seconds() + (1.0 / static_cast<double>(update_rate_))) *
          controller_update_rate) -
         1.0);
-      const bool controller_go =
-        run_controller_at_cm_rate ||
-        (time == rclcpp::Time(0, 0, this->get_trigger_clock()->get_clock_type())) ||
-        (error_now <= error_if_skipped) || first_update_cycle;
+      const bool controller_go = run_controller_at_cm_rate || (time == zero_time) ||
+                                 (error_now <= error_if_skipped) || first_update_cycle;
 
       RCLCPP_DEBUG(
         get_logger(), "update_loop_counter: '%d ' controller_go: '%s ' controller_name: '%s '",
@@ -3481,7 +3516,7 @@ controller_interface::return_type ControllerManager::update(
         try
         {
           const auto trigger_result =
-            loaded_controller.c->trigger_update(this->now(), controller_actual_period);
+            loaded_controller.c->trigger_update(node_clock.now(), controller_actual_period);
           trigger_status = trigger_result.successful;
           controller_ret = trigger_result.result;
           if (trigger_status && trigger_result.execution_time.has_value())
@@ -3733,7 +3768,7 @@ ControllerManager::RTControllerListWrapper::update_and_get_used_by_rt_list()
 }
 
 std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::get_unused_list(
-  const std::lock_guard<controllers_lock_type> &)
+  const std::lock_guard<std::recursive_mutex> &)
 {
   if (!controllers_lock_.try_lock())
   {
@@ -3749,7 +3784,7 @@ std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::get_un
 }
 
 const std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::get_updated_list(
-  const std::lock_guard<controllers_lock_type> &) const
+  const std::lock_guard<std::recursive_mutex> &) const
 {
   if (!controllers_lock_.try_lock())
   {
@@ -3760,7 +3795,7 @@ const std::vector<ControllerSpec> & ControllerManager::RTControllerListWrapper::
 }
 
 void ControllerManager::RTControllerListWrapper::switch_updated_list(
-  const std::lock_guard<controllers_lock_type> &)
+  const std::lock_guard<std::recursive_mutex> &)
 {
   if (!controllers_lock_.try_lock())
   {
@@ -3779,7 +3814,7 @@ void ControllerManager::RTControllerListWrapper::switch_updated_list(
 void ControllerManager::RTControllerListWrapper::set_on_switch_callback(
   std::function<void()> callback)
 {
-  std::lock_guard<controllers_lock_type> guard(controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(controllers_lock_);
   on_switch_callback_ = callback;
 }
 
@@ -3899,12 +3934,14 @@ void ControllerManager::propagate_deactivation_of_chained_mode(
 
 controller_interface::return_type ControllerManager::check_following_controllers_for_activate(
   const std::vector<ControllerSpec> & controllers, int strictness,
-  const ControllersListIterator controller_it, std::string & message)
+  const ControllersListIterator controller_it, std::vector<std::string> & visited_controllers,
+  std::string & message)
 {
   // we assume that the controller exists is checked in advance
   RCLCPP_DEBUG(
     get_logger(), "Checking following controllers of preceding controller with name '%s'.",
     controller_it->info.name.c_str());
+  visited_controllers.push_back(controller_it->info.name);
 
   const auto controller_cmd_interfaces =
     get_command_interfaces_names(controller_it->c, resource_manager_);
@@ -3926,10 +3963,6 @@ controller_interface::return_type ControllerManager::check_following_controllers
     {
       continue;
     }
-    // TODO(destogl): performance of this code could be optimized by adding additional lists with
-    // controllers that cache if the check has failed and has succeeded. Then the following would be
-    // done only once per controller, otherwise in complex scenarios the same controller is checked
-    // multiple times
 
     // check that all following controllers exits, are either: activated, will be activated, or
     // will not be deactivated
@@ -3994,11 +4027,13 @@ controller_interface::return_type ControllerManager::check_following_controllers
     }
 
     // Trigger recursion to check all the following controllers only if they are OK, add this
-    // controller update chained mode requests
+    // controller update chained mode requests. A visited controller is not checked again, because
+    // the claimed interfaces can lead back to a controller that is still being checked.
     if (
+      !ros2_control::has_item(visited_controllers, following_ctrl_it->info.name) &&
       check_following_controllers_for_activate(
-        controllers, strictness, following_ctrl_it, message) ==
-      controller_interface::return_type::ERROR)
+        controllers, strictness, following_ctrl_it, visited_controllers, message) ==
+        controller_interface::return_type::ERROR)
     {
       return controller_interface::return_type::ERROR;
     }
@@ -4299,8 +4334,7 @@ void ControllerManager::publish_activity()
   status_msg.header.stamp = get_clock()->now();
   {
     // lock controllers
-    std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-      rt_controllers_wrapper_.controllers_lock_);
+    std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
     const std::vector<ControllerSpec> & controllers =
       rt_controllers_wrapper_.get_updated_list(guard);
     for (const auto & controller : controllers)
@@ -4445,8 +4479,7 @@ void ControllerManager::controller_activity_diagnostic_callback(
     }
   }
   // lock controllers
-  std::lock_guard<RTControllerListWrapper::controllers_lock_type> guard(
-    rt_controllers_wrapper_.controllers_lock_);
+  std::lock_guard<std::recursive_mutex> guard(rt_controllers_wrapper_.controllers_lock_);
   const std::vector<ControllerSpec> & controllers = rt_controllers_wrapper_.get_updated_list(guard);
   bool all_active = true;
   const std::string periodicity_suffix = ".periodicity";
@@ -4659,6 +4692,14 @@ void ControllerManager::hardware_components_diagnostic_callback(
   for (const auto & [component_name, component_info] : hw_components_info)
   {
     stat.add(component_name + state_suffix, component_info.state.label());
+    if (component_info.state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+    {
+      all_active = false;
+    }
+    else
+    {
+      atleast_one_hw_active = true;
+    }
     if (component_info.state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
     {
       auto update_stats =
@@ -4976,13 +5017,47 @@ void ControllerManager::build_controllers_topology_info(
 rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   const ControllerSpec & controller) const
 {
+  auto check_for_element = [](const auto & list, const auto & element)
+  { return std::find(list.begin(), list.end(), element) != list.end(); };
+
   rclcpp::NodeOptions controller_node_options = controller.c->define_custom_node_options();
   std::vector<std::string> node_options_arguments = controller_node_options.arguments();
 
-  // add parameter files specified in controller's info
+  for (const std::string & arg : cm_node_options_.arguments())
+  {
+    if (
+      arg.find("__ns") != std::string::npos || arg.find("__node") != std::string::npos ||
+      arg.find("robot_description") != std::string::npos)
+    {
+      if (
+        node_options_arguments.back() == RCL_REMAP_FLAG ||
+        node_options_arguments.back() == RCL_SHORT_REMAP_FLAG ||
+        node_options_arguments.back() == RCL_PARAM_FLAG ||
+        node_options_arguments.back() == RCL_SHORT_PARAM_FLAG)
+      {
+        node_options_arguments.pop_back();
+      }
+      continue;
+    }
+
+    node_options_arguments.push_back(arg);
+  }
+
+  // Add deprecation notice if the arguments are from the controller_manager node
+  if (
+    check_for_element(node_options_arguments, RCL_REMAP_FLAG) ||
+    check_for_element(node_options_arguments, RCL_SHORT_REMAP_FLAG))
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "The use of remapping arguments to the controller_manager node is deprecated. Please use the "
+      "'--controller-ros-args' argument of the spawner to pass remapping arguments to the "
+      "controller node.");
+  }
+
   for (const auto & parameters_file : controller.info.parameters_files)
   {
-    if (!ros2_control::has_item(node_options_arguments, std::string(RCL_ROS_ARGS_FLAG)))
+    if (!check_for_element(node_options_arguments, RCL_ROS_ARGS_FLAG))
     {
       node_options_arguments.push_back(RCL_ROS_ARGS_FLAG);
     }
@@ -4993,7 +5068,7 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   // ensure controller's `use_sim_time` parameter matches controller_manager's
   if (use_sim_time_)
   {
-    if (!ros2_control::has_item(node_options_arguments, std::string(RCL_ROS_ARGS_FLAG)))
+    if (!check_for_element(node_options_arguments, RCL_ROS_ARGS_FLAG))
     {
       node_options_arguments.push_back(RCL_ROS_ARGS_FLAG);
     }
@@ -5004,7 +5079,7 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
   // Add options parsed through the spawner
   if (
     !controller.info.node_options_args.empty() &&
-    !ros2_control::has_item(controller.info.node_options_args, std::string(RCL_ROS_ARGS_FLAG)))
+    !check_for_element(controller.info.node_options_args, RCL_ROS_ARGS_FLAG))
   {
     node_options_arguments.push_back(RCL_ROS_ARGS_FLAG);
   }
@@ -5013,12 +5088,16 @@ rclcpp::NodeOptions ControllerManager::determine_controller_node_options(
     node_options_arguments.push_back(arg);
   }
 
-  RCLCPP_INFO_EXPRESSION(
-    get_logger(), !node_options_arguments.empty(), "%s",
-    fmt::format(
-      FMT_COMPILE("Controller '{}' node arguments: '{}'"), controller.info.name,
-      fmt::join(node_options_arguments, " "))
-      .c_str());
+  std::string arguments;
+  arguments.reserve(1000);
+  for (const auto & arg : node_options_arguments)
+  {
+    arguments.append(arg);
+    arguments.append(" ");
+  }
+  RCLCPP_INFO(
+    get_logger(), "Controller '%s' node arguments: %s", controller.info.name.c_str(),
+    arguments.c_str());
 
   controller_node_options = controller_node_options.arguments(node_options_arguments);
   controller_node_options.use_global_arguments(false);

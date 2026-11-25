@@ -56,10 +56,6 @@
 #include "rclcpp/node.hpp"
 #include "std_msgs/msg/string.hpp"
 
-#if !defined(_WIN32)
-#include "realtime_tools/mutex.hpp"
-#endif
-
 namespace controller_manager
 {
 class ParamListener;
@@ -445,15 +441,18 @@ private:
    * controllers will be automatically added to the activate request list if they are not in the
    * deactivate request.
    * \param[in] controller_it iterator to the controller for which the following controllers are
-   * \param[out] message describing the result of the check.
    * checked.
+   * \param[in,out] visited_controllers names of the controllers already checked, which are not
+   * checked again.
+   * \param[out] message describing the result of the check.
    *
    * \returns return_type::OK if all following controllers pass the checks, otherwise
    * return_type::ERROR.
    */
   controller_interface::return_type check_following_controllers_for_activate(
     const std::vector<ControllerSpec> & controllers, int strictness,
-    const ControllersListIterator controller_it, std::string & message);
+    const ControllersListIterator controller_it, std::vector<std::string> & visited_controllers,
+    std::string & message);
 
   /// Check if all the preceding controllers will be in inactive state after controllers' switch.
   /**
@@ -600,11 +599,6 @@ private:
     // *INDENT-OFF*
   public:
     // *INDENT-ON*
-#if !defined(_WIN32)
-    using controllers_lock_type = realtime_tools::prio_inherit_recursive_mutex;
-#else
-    using controllers_lock_type = std::recursive_mutex;
-#endif
     /// update_and_get_used_by_rt_list Makes the "updated" list the "used by rt" list
     /**
      * \warning Should only be called by the RT thread, no one should modify the
@@ -622,7 +616,7 @@ private:
      * rt list
      */
     std::vector<ControllerSpec> & get_unused_list(
-      const std::lock_guard<controllers_lock_type> & guard);
+      const std::lock_guard<std::recursive_mutex> & guard);
 
     /// get_updated_list Returns a const reference to the most updated list.
     /**
@@ -631,7 +625,7 @@ private:
      * rt list
      */
     const std::vector<ControllerSpec> & get_updated_list(
-      const std::lock_guard<controllers_lock_type> & guard) const;
+      const std::lock_guard<std::recursive_mutex> & guard) const;
 
     /**
      * switch_updated_list Switches the "updated" and "outdated" lists, and waits
@@ -639,7 +633,7 @@ private:
      * \param[in] guard Guard needed to make sure the caller is the only one accessing the unused by
      * rt list
      */
-    void switch_updated_list(const std::lock_guard<controllers_lock_type> & guard);
+    void switch_updated_list(const std::lock_guard<std::recursive_mutex> & guard);
 
     /// A method to register a callback to be called when the list is switched
     /**
@@ -649,7 +643,7 @@ private:
 
     // Mutex protecting the controllers list
     // must be acquired before using any list other than the "used by rt"
-    mutable controllers_lock_type controllers_lock_;
+    mutable std::recursive_mutex controllers_lock_;
 
     // *INDENT-OFF*
   private:
@@ -709,6 +703,7 @@ private:
   std::map<std::string, std::vector<std::string>> controller_chained_reference_interfaces_cache_;
   std::map<std::string, std::vector<std::string>> controller_chained_state_interfaces_cache_;
 
+  rclcpp::NodeOptions cm_node_options_;
   std::string robot_description_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscription_;
   rclcpp::TimerBase::SharedPtr robot_description_notification_timer_;

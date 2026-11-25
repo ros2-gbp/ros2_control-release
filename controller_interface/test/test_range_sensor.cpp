@@ -17,7 +17,6 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -64,8 +63,8 @@ TEST(RangeSensorTest, reports_range_value_and_message)
     ElementsAre(std::string(SENSOR_NAME) + "/" + RANGE_INTERFACE));
 
   double range_value = 1.25;
-  auto range_state = std::make_shared<LockableStateInterface>(SENSOR_NAME, RANGE_INTERFACE);
-  std::ignore = range_state->set_value(range_value);
+  auto range_state =
+    std::make_shared<LockableStateInterface>(SENSOR_NAME, RANGE_INTERFACE, &range_value);
 
   std::vector<LoanedStateInterface> state_interfaces;
   state_interfaces.emplace_back(range_state);
@@ -88,8 +87,8 @@ TEST(RangeSensorTest, reports_nan_when_value_lock_is_unavailable)
   TestableRangeSensor range_sensor(SENSOR_NAME);
 
   double range_value = 1.25;
-  auto range_state = std::make_shared<LockableStateInterface>(SENSOR_NAME, RANGE_INTERFACE);
-  std::ignore = range_state->set_value(range_value);
+  auto range_state =
+    std::make_shared<LockableStateInterface>(SENSOR_NAME, RANGE_INTERFACE, &range_value);
 
   std::vector<LoanedStateInterface> state_interfaces;
   state_interfaces.emplace_back(range_state);

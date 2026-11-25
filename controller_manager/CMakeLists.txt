@@ -39,6 +39,7 @@ generate_parameter_library(controller_manager_parameters
 add_library(controller_manager SHARED
   src/controller_manager.cpp
 )
+target_compile_features(controller_manager PUBLIC cxx_std_17)
 target_include_directories(controller_manager PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/controller_manager>
@@ -241,7 +242,7 @@ if(BUILD_TESTING)
 
   ament_add_gmock(test_spawner_unspawner
     test/test_spawner_unspawner.cpp
-    TIMEOUT 240
+    TIMEOUT 180
   )
   target_link_libraries(test_spawner_unspawner
     controller_manager
@@ -310,6 +311,7 @@ if(BUILD_TESTING)
     DESTINATION test)
   ament_add_pytest_test(test_ros2_control_node test/test_ros2_control_node_launch.py)
   ament_add_pytest_test(test_test_utils test/test_test_utils.py)
+  ament_add_pytest_test(test_param_file_parsing test/test_param_file_parsing.py)
 
   # Now include the launch_utils subfolder
   add_subdirectory(test/test_launch_utils)

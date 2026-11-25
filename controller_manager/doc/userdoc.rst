@@ -264,7 +264,7 @@ There are two scripts to interact with controller manager from launch files:
 .. code-block:: console
 
     $ ros2 run controller_manager spawner -h
-    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--inactive] [--reconfigure] [-u] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT] [--switch-timeout SWITCH_TIMEOUT] [--service-call-timeout SERVICE_CALL_TIMEOUT] [--activate-as-group] [--switch-asap | --no-switch-asap] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_names [controller_names ...]
+    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--inactive] [-u] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT] [--switch-timeout SWITCH_TIMEOUT] [--service-call-timeout SERVICE_CALL_TIMEOUT] [--activate-as-group] [--switch-asap | --no-switch-asap] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_names [controller_names ...]
 
     positional arguments:
       controller_names      List of controllers
@@ -277,7 +277,6 @@ There are two scripts to interact with controller manager from launch files:
                             Controller param file to be loaded into controller node before configure. Pass multiple times to load different files for different controllers or to override the parameters of the same controller.
       --load-only           Only load the controller and leave unconfigured.
       --inactive            Load and configure the controller, however do not activate them
-      --reconfigure         Cleanup and configure the controller again
       -u, --unload-on-kill  Wait until this application is interrupted (SIGINT or SIGTERM) and deactivate/unload controllers
       --controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT
                             Time to wait for the controller manager service to be available
@@ -294,6 +293,9 @@ There are two scripts to interact with controller manager from launch files:
     When launching ``spawner`` with ROS parameter files that use substitutions (for example, launch ``allow_substs=True``),
     the resolved ``--params-file`` path(s) used by the spawner node are automatically forwarded to each controller along
     with any explicit ``--param-file`` arguments passed to the spawner command.
+
+    With ``--unload-on-kill``, the first SIGINT or SIGTERM starts the deactivate/unload sequence and any further
+    SIGINT/SIGTERM is ignored until it finishes, so pressing Ctrl-C repeatedly cannot leave controllers loaded.
 
 .. note::
   If a single parameter file is used for multiple controllers, the spawner will automatically forward the resolved path(s) to each controller. The following methods are recommended:
@@ -366,7 +368,7 @@ The ``spawner`` now supports per controller arguments, while parsing the argumen
       -h, --help            Show help
 
     Controller Options:
-    usage: spawner [-p PARAM_FILE] [--load-only] [--inactive] [--reconfigure] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_name
+    usage: spawner [-p PARAM_FILE] [--load-only] [--inactive] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_name
 
     positional arguments:
       controller_name       Name of the controller
@@ -376,7 +378,6 @@ The ``spawner`` now supports per controller arguments, while parsing the argumen
                             Parameter files to load for the controller
       --load-only           Load the controller but do not configure/activate it
       --inactive            Configure the controller but do not switch it
-      --reconfigure         Cleanup and configure the controller again
       --controller-ros-args CONTROLLER_ROS_ARGS
                             ROS arguments to pass to the controller
 
@@ -454,6 +455,18 @@ The parsed controller config file can follow the same conventions as the typical
         command_interfaces:
           - position
           .....
+
+The namespace can also be split across nested keys, with or without the leading slash (``/rrbot_1:`` or ``rrbot_1:``):
+
+ .. code-block:: yaml
+
+    /rrbot_1:
+      position_trajectory_controller:
+        ros__parameters:
+          type: joint_trajectory_controller/JointTrajectoryController
+          .....
+
+Entries are matched against the controller's fully qualified name with the same rules as ``rclcpp``: ``/*`` matches one namespace token and ``/**`` any number of them, anywhere in the name (e.g. ``/*/position_trajectory_controller`` or ``/rrbot_1/**/position_trajectory_controller``). When several entries match, they are applied in file order and later files override earlier ones, so the last match wins, as at runtime.
 
 ``unspawner``
 ^^^^^^^^^^^^^
