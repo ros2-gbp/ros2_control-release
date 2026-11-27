@@ -8,7 +8,6 @@ export_windows_symbols()
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   control_msgs
   lifecycle_msgs
-  libstatistics_collector
   pluginlib
   rclcpp
   rclcpp_lifecycle
@@ -16,7 +15,6 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rcutils
   realtime_tools
   TinyXML2
-  tinyxml2_vendor
   joint_limits
   urdf
   pal_statistics
@@ -37,7 +35,6 @@ add_library(hardware_interface SHARED
   src/hardware_component_interface.cpp
   src/lexical_casts.cpp
 )
-target_compile_features(hardware_interface PUBLIC cxx_std_17)
 target_include_directories(hardware_interface PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/hardware_interface>
@@ -53,17 +50,14 @@ target_link_libraries(hardware_interface PUBLIC
                       rcpputils::rcpputils
                       ${joint_limits_TARGETS}
                       ${TinyXML2_LIBRARIES}
-                      ${tinyxml2_vendor_LIBRARIES}
                       ${pal_statistics_LIBRARIES}
                       ${control_msgs_TARGETS}
                       ${lifecycle_msgs_TARGETS}
-                      ${libstatistics_collector_TARGETS}
                       fmt::fmt)
 
 add_library(mock_components SHARED
   src/mock_components/generic_system.cpp
 )
-target_compile_features(mock_components PUBLIC cxx_std_17)
 target_include_directories(mock_components PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/hardware_interface>
@@ -95,6 +89,12 @@ if(BUILD_TESTING)
   # Test lexical casts methods
   ament_add_gmock(test_lexical_casts test/test_lexical_casts.cpp)
   target_link_libraries(test_lexical_casts hardware_interface)
+
+  ament_add_gmock(test_time_window_statistics test/test_time_window_statistics.cpp)
+  target_link_libraries(test_time_window_statistics hardware_interface)
+
+  ament_add_gmock(test_completed_execution_record test/test_completed_execution_record.cpp)
+  target_link_libraries(test_completed_execution_record hardware_interface)
 
   ament_add_gmock(test_component_interfaces test/test_component_interfaces.cpp)
   target_link_libraries(test_component_interfaces hardware_interface ros2_control_test_assets::ros2_control_test_assets)

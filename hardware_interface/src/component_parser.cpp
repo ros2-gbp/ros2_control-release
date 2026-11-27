@@ -708,9 +708,9 @@ HardwareInfo parse_resource_from_xml(
   hardware.type = get_attribute_value(ros2_control_it, kTypeAttribute, kROS2ControlTag);
   hardware.rw_rate = parse_rw_rate_attribute(ros2_control_it);
   hardware.is_async = parse_is_async_attribute(ros2_control_it);
-  hardware.thread_priority = hardware.is_async ? parse_thread_priority_attribute(ros2_control_it)
-                                               : std::numeric_limits<int>::max();
-  hardware.async_params.thread_priority = hardware.thread_priority;
+  hardware.async_params.thread_priority = hardware.is_async
+                                            ? parse_thread_priority_attribute(ros2_control_it)
+                                            : std::numeric_limits<int>::max();
 
   // Parse everything under ros2_control tag
   hardware.hardware_plugin_name = "";
@@ -761,7 +761,6 @@ HardwareInfo parse_resource_from_xml(
           if (async_it->FindAttribute(kThreadPriorityAttribute))
           {
             hardware.async_params.thread_priority = parse_thread_priority_attribute(async_it);
-            hardware.thread_priority = hardware.async_params.thread_priority;
           }
           if (async_it->FindAttribute(kPrintWarningsAttribute))
           {
@@ -981,7 +980,6 @@ void update_interface_limits(const ComponentInfo & joint, joint_limits::JointLim
 
 std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & urdf)
 {
-  // Check if everything OK with URDF string
   if (urdf.empty())
   {
     throw std::runtime_error("empty URDF passed to robot");

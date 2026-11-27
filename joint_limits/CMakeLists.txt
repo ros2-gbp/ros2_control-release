@@ -24,7 +24,6 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
 endforeach()
 
 add_library(joint_limits INTERFACE)
-target_compile_features(joint_limits INTERFACE cxx_std_17)
 target_include_directories(joint_limits INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/joint_limits>
@@ -39,7 +38,6 @@ target_link_libraries(joint_limits INTERFACE
 add_library(joint_limiter_interface SHARED
   src/joint_limiter_interface.cpp
 )
-target_compile_features(joint_limiter_interface PUBLIC cxx_std_17)
 target_include_directories(joint_limiter_interface PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/joint_limits>
@@ -52,7 +50,6 @@ target_link_libraries(joint_limiter_interface PUBLIC
 add_library(joint_limits_helpers SHARED
   src/joint_limits_helpers.cpp
 )
-target_compile_features(joint_limits_helpers PUBLIC cxx_std_17)
 target_include_directories(joint_limits_helpers PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/joint_limits>
@@ -64,7 +61,6 @@ add_library(joint_saturation_limiter SHARED
   src/joint_range_limiter.cpp
   src/joint_soft_limiter.cpp
 )
-target_compile_features(joint_saturation_limiter PUBLIC cxx_std_17)
 target_include_directories(joint_saturation_limiter PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/joint_limits>

@@ -888,7 +888,7 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_system_robot_with_gpio
     hardware_info.hardware_plugin_name, "ros2_control_demo_hardware/RRBotSystemWithGPIOHardware");
 
   ASSERT_FALSE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.thread_priority, std::numeric_limits<int>::max());
+  ASSERT_EQ(hardware_info.async_params.thread_priority, std::numeric_limits<int>::max());
   ASSERT_THAT(hardware_info.joints, SizeIs(2));
 
   EXPECT_EQ(hardware_info.joints[0].name, "joint1");
@@ -960,7 +960,7 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_system_with_size_and_d
   ASSERT_THAT(hardware_info.joints, SizeIs(1));
 
   ASSERT_FALSE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.thread_priority, std::numeric_limits<int>::max());
+  ASSERT_EQ(hardware_info.async_params.thread_priority, std::numeric_limits<int>::max());
   EXPECT_EQ(hardware_info.joints[0].name, "joint1");
   EXPECT_EQ(hardware_info.joints[0].type, "joint");
   EXPECT_THAT(hardware_info.joints[0].command_interfaces, SizeIs(1));
@@ -1010,7 +1010,7 @@ TEST_F(
 
   ASSERT_THAT(hardware_info.joints, SizeIs(1));
   ASSERT_FALSE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.thread_priority, std::numeric_limits<int>::max());
+  ASSERT_EQ(hardware_info.async_params.thread_priority, std::numeric_limits<int>::max());
   EXPECT_EQ(hardware_info.joints[0].name, "joint1");
   EXPECT_EQ(hardware_info.joints[0].type, "joint");
   EXPECT_THAT(hardware_info.joints[0].command_interfaces, SizeIs(2));
@@ -1446,7 +1446,6 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_async_components)
   ASSERT_THAT(hardware_info.group, IsEmpty());
   ASSERT_THAT(hardware_info.joints, SizeIs(1));
   ASSERT_TRUE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.thread_priority, 30);
   ASSERT_EQ(hardware_info.async_params.thread_priority, 30);
   ASSERT_EQ(hardware_info.async_params.scheduling_policy, "detached");
   ASSERT_FALSE(hardware_info.async_params.print_warnings);
@@ -1466,7 +1465,6 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_async_components)
   ASSERT_THAT(hardware_info.joints, IsEmpty());
   ASSERT_THAT(hardware_info.sensors, SizeIs(1));
   ASSERT_TRUE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.thread_priority, 50);
   ASSERT_EQ(hardware_info.async_params.thread_priority, 50);
   ASSERT_EQ(hardware_info.async_params.scheduling_policy, "synchronized");
   ASSERT_TRUE(hardware_info.async_params.print_warnings);
@@ -1494,7 +1492,6 @@ TEST_F(TestComponentParser, successfully_parse_valid_urdf_async_components)
   EXPECT_EQ(hardware_info.gpios[0].name, "configuration");
   EXPECT_EQ(hardware_info.gpios[0].type, "gpio");
   ASSERT_TRUE(hardware_info.is_async);
-  ASSERT_EQ(hardware_info.thread_priority, 70);
   ASSERT_EQ(hardware_info.async_params.thread_priority, 70);
   ASSERT_EQ(hardware_info.async_params.scheduling_policy, "synchronized");
   ASSERT_EQ(1u, hardware_info.async_params.cpu_affinity_cores.size());
@@ -2039,6 +2036,62 @@ TEST_F(TestComponentParser, successfully_parse_valid_sdf)
   ASSERT_THAT(hardware_info.joints[1].state_interfaces, SizeIs(2));
   EXPECT_EQ(hardware_info.joints[1].state_interfaces[0].name, HW_IF_VELOCITY);
   EXPECT_EQ(hardware_info.joints[1].state_interfaces[1].name, HW_IF_POSITION);
+}
+
+TEST_F(TestComponentParser, successfully_parse_urdf_with_int64_and_uint64_data_types)
+{
+  const std::string urdf_to_test = std::string(ros2_control_test_assets::urdf_head) +
+                                   R"(
+  <ros2_control name="RRBotWith64BitInterfaces" type="system">
+    <hardware>
+      <plugin>some_plugin</plugin>
+    </hardware>
+    <gpio name="flange_io">
+      <command_interface name="request_id" data_type="uint64">
+        <param name="initial_value">9007199254740993</param>
+      </command_interface>
+      <command_interface name="offset_ns" data_type="int64">
+        <param name="initial_value">-9223372036854775808</param>
+      </command_interface>
+      <state_interface name="applied_id" data_type="uint64"/>
+      <state_interface name="stamp_ns" data_type="int64"/>
+    </gpio>
+  </ros2_control>
+)" + ros2_control_test_assets::urdf_tail;
+  const auto control_hardware = parse_control_resources_from_urdf(urdf_to_test);
+  ASSERT_THAT(control_hardware, SizeIs(1));
+  const auto & gpio = control_hardware.front().gpios;
+  ASSERT_THAT(gpio, SizeIs(1));
+  ASSERT_THAT(gpio[0].command_interfaces, SizeIs(2));
+  ASSERT_THAT(gpio[0].state_interfaces, SizeIs(2));
+  EXPECT_EQ(gpio[0].command_interfaces[0].data_type, "uint64");
+  EXPECT_EQ(gpio[0].command_interfaces[0].initial_value, "9007199254740993");
+  EXPECT_EQ(gpio[0].command_interfaces[1].data_type, "int64");
+  EXPECT_EQ(gpio[0].command_interfaces[1].initial_value, "-9223372036854775808");
+  EXPECT_EQ(gpio[0].state_interfaces[0].data_type, "uint64");
+  EXPECT_EQ(gpio[0].state_interfaces[1].data_type, "int64");
+
+  hardware_interface::CommandInterface uint64_cmd_itf(
+    hardware_interface::InterfaceDescription(gpio[0].name, gpio[0].command_interfaces[0]));
+  ASSERT_EQ(hardware_interface::HandleDataType::UINT64, uint64_cmd_itf.get_data_type());
+  EXPECT_EQ(uint64_cmd_itf.get_optional<uint64_t>().value(), 9007199254740993ULL);
+
+  hardware_interface::CommandInterface int64_cmd_itf(
+    hardware_interface::InterfaceDescription(gpio[0].name, gpio[0].command_interfaces[1]));
+  ASSERT_EQ(hardware_interface::HandleDataType::INT64, int64_cmd_itf.get_data_type());
+  EXPECT_EQ(int64_cmd_itf.get_optional<int64_t>().value(), std::numeric_limits<int64_t>::min());
+
+  // An interface without initial_value starts at the maximum of its type.
+  hardware_interface::StateInterface uint64_state_itf(
+    hardware_interface::InterfaceDescription(gpio[0].name, gpio[0].state_interfaces[0]));
+  ASSERT_EQ(hardware_interface::HandleDataType::UINT64, uint64_state_itf.get_data_type());
+  EXPECT_EQ(
+    uint64_state_itf.get_optional<uint64_t>().value(), std::numeric_limits<uint64_t>::max());
+
+  hardware_interface::StateInterface int64_state_itf(
+    hardware_interface::InterfaceDescription(gpio[0].name, gpio[0].state_interfaces[1]));
+  ASSERT_EQ(hardware_interface::HandleDataType::INT64, int64_state_itf.get_data_type());
+  EXPECT_EQ(int64_state_itf.get_optional<int64_t>().value(), std::numeric_limits<int64_t>::max());
 }
 
 TEST_F(TestComponentParser, missing_hardware_plugin_tag_includes_component_name)

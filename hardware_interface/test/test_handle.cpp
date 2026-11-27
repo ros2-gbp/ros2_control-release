@@ -39,62 +39,13 @@ constexpr auto JOINT_NAME = "joint_1";
 constexpr auto FOO_INTERFACE = "FooInterface";
 }  // namespace
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-TEST(TestHandle, command_interface)
-{
-  double value = 1.337;
-  CommandInterface interface{JOINT_NAME, FOO_INTERFACE, &value};
-  EXPECT_DOUBLE_EQ(interface.get_optional().value(), value);
-  ASSERT_TRUE(interface.get_optional().has_value());
-  EXPECT_DOUBLE_EQ(interface.get_optional().value(), value);
-  EXPECT_DOUBLE_EQ(interface.get_optional().value(), value);
-  EXPECT_NO_THROW({ std::ignore = interface.set_value(0.0); });
-  ASSERT_TRUE(interface.get_optional().has_value());
-  EXPECT_DOUBLE_EQ(interface.get_optional().value(), 0.0);
-}
-#pragma GCC diagnostic pop
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-TEST(TestHandle, state_interface)
-{
-  double value = 1.337;
-  StateInterface interface{JOINT_NAME, FOO_INTERFACE, &value};
-  ASSERT_TRUE(interface.get_optional().has_value());
-  EXPECT_DOUBLE_EQ(interface.get_optional().value(), value);
-  // interface.set_value(5);  compiler error, no set_value function
-}
-#pragma GCC diagnostic pop
-
 TEST(TestHandle, name_getters_work)
 {
-  StateInterface handle{JOINT_NAME, FOO_INTERFACE, nullptr};
+  StateInterface handle{JOINT_NAME, FOO_INTERFACE};
   EXPECT_EQ(handle.get_name(), std::string(JOINT_NAME) + "/" + std::string(FOO_INTERFACE));
   EXPECT_EQ(handle.get_interface_name(), FOO_INTERFACE);
   EXPECT_EQ(handle.get_prefix_name(), JOINT_NAME);
 }
-
-TEST(TestHandle, value_methods_throw_for_nullptr)
-{
-  CommandInterface handle{JOINT_NAME, FOO_INTERFACE, nullptr};
-  EXPECT_ANY_THROW(handle.get_optional().value());
-  EXPECT_ANY_THROW(std::ignore = handle.set_value(0.0));
-}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-TEST(TestHandle, value_methods_work_on_non_nullptr)
-{
-  double value = 1.337;
-  CommandInterface handle{JOINT_NAME, FOO_INTERFACE, &value};
-  ASSERT_TRUE(handle.get_optional().has_value());
-  EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-  EXPECT_NO_THROW({ std::ignore = handle.set_value(0.0); });
-  ASSERT_TRUE(handle.get_optional().has_value());
-  EXPECT_DOUBLE_EQ(handle.get_optional().value(), 0.0);
-}
-#pragma GCC diagnostic pop
 
 TEST(TestHandle, test_command_interface_limiter_on_set)
 {
@@ -190,6 +141,49 @@ TEST(TestHandle, test_command_interface_limiter_on_set_different_threads)
   done = true;
   checking_thread.join();
   EXPECT_DOUBLE_EQ(handle.get_optional().value(), 100.0);
+}
+
+// Regression test for https://github.com/ros-controls/ros2_control/issues/3618
+// The limiter writes the is_limited flag outside the handle mutex, so concurrent readers (the
+// introspection sampler, is_limited()) race with it. Only detectable when built with
+// ThreadSanitizer.
+TEST(TestHandle, test_command_interface_is_limited_read_while_limiting_different_threads)
+{
+  InterfaceInfo info;
+  info.name = "position";
+  CommandInterface handle{InterfaceDescription("joint1", info)};
+  handle.set_on_set_command_limiter(
+    [](double value, bool & is_limited) -> double
+    {
+      is_limited = std::abs(value) > 100.0;
+      return is_limited ? std::copysign(100.0, value) : value;
+    });
+
+  std::atomic_bool done(false);
+  std::atomic_size_t limited_reads(0);
+  std::thread checking_thread(
+    [&handle, &done, &limited_reads]()
+    {
+      while (!done)
+      {
+        if (handle.is_limited())
+        {
+          ++limited_reads;
+        }
+      }
+    });
+  for (int i = 0; i < 10000; i++)
+  {
+    std::ignore = handle.set_limited_value(i % 2 == 0 ? 50.0 : 150.0);
+  }
+  done = true;
+  checking_thread.join();
+  EXPECT_LE(limited_reads.load(), std::numeric_limits<size_t>::max());
+
+  ASSERT_TRUE(handle.set_limited_value(150.0));
+  EXPECT_TRUE(handle.is_limited());
+  ASSERT_TRUE(handle.set_limited_value(50.0));
+  EXPECT_FALSE(handle.is_limited());
 }
 
 TEST(TestHandle, interface_description_state_interface_name_getters_work)
@@ -536,6 +530,76 @@ TEST(TestHandle, interface_description_int32_data_type)
   ASSERT_THROW({ std::ignore = handle.get_optional<double>(); }, std::runtime_error);
 }
 
+TEST(TestHandle, interface_description_uint64_data_type)
+{
+  const std::string collision_interface = "collision";
+  const std::string itf_name = "joint1";
+  InterfaceInfo info;
+  info.name = collision_interface;
+  info.data_type = "uint64";
+  InterfaceDescription interface_descr(itf_name, info);
+  StateInterface handle{interface_descr};
+
+  ASSERT_EQ(hardware_interface::HandleDataType::UINT64, interface_descr.get_data_type());
+  ASSERT_EQ(hardware_interface::HandleDataType::UINT64, handle.get_data_type());
+  EXPECT_EQ(handle.get_data_type().to_string(), "uint64");
+  EXPECT_EQ(handle.get_name(), itf_name + "/" + collision_interface);
+  EXPECT_EQ(handle.get_interface_name(), collision_interface);
+  EXPECT_EQ(handle.get_prefix_name(), itf_name);
+  EXPECT_NO_THROW({ std::ignore = handle.get_optional<uint64_t>(); });
+  ASSERT_EQ(handle.get_optional<uint64_t>().value(), std::numeric_limits<uint64_t>::max());
+  // 2^53 + 1 is the first integer a double cannot hold, so it must round-trip exactly.
+  const uint64_t above_double_precision = (1ULL << 53) + 1;
+  EXPECT_NO_THROW({ std::ignore = handle.set_value(above_double_precision); });
+  ASSERT_EQ(handle.get_optional<uint64_t>().value(), above_double_precision);
+  EXPECT_NO_THROW({ std::ignore = handle.set_value(std::numeric_limits<uint64_t>::max()); });
+  ASSERT_EQ(handle.get_optional<uint64_t>().value(), std::numeric_limits<uint64_t>::max());
+  EXPECT_NO_THROW({ std::ignore = handle.set_value(static_cast<uint64_t>(0)); });
+  ASSERT_EQ(handle.get_optional<uint64_t>().value(), 0u);
+
+  // Test the assertions
+  ASSERT_THROW({ std::ignore = handle.set_value(-1.0); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.set_value(static_cast<int64_t>(1)); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.set_value(static_cast<uint32_t>(1)); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.get_optional<uint32_t>(); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.get_optional<double>(); }, std::runtime_error);
+}
+
+TEST(TestHandle, interface_description_int64_data_type)
+{
+  const std::string collision_interface = "collision";
+  const std::string itf_name = "joint1";
+  InterfaceInfo info;
+  info.name = collision_interface;
+  info.data_type = "int64";
+  InterfaceDescription interface_descr(itf_name, info);
+  StateInterface handle{interface_descr};
+
+  ASSERT_EQ(hardware_interface::HandleDataType::INT64, interface_descr.get_data_type());
+  ASSERT_EQ(hardware_interface::HandleDataType::INT64, handle.get_data_type());
+  EXPECT_EQ(handle.get_data_type().to_string(), "int64");
+  EXPECT_EQ(handle.get_name(), itf_name + "/" + collision_interface);
+  EXPECT_EQ(handle.get_interface_name(), collision_interface);
+  EXPECT_EQ(handle.get_prefix_name(), itf_name);
+  EXPECT_NO_THROW({ std::ignore = handle.get_optional<int64_t>(); });
+  ASSERT_EQ(handle.get_optional<int64_t>().value(), std::numeric_limits<int64_t>::max());
+  // 2^53 + 1 is the first integer a double cannot hold, so it must round-trip exactly.
+  const int64_t above_double_precision = (1LL << 53) + 1;
+  EXPECT_NO_THROW({ std::ignore = handle.set_value(above_double_precision); });
+  ASSERT_EQ(handle.get_optional<int64_t>().value(), above_double_precision);
+  EXPECT_NO_THROW({ std::ignore = handle.set_value(-above_double_precision); });
+  ASSERT_EQ(handle.get_optional<int64_t>().value(), -above_double_precision);
+  EXPECT_NO_THROW({ std::ignore = handle.set_value(std::numeric_limits<int64_t>::min()); });
+  ASSERT_EQ(handle.get_optional<int64_t>().value(), std::numeric_limits<int64_t>::min());
+
+  // Test the assertions
+  ASSERT_THROW({ std::ignore = handle.set_value(-1.0); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.set_value(static_cast<uint64_t>(1)); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.set_value(static_cast<int32_t>(1)); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.get_optional<int32_t>(); }, std::runtime_error);
+  ASSERT_THROW({ std::ignore = handle.get_optional<double>(); }, std::runtime_error);
+}
+
 TEST(TestHandle, interface_description_double_data_type)
 {
   const std::string collision_interface = "collision";
@@ -612,111 +676,6 @@ TEST(TestHandle, interface_description_command_interface_name_getters_work)
   EXPECT_EQ(handle.get_interface_name(), POSITION_INTERFACE);
   EXPECT_EQ(handle.get_prefix_name(), JOINT_NAME_1);
 }
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-TEST(TestHandle, copy_constructor)
-{
-  {
-    double value = 1.337;
-    hardware_interface::Handle handle{JOINT_NAME, FOO_INTERFACE, &value};
-    hardware_interface::Handle copy(handle);
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), value);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-    ASSERT_TRUE(copy.set_value(0.0));
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), 0.0);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), 0.0);
-  }
-  {
-    double value = 1.337;
-    InterfaceInfo info;
-    info.name = FOO_INTERFACE;
-    info.data_type = "double";
-    InterfaceDescription itf_descr{JOINT_NAME, info};
-    hardware_interface::Handle handle{itf_descr};
-    EXPECT_TRUE(std::isnan(handle.get_optional().value()));
-    ASSERT_TRUE(handle.set_value(value));
-    hardware_interface::Handle copy(handle);
-    EXPECT_EQ(copy.get_name(), handle.get_name());
-    EXPECT_EQ(copy.get_interface_name(), handle.get_interface_name());
-    EXPECT_EQ(copy.get_prefix_name(), handle.get_prefix_name());
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), value);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-    ASSERT_TRUE(copy.set_value(0.0));
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), 0.0);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-    ASSERT_TRUE(copy.set_value(0.52));
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), 0.52);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-  }
-}
-
-TEST(TesHandle, move_constructor)
-{
-  double value = 1.337;
-  hardware_interface::Handle handle{JOINT_NAME, FOO_INTERFACE, &value};
-  hardware_interface::Handle moved{std::move(handle)};
-  EXPECT_DOUBLE_EQ(moved.get_optional().value(), value);
-  ASSERT_TRUE(moved.set_value(0.0));
-  EXPECT_DOUBLE_EQ(moved.get_optional().value(), 0.0);
-}
-
-TEST(TestHandle, copy_assignment)
-{
-  {
-    double value_1 = 1.337;
-    double value_2 = 2.337;
-    hardware_interface::Handle handle{JOINT_NAME, FOO_INTERFACE, &value_1};
-    hardware_interface::Handle copy{JOINT_NAME, "random", &value_2};
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), value_2);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value_1);
-    copy = handle;
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), value_1);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value_1);
-    ASSERT_TRUE(copy.set_value(0.0));
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), 0.0);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), 0.0);
-    EXPECT_DOUBLE_EQ(value_1, 0.0);
-    EXPECT_DOUBLE_EQ(value_2, 2.337);
-  }
-
-  {
-    double value = 1.337;
-    InterfaceInfo info;
-    info.name = FOO_INTERFACE;
-    info.data_type = "double";
-    InterfaceDescription itf_descr{JOINT_NAME, info};
-    hardware_interface::Handle handle{itf_descr};
-    EXPECT_TRUE(std::isnan(handle.get_optional().value()));
-    ASSERT_TRUE(handle.set_value(value));
-    hardware_interface::Handle copy = handle;
-    EXPECT_EQ(copy.get_name(), handle.get_name());
-    EXPECT_EQ(copy.get_interface_name(), handle.get_interface_name());
-    EXPECT_EQ(copy.get_prefix_name(), handle.get_prefix_name());
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), value);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-    ASSERT_TRUE(copy.set_value(0.0));
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), 0.0);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-    ASSERT_TRUE(copy.set_value(0.52));
-    EXPECT_DOUBLE_EQ(copy.get_optional().value(), 0.52);
-    EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-  }
-}
-
-TEST(TestHandle, move_assignment)
-{
-  double value = 1.337;
-  double value_2 = 2.337;
-  hardware_interface::Handle handle{JOINT_NAME, FOO_INTERFACE, &value};
-  hardware_interface::Handle moved{JOINT_NAME, "random", &value_2};
-  EXPECT_DOUBLE_EQ(moved.get_optional().value(), value_2);
-  EXPECT_DOUBLE_EQ(handle.get_optional().value(), value);
-  moved = std::move(handle);
-  EXPECT_DOUBLE_EQ(moved.get_optional().value(), value);
-  ASSERT_TRUE(moved.set_value(0.0));
-  EXPECT_DOUBLE_EQ(moved.get_optional().value(), 0.0);
-}
-#pragma GCC diagnostic pop
 
 class TestableHandle : public hardware_interface::Handle
 {
@@ -815,6 +774,27 @@ TEST(TestHandle, handle_castable)
     EXPECT_EQ(handle.data_type_.cast_to_double(handle.value_), -1000000000.0);
   }
   {
+    // 64-bit integers are not castable, as a double cannot hold every value exactly.
+    info.data_type = "uint64";
+    info.initial_value = "9007199254740993";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    TestableHandle handle{interface_description};
+
+    EXPECT_TRUE(handle.is_valid());
+    EXPECT_FALSE(handle.is_castable_to_double());
+    EXPECT_THROW(handle.data_type_.cast_to_double(handle.value_), std::runtime_error);
+  }
+  {
+    info.data_type = "int64";
+    info.initial_value = "-9007199254740993";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    TestableHandle handle{interface_description};
+
+    EXPECT_TRUE(handle.is_valid());
+    EXPECT_FALSE(handle.is_castable_to_double());
+    EXPECT_THROW(handle.data_type_.cast_to_double(handle.value_), std::runtime_error);
+  }
+  {
     info.data_type = "bool";
     info.initial_value = "false";
     hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
@@ -890,6 +870,36 @@ TEST(TestHandle, handle_invalid_args)
     info.initial_value = "wrong_value";
     hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
     ASSERT_THROW(hardware_interface::Handle handle{interface_description}, std::invalid_argument);
+  }
+  {
+    info.data_type = "uint64";
+    info.initial_value = "wrong_value";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    ASSERT_THROW(hardware_interface::Handle handle{interface_description}, std::invalid_argument);
+  }
+  {
+    info.data_type = "uint64";
+    info.initial_value = "18446744073709551616";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    ASSERT_THROW(hardware_interface::Handle handle{interface_description}, std::out_of_range);
+  }
+  {
+    info.data_type = "uint64";
+    info.initial_value = "-1";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    ASSERT_THROW(hardware_interface::Handle handle{interface_description}, std::out_of_range);
+  }
+  {
+    info.data_type = "int64";
+    info.initial_value = "wrong_value";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    ASSERT_THROW(hardware_interface::Handle handle{interface_description}, std::invalid_argument);
+  }
+  {
+    info.data_type = "int64";
+    info.initial_value = "9223372036854775808";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    ASSERT_THROW(hardware_interface::Handle handle{interface_description}, std::out_of_range);
   }
   {
     info.data_type = "bool";
@@ -1024,6 +1034,40 @@ TEST(TestHandle, handle_getters)
     EXPECT_EQ(val, -1000000000);
     EXPECT_TRUE(handle.get_value(val, false));
     EXPECT_EQ(val, -1000000000);
+  }
+  {
+    info.data_type = "uint64";
+    info.initial_value = "18446744073709551615";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    hardware_interface::Handle handle{interface_description};
+
+    EXPECT_THROW({ std::ignore = handle.get_optional<bool>(); }, std::runtime_error);
+    EXPECT_NO_THROW({ std::ignore = handle.get_optional<uint64_t>(); });
+    EXPECT_EQ(handle.get_optional<uint64_t>().value(), std::numeric_limits<uint64_t>::max());
+    uint64_t val;
+    EXPECT_TRUE(handle.get_value(val, true));
+    EXPECT_EQ(val, std::numeric_limits<uint64_t>::max());
+    EXPECT_TRUE(handle.get_value(val, false));
+    EXPECT_EQ(val, std::numeric_limits<uint64_t>::max());
+    double double_val;
+    EXPECT_THROW({ std::ignore = handle.get_value(double_val, true); }, std::runtime_error);
+  }
+  {
+    info.data_type = "int64";
+    info.initial_value = "-9223372036854775808";
+    hardware_interface::InterfaceDescription interface_description{JOINT_NAME_1, info};
+    hardware_interface::Handle handle{interface_description};
+
+    EXPECT_THROW({ std::ignore = handle.get_optional<bool>(); }, std::runtime_error);
+    EXPECT_NO_THROW({ std::ignore = handle.get_optional<int64_t>(); });
+    EXPECT_EQ(handle.get_optional<int64_t>().value(), std::numeric_limits<int64_t>::min());
+    int64_t val;
+    EXPECT_TRUE(handle.get_value(val, true));
+    EXPECT_EQ(val, std::numeric_limits<int64_t>::min());
+    EXPECT_TRUE(handle.get_value(val, false));
+    EXPECT_EQ(val, std::numeric_limits<int64_t>::min());
+    double double_val;
+    EXPECT_THROW({ std::ignore = handle.get_value(double_val, true); }, std::runtime_error);
   }
   {
     info.data_type = "bool";

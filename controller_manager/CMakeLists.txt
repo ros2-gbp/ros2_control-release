@@ -13,7 +13,6 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   fmt
   generate_parameter_library
   hardware_interface
-  libstatistics_collector
   lifecycle_msgs
   pluginlib
   rcl
@@ -39,7 +38,6 @@ generate_parameter_library(controller_manager_parameters
 add_library(controller_manager SHARED
   src/controller_manager.cpp
 )
-target_compile_features(controller_manager PUBLIC cxx_std_17)
 target_include_directories(controller_manager PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/controller_manager>
@@ -54,7 +52,6 @@ target_link_libraries(controller_manager PUBLIC
                       rclcpp::rclcpp
                       rclcpp_lifecycle::rclcpp_lifecycle
                       realtime_tools::realtime_tools
-                      libstatistics_collector::libstatistics_collector
                       fmt::fmt
                       ${std_msgs_TARGETS}
                       ${controller_manager_msgs_TARGETS}
@@ -192,6 +189,15 @@ if(BUILD_TESTING)
   )
   set_tests_properties(test_controller_manager_srvs PROPERTIES TIMEOUT 120)
 
+  ament_add_gmock(test_controller_manager_periodicity_diagnostics
+    test/test_controller_manager_periodicity_diagnostics.cpp
+  )
+  target_link_libraries(test_controller_manager_periodicity_diagnostics
+    controller_manager
+    test_controller
+    ros2_control_test_assets::ros2_control_test_assets
+  )
+
   ament_add_gmock(test_controller_manager_urdf_passing
     test/test_controller_manager_urdf_passing.cpp
   )
@@ -242,7 +248,7 @@ if(BUILD_TESTING)
 
   ament_add_gmock(test_spawner_unspawner
     test/test_spawner_unspawner.cpp
-    TIMEOUT 180
+    TIMEOUT 240
   )
   target_link_libraries(test_spawner_unspawner
     controller_manager

@@ -166,6 +166,9 @@ hardware_synchronization.expect_blocking_read_write (optional; bool; default: fa
   If true, the controller manager will not sleep actively. Use this, when there is a hardware
   interface running that will block during its read or write operation until receiving new data
   from the hardware.
+  If a cycle didn't block while no hardware component is ``active`` (e.g., all failed to
+  configure, or are ``inactive`` and block only in ``write``, which isn't called then), the loop
+  falls back to sleeping periodically at ``update_rate`` without warning.
 
 hardware_synchronization.minimum_cycle_time (optional; double; default: 0.0001)
   The minimum sleep time in seconds for the control node's real-time loop. This is used to
@@ -264,7 +267,7 @@ There are two scripts to interact with controller manager from launch files:
 .. code-block:: console
 
     $ ros2 run controller_manager spawner -h
-    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--inactive] [-u] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT] [--switch-timeout SWITCH_TIMEOUT] [--service-call-timeout SERVICE_CALL_TIMEOUT] [--activate-as-group] [--switch-asap | --no-switch-asap] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_names [controller_names ...]
+    usage: spawner [-h] [-c CONTROLLER_MANAGER] [-p PARAM_FILE] [--load-only] [--inactive] [--reconfigure] [-u] [--controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT] [--switch-timeout SWITCH_TIMEOUT] [--service-call-timeout SERVICE_CALL_TIMEOUT] [--activate-as-group] [--switch-asap | --no-switch-asap] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_names [controller_names ...]
 
     positional arguments:
       controller_names      List of controllers
@@ -277,6 +280,7 @@ There are two scripts to interact with controller manager from launch files:
                             Controller param file to be loaded into controller node before configure. Pass multiple times to load different files for different controllers or to override the parameters of the same controller.
       --load-only           Only load the controller and leave unconfigured.
       --inactive            Load and configure the controller, however do not activate them
+      --reconfigure         Cleanup and configure the controller again
       -u, --unload-on-kill  Wait until this application is interrupted (SIGINT or SIGTERM) and deactivate/unload controllers
       --controller-manager-timeout CONTROLLER_MANAGER_TIMEOUT
                             Time to wait for the controller manager service to be available
@@ -368,7 +372,7 @@ The ``spawner`` now supports per controller arguments, while parsing the argumen
       -h, --help            Show help
 
     Controller Options:
-    usage: spawner [-p PARAM_FILE] [--load-only] [--inactive] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_name
+    usage: spawner [-p PARAM_FILE] [--load-only] [--inactive] [--reconfigure] [--controller-ros-args CONTROLLER_ROS_ARGS] controller_name
 
     positional arguments:
       controller_name       Name of the controller
@@ -378,6 +382,7 @@ The ``spawner`` now supports per controller arguments, while parsing the argumen
                             Parameter files to load for the controller
       --load-only           Load the controller but do not configure/activate it
       --inactive            Configure the controller but do not switch it
+      --reconfigure         Cleanup and configure the controller again
       --controller-ros-args CONTROLLER_ROS_ARGS
                             ROS arguments to pass to the controller
 

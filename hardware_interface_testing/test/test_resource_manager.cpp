@@ -936,6 +936,37 @@ TEST_F(ResourceManagerTest, lifecycle_individual_resources)
   }
 }
 
+TEST_F(ResourceManagerTest, has_active_components)
+{
+  TestableResourceManager empty_rm(node_);
+  EXPECT_FALSE(empty_rm.has_active_components());
+
+  TestableResourceManager rm(node_, ros2_control_test_assets::minimal_robot_urdf);
+  // all components start UNCONFIGURED
+  EXPECT_FALSE(rm.has_active_components());
+
+  using lifecycle_msgs::msg::State;
+  namespace names = hardware_interface::lifecycle_state_names;
+  ASSERT_THAT(
+    set_components_state(
+      rm, {TEST_SENSOR_HARDWARE_NAME}, State::PRIMARY_STATE_INACTIVE, names::INACTIVE),
+    ::testing::Each(hardware_interface::return_type::OK));
+  // write() is not called while INACTIVE, so an INACTIVE component does not count
+  EXPECT_FALSE(rm.has_active_components());
+
+  ASSERT_THAT(
+    set_components_state(
+      rm, {TEST_SENSOR_HARDWARE_NAME}, State::PRIMARY_STATE_ACTIVE, names::ACTIVE),
+    ::testing::Each(hardware_interface::return_type::OK));
+  EXPECT_TRUE(rm.has_active_components());
+
+  ASSERT_THAT(
+    set_components_state(
+      rm, {TEST_SENSOR_HARDWARE_NAME}, State::PRIMARY_STATE_INACTIVE, names::INACTIVE),
+    ::testing::Each(hardware_interface::return_type::OK));
+  EXPECT_FALSE(rm.has_active_components());
+}
+
 TEST_F(ResourceManagerTest, resource_availability_and_claiming_in_lifecycle)
 {
   using std::placeholders::_1;
@@ -1297,13 +1328,14 @@ TEST_F(ResourceManagerTest, managing_controllers_reference_interfaces)
     CONTROLLER_NAME + "/" + REFERENCE_INTERFACE_NAMES[2]};
 
   std::vector<hardware_interface::CommandInterface::SharedPtr> reference_interfaces;
-  std::vector<double> reference_interface_values = {1.0, 2.0, 3.0};
+  const std::vector<double> reference_interface_values = {1.0, 2.0, 3.0};
 
   for (size_t i = 0; i < REFERENCE_INTERFACE_NAMES.size(); ++i)
   {
-    reference_interfaces.push_back(
-      std::make_shared<hardware_interface::CommandInterface>(
-        CONTROLLER_NAME, REFERENCE_INTERFACE_NAMES[i], &(reference_interface_values[i])));
+    auto itf = std::make_shared<hardware_interface::CommandInterface>(
+      CONTROLLER_NAME, REFERENCE_INTERFACE_NAMES[i]);
+    std::ignore = itf->set_value(reference_interface_values[i]);
+    reference_interfaces.push_back(itf);
   }
 
   rm.import_controller_reference_interfaces(CONTROLLER_NAME, reference_interfaces);
@@ -1356,9 +1388,9 @@ TEST_F(ResourceManagerTest, managing_controllers_reference_interfaces)
     EXPECT_EQ(claimed_itf1.get_optional().value(), 11.1);
     EXPECT_EQ(claimed_itf3.get_optional().value(), 33.3);
 
-    EXPECT_EQ(reference_interface_values[0], 11.1);
-    EXPECT_EQ(reference_interface_values[1], 2.0);
-    EXPECT_EQ(reference_interface_values[2], 33.3);
+    EXPECT_EQ(reference_interfaces[0]->get_optional().value(), 11.1);
+    EXPECT_EQ(reference_interfaces[1]->get_optional().value(), 2.0);
+    EXPECT_EQ(reference_interfaces[2]->get_optional().value(), 33.3);
   }
 
   // interfaces should be released now, but still managed by resource manager
@@ -1383,9 +1415,9 @@ TEST_F(ResourceManagerTest, managing_controllers_reference_interfaces)
     rm.make_controller_reference_interfaces_unavailable("unknown_controller"), std::out_of_range);
 
   // Last written values should stay
-  EXPECT_EQ(reference_interface_values[0], 11.1);
-  EXPECT_EQ(reference_interface_values[1], 2.0);
-  EXPECT_EQ(reference_interface_values[2], 33.3);
+  EXPECT_EQ(reference_interfaces[0]->get_optional().value(), 11.1);
+  EXPECT_EQ(reference_interfaces[1]->get_optional().value(), 2.0);
+  EXPECT_EQ(reference_interfaces[2]->get_optional().value(), 33.3);
 
   // DUPLICATE PREVENTION TEST
 
@@ -1447,13 +1479,14 @@ TEST_F(ResourceManagerTest, managing_controllers_state_interfaces)
     CONTROLLER_NAME + "/" + STATE_INTERFACE_NAMES[2]};
 
   std::vector<hardware_interface::StateInterface::ConstSharedPtr> state_interfaces;
-  std::vector<double> state_interface_values = {1.0, 2.0, 3.0};
+  const std::vector<double> state_interface_values = {1.0, 2.0, 3.0};
 
   for (size_t i = 0; i < STATE_INTERFACE_NAMES.size(); ++i)
   {
-    state_interfaces.push_back(
-      std::make_shared<hardware_interface::StateInterface>(
-        CONTROLLER_NAME, STATE_INTERFACE_NAMES[i], &state_interface_values[i]));
+    auto itf = std::make_shared<hardware_interface::StateInterface>(
+      CONTROLLER_NAME, STATE_INTERFACE_NAMES[i]);
+    std::ignore = itf->set_value(state_interface_values[i]);
+    state_interfaces.push_back(itf);
   }
 
   rm.import_controller_exported_state_interfaces(CONTROLLER_NAME, state_interfaces);
@@ -2119,7 +2152,9 @@ public:
         auto status_map = rm->get_components_status();
         auto check_periodicity = [&](const std::string & component_name, unsigned int rate)
         {
-          if (i > (cm_update_rate_ / rate))
+          // async cycle periods are reported on the trigger after the cycle ran, so wait one more
+          // cycle before the first measurement is available
+          if (i > 2 * (cm_update_rate_ / rate))
           {
             const double expec_read_execution_time = (1.e6 / (3 * rate)) + 200.0;
             const double expec_write_execution_time = (1.e6 / (6 * rate)) + 200.0;
@@ -3068,6 +3103,131 @@ TEST_F(ResourceManagerTest, async_hardware_no_pure_virtual_call_on_destroy)
   // Drop the ResourceManager without calling shutdown_components() first.
   // Before the fix this races with the async thread and crashes with "pure virtual method called".
   EXPECT_NO_FATAL_FAILURE(rm.reset());
+}
+
+// When the async cycle overruns every period, the hardware effectively runs at half its rw_rate.
+// The periodicity statistics must report that real rate, not the rate the RM triggers it at.
+void check_async_overrun_periodicity(rclcpp::Node & node, const std::string & scheduling_policy)
+{
+  const std::string urdf = std::string(ros2_control_test_assets::urdf_head) + R"(
+  <ros2_control name="TestActuatorHardware" type="actuator" rw_rate="100" is_async="true">
+    <hardware>
+      <plugin>test_actuator</plugin>
+      <param name="async_read_sleep_us">15000</param>
+    </hardware>
+    <properties><async scheduling_policy=")" +
+                           scheduling_policy + R"("/></properties>
+    <joint name="joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <command_interface name="max_velocity" />
+    </joint>
+  </ros2_control>
+)" + std::string(ros2_control_test_assets::urdf_tail);
+
+  TestableResourceManager rm(node, urdf, false);
+  activate_components(rm);
+
+  const rclcpp::Duration period = rclcpp::Duration::from_seconds(0.01);  // RM runs at 100 Hz
+  auto time = node.get_clock()->now();
+  for (size_t i = 0; i < 100; i++)
+  {
+    rm.read(time, period);
+    rm.write(time, period);
+    node.get_clock()->sleep_until(time + period);
+    time = node.get_clock()->now();
+  }
+
+  auto status_map = rm.get_components_status();
+  const auto read_stats =
+    status_map[TEST_ACTUATOR_HARDWARE_NAME].read_statistics->periodicity.get_statistics();
+  const auto write_stats =
+    status_map[TEST_ACTUATOR_HARDWARE_NAME].write_statistics->periodicity.get_statistics();
+  // 15 ms read cycle at 100 Hz rw_rate -> the hardware really cycles at 50 Hz
+  EXPECT_NEAR(read_stats.average, 50.0, 10.0);
+  EXPECT_NEAR(write_stats.average, 50.0, 10.0);
+}
+
+TEST_F(ResourceManagerTest, async_synchronized_overrun_is_reflected_in_periodicity)
+{
+  check_async_overrun_periodicity(node_, "synchronized");
+}
+
+TEST_F(ResourceManagerTest, async_detached_overrun_is_reflected_in_periodicity)
+{
+  check_async_overrun_periodicity(node_, "detached");
+}
+
+void check_async_period_pending_before_pause_is_dropped(
+  rclcpp::Node & node, const std::string & scheduling_policy)
+{
+  const std::string urdf = std::string(ros2_control_test_assets::urdf_head) + R"(
+  <ros2_control name="TestActuatorHardware" type="actuator" rw_rate="100" is_async="true">
+    <hardware>
+      <plugin>test_actuator</plugin>
+    </hardware>
+    <properties><async scheduling_policy=")" +
+                           scheduling_policy + R"("/></properties>
+    <joint name="joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <command_interface name="max_velocity" />
+    </joint>
+  </ros2_control>
+)" + std::string(ros2_control_test_assets::urdf_tail);
+
+  TestableResourceManager rm(node, urdf, false);
+  activate_components(rm);
+
+  const rclcpp::Duration period = rclcpp::Duration::from_seconds(0.01);
+  const rclcpp::Duration wait_for_async_cycle = rclcpp::Duration::from_seconds(0.05);
+  // two cycles 200 ms apart leave a 5 Hz period pending, which is never consumed before the pause
+  auto time = node.get_clock()->now();
+  rm.read(time, period);
+  rm.write(time, period);
+  node.get_clock()->sleep_until(time + rclcpp::Duration::from_seconds(0.2));
+  time = node.get_clock()->now();
+  rm.read(time, period);
+  rm.write(time, period);
+  node.get_clock()->sleep_until(time + wait_for_async_cycle);
+
+  rclcpp_lifecycle::State state_inactive(
+    lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
+    hardware_interface::lifecycle_state_names::INACTIVE);
+  rclcpp_lifecycle::State state_active(
+    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
+    hardware_interface::lifecycle_state_names::ACTIVE);
+  ASSERT_EQ(
+    rm.set_component_state(TEST_ACTUATOR_HARDWARE_NAME, state_inactive),
+    hardware_interface::return_type::OK);
+  ASSERT_EQ(
+    rm.set_component_state(TEST_ACTUATOR_HARDWARE_NAME, state_active),
+    hardware_interface::return_type::OK);
+
+  time = node.get_clock()->now();
+  for (size_t i = 0; i < 20; i++)
+  {
+    rm.read(time, period);
+    rm.write(time, period);
+    node.get_clock()->sleep_until(time + period);
+    time = node.get_clock()->now();
+  }
+
+  auto status_map = rm.get_components_status();
+  const auto read_stats =
+    status_map[TEST_ACTUATOR_HARDWARE_NAME].read_statistics->periodicity.get_statistics();
+  const auto write_stats =
+    status_map[TEST_ACTUATOR_HARDWARE_NAME].write_statistics->periodicity.get_statistics();
+  // only the ~100 Hz cycles executed after the activation may be part of the statistics
+  EXPECT_GT(read_stats.min, 50.0);
+  EXPECT_GT(write_stats.min, 50.0);
+}
+
+TEST_F(ResourceManagerTest, async_synchronized_period_pending_before_pause_is_dropped)
+{
+  check_async_period_pending_before_pause_is_dropped(node_, "synchronized");
 }
 
 int main(int argc, char ** argv)

@@ -44,6 +44,11 @@ HardwareComponent::HardwareComponent(HardwareComponent && other) noexcept
 {
   std::lock_guard<std::recursive_mutex> lock(other.component_mutex_);
   impl_ = std::move(other.impl_);
+  // Keep the same collectors: the resource manager shares them with the component's info (e.g.
+  // recent_periodicity) when loading, before the component may be moved by a vector reallocation.
+  // They are copied rather than moved so that the moved-from object keeps valid collectors.
+  read_statistics_ = other.read_statistics_;
+  write_statistics_ = other.write_statistics_;
   last_read_cycle_time_ = rclcpp::Time(0, 0, RCL_CLOCK_UNINITIALIZED);
   last_write_cycle_time_ = rclcpp::Time(0, 0, RCL_CLOCK_UNINITIALIZED);
 }
@@ -54,27 +59,6 @@ HardwareComponent::~HardwareComponent()
   {
     impl_->stop_async_handler();
   }
-}
-
-const rclcpp_lifecycle::State & HardwareComponent::initialize(
-  const HardwareInfo & hardware_info, rclcpp::Logger logger,
-  rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface)
-{
-  // This is done for backward compatibility with the old initialize method.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  return this->initialize(hardware_info, logger, clock_interface->get_clock());
-#pragma GCC diagnostic pop
-}
-
-const rclcpp_lifecycle::State & HardwareComponent::initialize(
-  const HardwareInfo & hardware_info, rclcpp::Logger logger, rclcpp::Clock::SharedPtr clock)
-{
-  hardware_interface::HardwareComponentParams params;
-  params.hardware_info = hardware_info;
-  params.logger = logger;
-  params.clock = clock;
-  return initialize(params);
 }
 
 const rclcpp_lifecycle::State & HardwareComponent::initialize(
@@ -271,63 +255,12 @@ const rclcpp_lifecycle::State & HardwareComponent::error()
 
 std::vector<StateInterface::ConstSharedPtr> HardwareComponent::export_state_interfaces()
 {
-// BEGIN (Handle export change): for backward compatibility, can be removed if
-// export_command_interfaces() method is removed
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  std::vector<StateInterface> interfaces = impl_->export_state_interfaces();
-#pragma GCC diagnostic pop
-  // END: for backward compatibility
-
-  // If no StateInterfaces has been exported, this could mean:
-  // a) there is nothing to export -> on_export_state_interfaces() does return nothing as well
-  // b) default implementation for export_state_interfaces() is used -> new functionality ->
-  // Framework exports and creates everything
-  if (interfaces.empty())
-  {
-    return impl_->on_export_state_interfaces();
-  }
-
-  // BEGIN (Handle export change): for backward compatibility, can be removed if
-  // export_command_interfaces() method is removed
-  std::vector<StateInterface::ConstSharedPtr> interface_ptrs;
-  interface_ptrs.reserve(interfaces.size());
-  for (auto const & interface : interfaces)
-  {
-    interface_ptrs.emplace_back(std::make_shared<const StateInterface>(interface));
-  }
-  return interface_ptrs;
-  // END: for backward compatibility
+  return impl_->on_export_state_interfaces();
 }
 
 std::vector<CommandInterface::SharedPtr> HardwareComponent::export_command_interfaces()
 {
-// BEGIN (Handle export change): for backward compatibility, can be removed if
-// export_command_interfaces() method is removed
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  std::vector<CommandInterface> interfaces = impl_->export_command_interfaces();
-#pragma GCC diagnostic pop
-  // END: for backward compatibility
-
-  // If no CommandInterface has been exported, this could mean:
-  // a) there is nothing to export -> on_export_command_interfaces() does return nothing as well
-  // b) default implementation for export_command_interfaces() is used -> new functionality ->
-  // Framework exports and creates everything
-  if (interfaces.empty())
-  {
-    return impl_->on_export_command_interfaces();
-  }
-  // BEGIN (Handle export change): for backward compatibility, can be removed if
-  // export_command_interfaces() method is removed
-  std::vector<CommandInterface::SharedPtr> interface_ptrs;
-  interface_ptrs.reserve(interfaces.size());
-  for (auto & interface : interfaces)
-  {
-    interface_ptrs.emplace_back(std::make_shared<CommandInterface>(std::move(interface)));
-  }
-  return interface_ptrs;
-  // END: for backward compatibility
+  return impl_->on_export_command_interfaces();
 }
 
 return_type HardwareComponent::prepare_command_mode_switch(
@@ -388,17 +321,23 @@ return_type HardwareComponent::read(const rclcpp::Time & time, const rclcpp::Dur
     {
       error();
     }
+    // periodicity of the cycles really executed; for async components the trigger rate would hide
+    // overruns
+    if (trigger_result.cycle_period.has_value())
+    {
+      const double periodicity =
+        1.e9 / static_cast<double>(trigger_result.cycle_period.value().count());
+      read_statistics_.periodicity->add_measurement(periodicity);
+      read_statistics_.recent_periodicity->add_measurement(periodicity, time.seconds());
+    }
     if (trigger_result.successful)
     {
       if (trigger_result.execution_time.has_value())
       {
-        read_statistics_.execution_time->add_measurement(
-          static_cast<double>(trigger_result.execution_time.value().count()) / 1.e3);
-      }
-      if (last_read_cycle_time_.get_clock_type() != RCL_CLOCK_UNINITIALIZED)
-      {
-        read_statistics_.periodicity->add_measurement(
-          1.0 / (time - last_read_cycle_time_).seconds());
+        const double execution_time =
+          static_cast<double>(trigger_result.execution_time.value().count()) / 1.e3;
+        read_statistics_.execution_time->add_measurement(execution_time);
+        read_statistics_.recent_execution_time->add_measurement(execution_time, time.seconds());
       }
       last_read_cycle_time_ = time;
     }
@@ -427,17 +366,23 @@ return_type HardwareComponent::write(const rclcpp::Time & time, const rclcpp::Du
     {
       error();
     }
+    // periodicity of the cycles really executed; for async components the trigger rate would hide
+    // overruns
+    if (trigger_result.cycle_period.has_value())
+    {
+      const double periodicity =
+        1.e9 / static_cast<double>(trigger_result.cycle_period.value().count());
+      write_statistics_.periodicity->add_measurement(periodicity);
+      write_statistics_.recent_periodicity->add_measurement(periodicity, time.seconds());
+    }
     if (trigger_result.successful)
     {
       if (trigger_result.execution_time.has_value())
       {
-        write_statistics_.execution_time->add_measurement(
-          static_cast<double>(trigger_result.execution_time.value().count()) / 1.e3);
-      }
-      if (last_write_cycle_time_.get_clock_type() != RCL_CLOCK_UNINITIALIZED)
-      {
-        write_statistics_.periodicity->add_measurement(
-          1.0 / (time - last_write_cycle_time_).seconds());
+        const double execution_time =
+          static_cast<double>(trigger_result.execution_time.value().count()) / 1.e3;
+        write_statistics_.execution_time->add_measurement(execution_time);
+        write_statistics_.recent_execution_time->add_measurement(execution_time, time.seconds());
       }
       last_write_cycle_time_ = time;
     }

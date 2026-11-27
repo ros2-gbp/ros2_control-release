@@ -170,8 +170,8 @@ class TestActuator : public ActuatorInterface
   }
 
   hardware_interface::return_type prepare_command_mode_switch(
-    const std::vector<std::string> & /*start_interfaces*/,
-    const std::vector<std::string> & /*stop_interfaces*/) override
+    const std::vector<std::string> & start_interfaces,
+    const std::vector<std::string> & stop_interfaces) override
   {
     check_injected_failure("prepare_command_mode_switch");
     double pos = 0.0;
@@ -181,8 +181,8 @@ class TestActuator : public ActuatorInterface
   }
 
   hardware_interface::return_type perform_command_mode_switch(
-    const std::vector<std::string> & /*start_interfaces*/,
-    const std::vector<std::string> & /*stop_interfaces*/) override
+    const std::vector<std::string> & start_interfaces,
+    const std::vector<std::string> & stop_interfaces) override
   {
     check_injected_failure("perform_command_mode_switch");
     if (get_hardware_info().hardware_parameters.count("fail_on_perform_mode_switch"))
@@ -203,7 +203,14 @@ class TestActuator : public ActuatorInterface
   return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & period) override
   {
     check_injected_failure("read");
-    if (get_hardware_info().is_async)
+    if (get_hardware_info().hardware_parameters.count("async_read_sleep_us"))
+    {
+      // lets tests force an overrun of the async cycle
+      std::this_thread::sleep_for(
+        std::chrono::microseconds(
+          std::stoi(get_hardware_info().hardware_parameters.at("async_read_sleep_us"))));
+    }
+    else if (get_hardware_info().is_async)
     {
       std::this_thread::sleep_for(
         std::chrono::milliseconds(1000 / (3 * get_hardware_info().rw_rate)));
